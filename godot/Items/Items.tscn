@@ -5,7 +5,6 @@
 [ext_resource type="PackedScene" uid="uid://cjhgur13aq42x" path="res://Items/ItemsHeader.tscn" id="2_rqndv"]
 
 [node name="Items" type="ColorRect"]
-clip_contents = true
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -37,20 +36,20 @@ size_flags_horizontal = 3
 [node name="HBoxContainer" type="HBoxContainer" parent="MarginContainer/ScrollContainer/VBoxContainer"]
 layout_mode = 2
 
-[node name="ColorGuess" type="ColorRect" parent="MarginContainer/ScrollContainer/VBoxContainer/HBoxContainer"]
+[node name="ColorRect" type="ColorRect" parent="MarginContainer/ScrollContainer/VBoxContainer/HBoxContainer"]
 custom_minimum_size = Vector2(0, 30)
 layout_mode = 2
 size_flags_horizontal = 3
 color = Color(0.121569, 0.121569, 0.176471, 1)
 
-[node name="Label" type="Label" parent="MarginContainer/ScrollContainer/VBoxContainer/HBoxContainer/ColorGuess"]
+[node name="Label" type="Label" parent="MarginContainer/ScrollContainer/VBoxContainer/HBoxContainer/ColorRect"]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-text = "Guess"
+text = "Question"
 horizontal_alignment = 1
 vertical_alignment = 1
 uppercase = true

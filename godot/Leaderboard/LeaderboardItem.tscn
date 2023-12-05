@@ -11,6 +11,7 @@ grow_vertical = 2
 custom_minimum_size = Vector2(0, 30)
 layout_mode = 2
 size_flags_horizontal = 3
+size_flags_stretch_ratio = 2.0
 color = Color(0.219608, 0.219608, 0.301961, 1)
 
 [node name="PlayerName" type="Label" parent="ColorName"]

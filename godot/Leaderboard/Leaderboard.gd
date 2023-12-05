@@ -6,7 +6,7 @@ var player_scores = {"PlyrA": 3, "PlyrB": 1}
 
 
 func _ready():
-	var items_container = $MarginContainer/VBoxContainer
+	var items_container = $MarginContainer/ScrollContainer/VBoxContainer
 
 	# Add new items if needed
 	while items_container.get_child_count() < len(player_scores) + 1:

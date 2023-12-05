@@ -4,7 +4,7 @@ var items_header_scene = preload("res://Items/ItemsHeader.tscn")
 var items_item_scene = preload("res://Items/ItemsItem.tscn")
 var items_answerbox_scene = preload("res://Items/ItemsAnswerBox.tscn")
 
-var guesses = {
+var questions = {
 	0: "Is it a living thing?",
 	1: "Is it an object used daily?",
 	2: "Is it bigger than a breadbox?",
@@ -47,7 +47,7 @@ var items = {
 }
 
 var answer_colors = {
-	"Y": Color(0.27, 0.5, 0.2), "N": Color(0.5, 0.2, 0.2), "M": Color(0.55, 0.27, 0.0)
+	"Y": Color(0.25, 0.5, 0.2), "N": Color(0.5, 0.2, 0.2), "M": Color(0.55, 0.35, 0.0)
 }
 
 
@@ -63,35 +63,35 @@ func _ready():
 
 		index += 1
 
-	# Get list of guesses that are active
-	var active_guesses = {}
-	for guess_index in guesses:
+	# Get list of questions that are active
+	var active_questions = {}
+	for question_index in questions:
 		for item_index in items:
 			var has_answer = false
-			for answer_guess in items[item_index][1]:
-				if answer_guess.split(";")[0] == str(guess_index):
+			for answer_question in items[item_index][1]:
+				if answer_question.split(";")[0] == str(question_index):
 					has_answer = true
 					break
 
 			if has_answer:
-				active_guesses[guess_index] = guesses[guess_index]
+				active_questions[question_index] = questions[question_index]
 				break
 
 	var items_container = $MarginContainer/ScrollContainer/VBoxContainer
 	manage_items(items_container, 20, items_item_scene)
 
-	# Update items with guess text
+	# Update items with question text
 	index = 1
-	for guess in range(0, 20):
-		var num_blanks = 20 - len(active_guesses)
-		var cur_guess = guess - num_blanks if guess > num_blanks else -1
+	for question in range(0, 20):
+		var num_blanks = 20 - len(active_questions)
+		var cur_question = question - num_blanks if question > num_blanks else -1
 
 		var child = items_container.get_child(index) as Control
 		child.get_node("ColorRect/MarginContainer/HBoxContainer/Index").set_text(
-			str(cur_guess) + ": " if guess > num_blanks else ""
+			str(cur_question) + ": " if question > num_blanks else ""
 		)
 		child.get_node("ColorRect/MarginContainer/HBoxContainer/Question").set_text(
-			active_guesses[cur_guess] if guess > num_blanks else ""
+			active_questions[cur_question] if question > num_blanks else ""
 		)
 
 		# Make the right number of answer boxes available
@@ -101,9 +101,9 @@ func _ready():
 		for item_index in items:
 			# Get answer if it exists
 			var answer = ""
-			for answer_guess in items[item_index][1]:
-				if answer_guess.split(";")[0] == str(cur_guess):
-					answer = answer_guess.split(";")[1]
+			for answer_question in items[item_index][1]:
+				if answer_question.split(";")[0] == str(cur_question):
+					answer = answer_question.split(";")[1]
 					break
 
 			if answer_colors.has(answer):
