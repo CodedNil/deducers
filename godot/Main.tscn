@@ -11,20 +11,28 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="HBoxContainer" type="HBoxContainer" parent="."]
+[node name="MarginContainer" type="MarginContainer" parent="."]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 10
+
+[node name="HBoxContainer" type="HBoxContainer" parent="MarginContainer"]
+layout_mode = 2
 theme_override_constants/separation = 50
 
-[node name="Items" parent="HBoxContainer" instance=ExtResource("2_7bovt")]
+[node name="Items" parent="MarginContainer/HBoxContainer" instance=ExtResource("2_7bovt")]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_stretch_ratio = 2.0
+color = Color(0.172549, 0.172549, 0.227451, 1)
 
-[node name="Leaderboard" parent="HBoxContainer" instance=ExtResource("1_lxit3")]
+[node name="Leaderboard" parent="MarginContainer/HBoxContainer" instance=ExtResource("1_lxit3")]
 layout_mode = 2
 size_flags_horizontal = 3

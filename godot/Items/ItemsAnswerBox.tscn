@@ -1,5 +1,23 @@
-[gd_scene format=3 uid="uid://baqgtovxupkv5"]
+[gd_scene load_steps=2 format=3 uid="uid://baqgtovxupkv5"]
+
+[ext_resource type="Texture2D" uid="uid://pg3thv4imb2y" path="res://Resources/coin.png" id="1_dqp3p"]
 
 [node name="ColorRect" type="ColorRect"]
 custom_minimum_size = Vector2(60, 30)
 color = Color(0.27451, 0.431373, 0.196078, 1)
+
+[node name="TextureRect" type="TextureRect" parent="."]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -10.0
+offset_top = -10.0
+offset_right = 10.0
+offset_bottom = 10.0
+grow_horizontal = 2
+grow_vertical = 2
+texture = ExtResource("1_dqp3p")
+expand_mode = 4

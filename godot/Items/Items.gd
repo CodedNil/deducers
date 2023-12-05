@@ -78,17 +78,20 @@ func _ready():
 				break
 
 	var items_container = $MarginContainer/VBoxContainer
-	manage_items(items_container, len(active_guesses), items_item_scene)
+	manage_items(items_container, 20, items_item_scene)
 
 	# Update items with guess text
 	index = 1
-	for guess in active_guesses:
+	for guess in range(0, 20):
+		var num_blanks = 20 - len(active_guesses)
+		var cur_guess = guess - num_blanks if guess > num_blanks else -1
+
 		var child = items_container.get_child(index) as Control
 		child.get_node("ColorRect/MarginContainer/HBoxContainer/Index").set_text(
-			str(guess + 1) + ": "
+			str(cur_guess) + ": " if guess > num_blanks else ""
 		)
 		child.get_node("ColorRect/MarginContainer/HBoxContainer/Question").set_text(
-			active_guesses[guess]
+			active_guesses[cur_guess] if guess > num_blanks else ""
 		)
 
 		# Make the right number of answer boxes available
@@ -99,14 +102,16 @@ func _ready():
 			# Get answer if it exists
 			var answer = ""
 			for answer_guess in items[item_index][1]:
-				if answer_guess.split(";")[0] == str(guess):
+				if answer_guess.split(";")[0] == str(cur_guess):
 					answer = answer_guess.split(";")[1]
 					break
 
 			if answer_colors.has(answer):
 				child.get_child(item_index + 1).set_color(answer_colors[answer])
+				child.get_child(item_index + 1).get_child(0).set_visible(false)
 			else:
 				child.get_child(item_index + 1).set_color(Color(0.2, 0.2, 0.2))
+				child.get_child(item_index + 1).get_child(0).set_visible(true)
 
 		index += 1
 
