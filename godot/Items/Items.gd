@@ -84,14 +84,13 @@ func _ready():
 	index = 1
 	for question in range(0, 20):
 		var num_blanks = 20 - len(active_questions)
-		var cur_question = question - num_blanks if question > num_blanks else -1
 
 		var child = items_container.get_child(index) as Control
 		child.get_node("ColorRect/MarginContainer/HBoxContainer/Index").set_text(
-			str(cur_question) + ": " if question > num_blanks else ""
+			str(question + 1) + ": " if question < 20 - num_blanks else ""
 		)
 		child.get_node("ColorRect/MarginContainer/HBoxContainer/Question").set_text(
-			active_questions[cur_question] if question > num_blanks else ""
+			active_questions[question] if question < 20 - num_blanks else ""
 		)
 
 		# Make the right number of answer boxes available
@@ -102,7 +101,7 @@ func _ready():
 			# Get answer if it exists
 			var answer = ""
 			for answer_question in items[item_index][1]:
-				if answer_question.split(";")[0] == str(cur_question):
+				if answer_question.split(";")[0] == str(question):
 					answer = answer_question.split(";")[1]
 					break
 
