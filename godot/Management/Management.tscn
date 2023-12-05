@@ -1,0 +1,53 @@
+[gd_scene format=3 uid="uid://i16aebnq4lbl"]
+
+[node name="Management" type="ColorRect"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.172549, 0.172549, 0.227451, 1)
+
+[node name="MarginContainer" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 10
+
+[node name="VBoxContainer" type="VBoxContainer" parent="MarginContainer"]
+layout_mode = 2
+
+[node name="CoinsLabel" type="Label" parent="MarginContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "5 Coins Available"
+horizontal_alignment = 1
+
+[node name="HBoxContainer" type="HBoxContainer" parent="MarginContainer/VBoxContainer"]
+layout_mode = 2
+
+[node name="QuestionTextEdit" type="TextEdit" parent="MarginContainer/VBoxContainer/HBoxContainer"]
+custom_minimum_size = Vector2(0, 35)
+layout_mode = 2
+size_flags_horizontal = 3
+placeholder_text = "Question to ask"
+context_menu_enabled = false
+
+[node name="SubmitButton" type="Button" parent="MarginContainer/VBoxContainer/HBoxContainer"]
+layout_mode = 2
+text = "Ask Question 2 Coins"
+
+[node name="AnonymouseCheckbox" type="CheckBox" parent="MarginContainer/VBoxContainer"]
+layout_mode = 2
+tooltip_text = "Hide the question from other players, they will see the answers still"
+text = "Anonymous (5 coins)"
+
+[node name="ConvertPointsButton" type="Button" parent="MarginContainer/VBoxContainer"]
+layout_mode = 2
+text = "Convert Leaderboard Point To 5 Coins"

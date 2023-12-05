@@ -8,6 +8,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+size_flags_vertical = 3
 
 [node name="ColorRect" type="ColorRect" parent="."]
 custom_minimum_size = Vector2(0, 30)
@@ -36,10 +37,13 @@ horizontal_alignment = 2
 vertical_alignment = 1
 
 [node name="Question" type="Label" parent="ColorRect/MarginContainer/HBoxContainer"]
+custom_minimum_size = Vector2(0, 30)
 layout_mode = 2
 size_flags_horizontal = 3
+size_flags_vertical = 1
 text = "Does it swim?"
 vertical_alignment = 1
+autowrap_mode = 3
 clip_text = true
 
 [node name="State1" parent="." instance=ExtResource("1_omn4r")]

@@ -1,7 +1,8 @@
-[gd_scene load_steps=4 format=3 uid="uid://b420mhnfvct05"]
+[gd_scene load_steps=5 format=3 uid="uid://b420mhnfvct05"]
 
 [ext_resource type="PackedScene" uid="uid://1cdi3tl5ef0l" path="res://Leaderboard/Leaderboard.tscn" id="1_lxit3"]
 [ext_resource type="PackedScene" uid="uid://du21sbvsxk8qr" path="res://Items/Items.tscn" id="2_7bovt"]
+[ext_resource type="PackedScene" uid="uid://i16aebnq4lbl" path="res://Management/Management.tscn" id="3_4eh0p"]
 [ext_resource type="PackedScene" uid="uid://dxp1qaj5t5l3l" path="res://QuestionVotes/QuestionVotes.tscn" id="3_o8jl5"]
 
 [node name="Main" type="Control"]
@@ -72,6 +73,10 @@ text = "Leave"
 [node name="Leaderboard" parent="MarginContainer/HBoxContainer/VBoxContainer/VBoxContainer" instance=ExtResource("1_lxit3")]
 layout_mode = 2
 size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="Management" parent="MarginContainer/HBoxContainer/VBoxContainer" instance=ExtResource("3_4eh0p")]
+layout_mode = 2
 size_flags_vertical = 3
 
 [node name="QuestionVotes" parent="MarginContainer/HBoxContainer/VBoxContainer" instance=ExtResource("3_o8jl5")]
