@@ -1,0 +1,56 @@
+[gd_scene load_steps=4 format=3 uid="uid://du21sbvsxk8qr"]
+
+[ext_resource type="Script" path="res://Items/Items.gd" id="1_f1p7p"]
+[ext_resource type="PackedScene" uid="uid://ccwo4nudofgf7" path="res://Items/ItemsItem.tscn" id="1_ujnu2"]
+[ext_resource type="PackedScene" uid="uid://cjhgur13aq42x" path="res://Items/ItemsHeader.tscn" id="2_rqndv"]
+
+[node name="Items" type="ColorRect"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.172549, 0.172549, 0.227451, 1)
+script = ExtResource("1_f1p7p")
+
+[node name="MarginContainer" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 10
+
+[node name="VBoxContainer" type="VBoxContainer" parent="MarginContainer"]
+layout_mode = 2
+
+[node name="HBoxContainer" type="HBoxContainer" parent="MarginContainer/VBoxContainer"]
+layout_mode = 2
+
+[node name="ColorGuess" type="ColorRect" parent="MarginContainer/VBoxContainer/HBoxContainer"]
+custom_minimum_size = Vector2(0, 30)
+layout_mode = 2
+size_flags_horizontal = 3
+color = Color(0.121569, 0.121569, 0.176471, 1)
+
+[node name="Label" type="Label" parent="MarginContainer/VBoxContainer/HBoxContainer/ColorGuess"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+text = "Guess"
+horizontal_alignment = 1
+vertical_alignment = 1
+uppercase = true
+
+[node name="ItemsHeader1" parent="MarginContainer/VBoxContainer/HBoxContainer" instance=ExtResource("2_rqndv")]
+layout_mode = 2
+
+[node name="ItemsItem1" parent="MarginContainer/VBoxContainer" instance=ExtResource("1_ujnu2")]
+layout_mode = 2

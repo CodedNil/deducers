@@ -1,0 +1,30 @@
+[gd_scene load_steps=3 format=3 uid="uid://b420mhnfvct05"]
+
+[ext_resource type="PackedScene" uid="uid://1cdi3tl5ef0l" path="res://Leaderboard/Leaderboard.tscn" id="1_lxit3"]
+[ext_resource type="PackedScene" uid="uid://du21sbvsxk8qr" path="res://Items/Items.tscn" id="2_7bovt"]
+
+[node name="Main" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="HBoxContainer" type="HBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 50
+
+[node name="Items" parent="HBoxContainer" instance=ExtResource("2_7bovt")]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 2.0
+
+[node name="Leaderboard" parent="HBoxContainer" instance=ExtResource("1_lxit3")]
+layout_mode = 2
+size_flags_horizontal = 3

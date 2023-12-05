@@ -1,0 +1,46 @@
+[gd_scene load_steps=2 format=3 uid="uid://ccwo4nudofgf7"]
+
+[ext_resource type="PackedScene" uid="uid://baqgtovxupkv5" path="res://Items/ItemsAnswerBox.tscn" id="1_omn4r"]
+
+[node name="ItemsItem" type="HBoxContainer"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="ColorRect" type="ColorRect" parent="."]
+custom_minimum_size = Vector2(0, 30)
+layout_mode = 2
+size_flags_horizontal = 3
+color = Color(0.219608, 0.219608, 0.301961, 1)
+
+[node name="MarginContainer" type="MarginContainer" parent="ColorRect"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 5
+theme_override_constants/margin_right = 5
+
+[node name="HBoxContainer" type="HBoxContainer" parent="ColorRect/MarginContainer"]
+layout_mode = 2
+
+[node name="Index" type="Label" parent="ColorRect/MarginContainer/HBoxContainer"]
+custom_minimum_size = Vector2(30, 0)
+layout_mode = 2
+text = "1:"
+horizontal_alignment = 2
+vertical_alignment = 1
+
+[node name="Question" type="Label" parent="ColorRect/MarginContainer/HBoxContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Does it swim?"
+vertical_alignment = 1
+clip_text = true
+
+[node name="State1" parent="." instance=ExtResource("1_omn4r")]
+layout_mode = 2
