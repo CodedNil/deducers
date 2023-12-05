@@ -52,7 +52,7 @@ var answer_colors = {
 
 
 func _ready():
-	var header_container = $MarginContainer/VBoxContainer/HBoxContainer
+	var header_container = $MarginContainer/ScrollContainer/VBoxContainer/HBoxContainer
 	manage_items(header_container, len(items), items_header_scene)
 
 	# Update headers with item text
@@ -77,7 +77,7 @@ func _ready():
 				active_guesses[guess_index] = guesses[guess_index]
 				break
 
-	var items_container = $MarginContainer/VBoxContainer
+	var items_container = $MarginContainer/ScrollContainer/VBoxContainer
 	manage_items(items_container, 20, items_item_scene)
 
 	# Update items with guess text
