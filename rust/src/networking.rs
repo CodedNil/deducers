@@ -1,24 +1,13 @@
 use crate::leaderboard;
 use chrono::{DateTime, Utc};
 use godot::{
-    engine::{ColorRect, Control, IControl, Label, LineEdit},
+    engine::{Button, ColorRect, Control, IControl, Label, LineEdit, Timer},
     prelude::*,
 };
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, time::Duration};
 
-#[derive(GodotClass)]
-#[class(base=Control)]
-struct DeducersMain {
-    #[base]
-    base: Base<Control>,
-    http_client: ureq::Agent,
-    server_ip: String,
-    player_name: String,
-    room_name: String,
-    connected: bool,
-    is_host: bool,
-}
+const UPDATE_TIME: f64 = 0.5;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 struct Server {
@@ -73,6 +62,21 @@ enum GameStateResponse {
     Error(String),
 }
 
+#[derive(GodotClass)]
+#[class(base=Control)]
+struct DeducersMain {
+    #[base]
+    base: Base<Control>,
+    http_client: ureq::Agent,
+    server_ip: String,
+    player_name: String,
+    room_name: String,
+    connected: bool,
+    is_host: bool,
+    elapsed_time: f64,
+    ping: f64,
+}
+
 #[godot_api]
 impl DeducersMain {
     #[func]
@@ -105,8 +109,6 @@ impl DeducersMain {
                     &response.into_string().unwrap_or_default(),
                 ) {
                     Ok(GameStateResponse::ServerState(server)) => {
-                        godot_print!("Server data: {:?}", server);
-
                         // Set fields
                         self.server_ip = server_ip_text;
                         self.player_name = player_name_text;
@@ -156,7 +158,24 @@ impl DeducersMain {
     }
 
     #[func]
-    fn on_start_server_pressed(&mut self) {}
+    fn on_start_server_pressed(&mut self) {
+        let url = format!(
+            "http://{server_ip}/server/{room_name}/start/{player_name}",
+            server_ip = self.server_ip,
+            room_name = self.room_name,
+            player_name = self.player_name
+        );
+        match self.http_client.post(&url).call() {
+            Ok(_) => {
+                self.base
+                    .get_node_as::<Button>("GameUI/HBoxContainer/VBoxContainer/Leaderboard/LobbyStatus/MarginContainer/HBoxContainer/StartButton")
+                    .hide();
+            }
+            Err(error) => {
+                godot_print!("Error starting server {error}");
+            }
+        }
+    }
 
     #[func]
     fn on_leave_server_pressed(&mut self) {
@@ -178,6 +197,50 @@ impl DeducersMain {
         self.base.get_node_as::<Control>("ConnectUI").show();
 
         self.connected = false;
+    }
+
+    #[allow(clippy::cast_precision_loss)]
+    fn refresh_game_state(&mut self) {
+        // Record the current time before sending the request
+        let start_time = Utc::now();
+
+        // Make get request to get game state
+        let url = format!(
+            "http://{server_ip}/server/{room_name}/getstate/{player_name}",
+            server_ip = self.server_ip,
+            room_name = self.room_name,
+            player_name = self.player_name
+        );
+        let result = self.http_client.get(&url).call();
+
+        match result {
+            Ok(response) => {
+                // Calculate the round-trip time (ping)
+                self.ping = (Utc::now() - start_time).num_milliseconds() as f64;
+                self.base
+                    .get_node_as::<Label>("GameUI/HBoxContainer/VBoxContainer/Leaderboard/LobbyStatus/MarginContainer/HBoxContainer/Ping")
+                    .set_text(format!("Ping: {}ms", self.ping).into());
+
+                match serde_json::from_str::<GameStateResponse>(
+                    &response.into_string().unwrap_or_default(),
+                ) {
+                    Ok(GameStateResponse::ServerState(server)) => {
+                        self.process_game_state(&server);
+                    }
+                    _ => {
+                        godot_print!("Failed to parse game state");
+                    }
+                }
+            }
+            Err(error) => {
+                godot_print!("Error getting game state {error}");
+
+                // Show connect ui
+                self.base.get_node_as::<Control>("ConnectUI").show();
+                self.connected = false;
+                self.show_alert("Lost connection to server".to_string());
+            }
+        }
     }
 
     fn process_join_server(&mut self, server: &Server) {
@@ -220,11 +283,24 @@ impl IControl for DeducersMain {
             room_name: String::new(),
             connected: false,
             is_host: false,
+            elapsed_time: 0.0,
+            ping: 0.0,
         }
     }
 
     fn ready(&mut self) {
         // Show connect ui
         self.base.get_node_as::<Control>("ConnectUI").show();
+    }
+
+    fn process(&mut self, delta: f64) {
+        if self.connected {
+            self.elapsed_time += delta;
+            if self.elapsed_time >= UPDATE_TIME {
+                self.elapsed_time = 0.0;
+
+                self.refresh_game_state();
+            }
+        }
     }
 }

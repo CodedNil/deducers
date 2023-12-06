@@ -110,13 +110,16 @@ async fn connect_player(
     let mut servers = servers.lock().await;
 
     // Get the server or create a new one
-    let server = servers.entry(server_id.clone()).or_insert_with(|| Server {
-        id: server_id.clone(),
-        key_player: player_name.clone(),
-        players: HashMap::new(),
-        started: false,
-        questions_queue: Vec::new(),
-        items: Vec::new(),
+    let server = servers.entry(server_id.clone()).or_insert_with(|| {
+        println!("Creating new server '{server_id}'");
+        Server {
+            id: server_id.clone(),
+            key_player: player_name.clone(),
+            players: HashMap::new(),
+            started: false,
+            questions_queue: Vec::new(),
+            items: Vec::new(),
+        }
     });
 
     // Check if player with the same name is already connected
@@ -180,7 +183,13 @@ async fn start_server(
     let mut servers = servers.lock().await;
 
     if let Some(server) = servers.get_mut(&server_id) {
-        if player_name == server.key_player {
+        if server.started {
+            println!("Server '{server_id}' attempted to start, already started'");
+            (
+                StatusCode::BAD_REQUEST,
+                "Server already started".to_string(),
+            )
+        } else if player_name == server.key_player {
             server.started = true;
             println!("Server '{server_id}' started by key player '{player_name}'");
             (
@@ -237,33 +246,53 @@ async fn get_game_state(
 
 async fn server_loop(servers: ServerStorage) {
     loop {
-        // Lock the servers once and perform all operations
-        let mut servers = servers.lock().await;
+        // Define a vector to store servers that need to be updated
+        let mut servers_to_update = Vec::new();
 
-        servers.retain(|id, server| {
-            server.players.retain(|player_id, player| {
-                if Utc::now()
-                    .signed_duration_since(player.last_contact)
-                    .num_seconds()
-                    > IDLE_KICK_TIME
-                {
-                    println!("Kicking player '{player_id}' due to idle");
-                    false // Remove idle players
-                } else {
-                    true // Keep active players
+        // Lock and process servers to decide which ones to update or remove
+        {
+            let servers = servers.lock().await;
+            for (id, server) in &*servers {
+                let mut active_players = HashMap::new();
+                let mut remove_server = true;
+
+                for (player_id, player) in &server.players {
+                    if Utc::now()
+                        .signed_duration_since(player.last_contact)
+                        .num_seconds()
+                        <= IDLE_KICK_TIME
+                    {
+                        active_players.insert(player_id.clone(), player.clone());
+                        if &server.key_player == player_id {
+                            remove_server = false; // Key player is active
+                        }
+                    } else {
+                        println!("Kicking player '{player_id}' due to idle");
+                    }
                 }
-            });
 
-            if !server.players.contains_key(&server.key_player) {
-                println!("Removing server '{id}' due to no key player");
-                false // Remove server if no key player
-            } else if server.players.is_empty() {
-                println!("Removing server '{id}' due to no players");
-                false // Remove server if no players
-            } else {
-                true // Keep server with players
+                if !remove_server && !active_players.is_empty() {
+                    servers_to_update.push((id.clone(), active_players)); // Cloning `id` here
+                } else {
+                    println!("Removing server '{id}' due to no key player or no players");
+                }
             }
-        });
+        }
+
+        // Apply updates to the servers
+        {
+            let mut servers = servers.lock().await;
+            servers.retain(|id, _| {
+                servers_to_update
+                    .iter()
+                    .any(|(update_id, _)| update_id == id)
+            });
+            for (id, active_players) in servers_to_update {
+                if let Some(server) = servers.get_mut(&id) {
+                    server.players = active_players;
+                }
+            }
+        }
 
         tokio::time::sleep(Duration::from_secs(1)).await;
     }
