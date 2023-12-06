@@ -27,12 +27,20 @@ theme_override_constants/margin_top = 10
 theme_override_constants/margin_right = 10
 theme_override_constants/margin_bottom = 10
 
-[node name="Label" type="Label" parent="LobbyStatus/MarginContainer"]
+[node name="HBoxContainer" type="HBoxContainer" parent="LobbyStatus/MarginContainer"]
 layout_mode = 2
-size_flags_horizontal = 0
+
+[node name="Label" type="Label" parent="LobbyStatus/MarginContainer/HBoxContainer"]
+layout_mode = 2
+size_flags_horizontal = 2
 text = "Lobby Id: 0000"
 
-[node name="Button" type="Button" parent="LobbyStatus/MarginContainer"]
+[node name="StartButton" type="Button" parent="LobbyStatus/MarginContainer/HBoxContainer"]
+layout_mode = 2
+size_flags_horizontal = 8
+text = "Start"
+
+[node name="LeaveButton" type="Button" parent="LobbyStatus/MarginContainer/HBoxContainer"]
 layout_mode = 2
 size_flags_horizontal = 8
 text = "Leave"

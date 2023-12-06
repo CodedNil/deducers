@@ -24,5 +24,5 @@ func _ready():
 	for player_name in player_scores:
 		var item = items_container.get_child(index) as Control
 		item.get_node("ColorName/PlayerName").set_text(player_name)
-		item.get_node("ColorScore/PlayerScore").set_text(str(player_scores[player_name]))
+		item.get_node("ColorScore/HBoxContainer/PlayerScore").set_text(str(player_scores[player_name]))
 		index += 1

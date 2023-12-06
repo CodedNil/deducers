@@ -11,10 +11,9 @@ use std::{collections::HashMap, sync::Arc, time::Duration};
 use tokio::{net::TcpListener, sync::Mutex};
 
 const SERVER_PORT: u16 = 3013;
-
 const IDLE_KICK_TIME: i64 = 10;
 
-#[allow(dead_code)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 struct Server {
     id: String,
     started: bool,
@@ -24,27 +23,27 @@ struct Server {
     items: Vec<Item>,
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 struct Player {
     name: String,
     last_contact: DateTime<Utc>,
     score: i32,
 }
 
-#[allow(dead_code)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 struct QueuedQuestion {
     player: String,
     question: String,
     votes: u32,
 }
 
-#[allow(dead_code)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 struct Item {
     name: String,
     questions: Vec<Question>,
 }
 
-#[allow(dead_code)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 struct Question {
     player: String,
     question: String,
@@ -52,7 +51,7 @@ struct Question {
     anonymous: bool,
 }
 
-#[allow(dead_code)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 enum Answer {
     Yes,
     No,
@@ -74,37 +73,16 @@ async fn main() {
         server_loop(servers_clone).await;
     });
 
-    // Add a demo run that runs after 1 second and makes http requests to the server
-    // tokio::spawn(async move {
-    //     tokio::time::sleep(Duration::from_secs(1)).await;
-    //     let client = reqwest::Client::new();
-    //     let server = format!("http://localhost:{SERVER_PORT}");
-    //     let server_id = "demo".to_string();
-    //     let player_name = "dan".to_string();
-
-    //     // Connect player
-    //     let url = format!("{server}/server/{server_id}/connect/{player_name}");
-    //     let response = client.post(&url).send().await.unwrap();
-    //     println!("Response: {}", response.text().await.unwrap());
-
-    //     // Get players
-    //     let url = format!("{server}/server/{server_id}/getplayers");
-    //     let response = client.get(&url).send().await.unwrap();
-    //     println!("Response: {}", response.text().await.unwrap());
-
-    //     // Start server
-    //     let url = format!("{server}/server/{server_id}/start/{player_name}");
-    //     let response = client.post(&url).send().await.unwrap();
-    //     println!("Response: {}", response.text().await.unwrap());
-    // });
-
     // Router setup
     let app = Router::new()
         .route(
             "/server/:server_id/connect/:player_name",
             post(connect_player),
         )
-        .route("/server/:server_id/getplayers", get(get_players))
+        .route(
+            "/server/:server_id/getstate/:player_name",
+            get(get_game_state),
+        )
         .route(
             "/server/:server_id/disconnect/:player_name",
             post(disconnect_player),
@@ -119,12 +97,19 @@ async fn main() {
     axum::serve(listener, app).await.unwrap();
 }
 
+#[derive(Serialize)]
+enum GameStateResponse {
+    ServerState(Server),
+    Error(String),
+}
+
 async fn connect_player(
     Path((server_id, player_name)): Path<(String, String)>,
     Extension(servers): Extension<ServerStorage>,
 ) -> impl IntoResponse {
     let mut servers = servers.lock().await;
 
+    // Get the server or create a new one
     let server = servers.entry(server_id.clone()).or_insert_with(|| Server {
         id: server_id.clone(),
         key_player: player_name.clone(),
@@ -134,20 +119,28 @@ async fn connect_player(
         items: Vec::new(),
     });
 
-    server
-        .players
-        .entry(player_name.clone())
-        .and_modify(|player| player.last_contact = Utc::now())
-        .or_insert(Player {
-            name: player_name.clone(),
-            last_contact: Utc::now(),
-            score: 0,
-        });
+    // Check if player with the same name is already connected
+    if server.players.contains_key(&player_name) {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(GameStateResponse::Error(format!(
+                "Player '{player_name}' is already connected to server '{server_id}'"
+            ))),
+        );
+    }
 
-    println!("Player {player_name} connected to server: {server_id}");
+    // Add the player to the server
+    server.players.entry(player_name.clone()).or_insert(Player {
+        name: player_name.clone(),
+        last_contact: Utc::now(),
+        score: 0,
+    });
+
+    // Return the game state
+    println!("Player '{player_name}' connected to server '{server_id}'");
     (
         StatusCode::OK,
-        format!("Player connected to server: {server_id}"),
+        Json(GameStateResponse::ServerState(server.clone())),
     )
 }
 
@@ -161,21 +154,21 @@ async fn disconnect_player(
         server.players.remove(&player_name);
         if player_name == server.key_player {
             servers.remove(&server_id);
-            println!("Key player left, server {server_id} closed.");
+            println!("Key player left, server '{server_id}' closed");
             return (
                 StatusCode::OK,
-                format!("Key player left, server {server_id} closed."),
+                format!("Key player left, server '{server_id}' closed"),
             );
         }
-        println!("Player {player_name} disconnected from server: {server_id}");
+        println!("Player '{player_name}' disconnected from server '{server_id}'");
         (
             StatusCode::OK,
-            format!("Player {player_name} disconnected from server: {server_id}"),
+            format!("Player '{player_name}' disconnected from server '{server_id}'"),
         )
     } else {
         (
             StatusCode::NOT_FOUND,
-            format!("Server {server_id} not found."),
+            format!("Server '{server_id}' not found."),
         )
     }
 }
@@ -189,36 +182,56 @@ async fn start_server(
     if let Some(server) = servers.get_mut(&server_id) {
         if player_name == server.key_player {
             server.started = true;
-            println!("Server {server_id} started by key player {player_name}.");
+            println!("Server '{server_id}' started by key player '{player_name}'");
             (
                 StatusCode::OK,
-                format!("Server {server_id} started by key player {player_name}."),
+                format!("Server '{server_id}' started by key player '{player_name}'"),
             )
         } else {
             (
                 StatusCode::FORBIDDEN,
-                "Only the key player can start the server.".to_string(),
+                "Only the key player can start the server".to_string(),
             )
         }
     } else {
         (
             StatusCode::NOT_FOUND,
-            format!("Server {server_id} not found."),
+            format!("Server '{server_id}' not found"),
         )
     }
 }
 
-async fn get_players(
-    Path(server_id): Path<String>,
+async fn get_game_state(
+    Path((server_id, player_name)): Path<(String, String)>,
     Extension(servers): Extension<ServerStorage>,
 ) -> impl IntoResponse {
-    let servers = servers.lock().await;
+    let mut servers = servers.lock().await;
 
-    if let Some(server) = servers.get(&server_id) {
-        let player_list = server.players.values().cloned().collect::<Vec<_>>();
-        (StatusCode::OK, Json(player_list))
+    if let Some(server) = servers.get_mut(&server_id) {
+        if let Some(player) = server.players.get_mut(&player_name) {
+            // Update last contact time for the player
+            player.last_contact = Utc::now();
+
+            // Return the entire state of the server
+            (
+                StatusCode::OK,
+                Json(GameStateResponse::ServerState(server.clone())),
+            )
+        } else {
+            (
+                StatusCode::NOT_FOUND,
+                Json(GameStateResponse::Error(format!(
+                    "Player '{player_name}' not found in server '{server_id}'"
+                ))),
+            )
+        }
     } else {
-        (StatusCode::NOT_FOUND, Json(vec![]))
+        (
+            StatusCode::NOT_FOUND,
+            Json(GameStateResponse::Error(format!(
+                "Server '{server_id}' not found"
+            ))),
+        )
     }
 }
 
@@ -234,7 +247,7 @@ async fn server_loop(servers: ServerStorage) {
                     .num_seconds()
                     > IDLE_KICK_TIME
                 {
-                    println!("Kicking player {player_id} due to idle");
+                    println!("Kicking player '{player_id}' due to idle");
                     false // Remove idle players
                 } else {
                     true // Keep active players
@@ -242,7 +255,7 @@ async fn server_loop(servers: ServerStorage) {
             });
 
             if server.players.is_empty() {
-                println!("Removing server due to no players {id}");
+                println!("Removing server '{id}' due to no players");
                 false // Remove server if no players
             } else {
                 true // Keep server with players
