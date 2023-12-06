@@ -1,19 +1,18 @@
-[gd_scene load_steps=6 format=3 uid="uid://b420mhnfvct05"]
+[gd_scene load_steps=5 format=3 uid="uid://b420mhnfvct05"]
 
-[ext_resource type="Script" path="res://Main.gd" id="1_8sapj"]
 [ext_resource type="PackedScene" uid="uid://1cdi3tl5ef0l" path="res://Leaderboard/Leaderboard.tscn" id="1_lxit3"]
 [ext_resource type="PackedScene" uid="uid://du21sbvsxk8qr" path="res://Items/Items.tscn" id="2_7bovt"]
 [ext_resource type="PackedScene" uid="uid://i16aebnq4lbl" path="res://Management/Management.tscn" id="3_4eh0p"]
 [ext_resource type="PackedScene" uid="uid://dxp1qaj5t5l3l" path="res://QuestionVotes/QuestionVotes.tscn" id="3_o8jl5"]
 
-[node name="Main" type="Control"]
-layout_mode = 3
+[node name="Main" type="DeducersMain"]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-script = ExtResource("1_8sapj")
+size_flags_horizontal = 3
+size_flags_vertical = 3
 
 [node name="GameUI" type="MarginContainer" parent="."]
 layout_mode = 1
@@ -170,6 +169,3 @@ custom_minimum_size = Vector2(100, 0)
 layout_mode = 2
 size_flags_horizontal = 4
 text = "Ok"
-
-[connection signal="pressed" from="ConnectUI/ColorRect/VBoxContainer/HBoxContainer/Connect" to="." method="_on_connect_pressed"]
-[connection signal="pressed" from="ErrorDialog/ColorRect/MarginContainer/VBoxContainer/CloseError" to="." method="_on_close_error_pressed"]
