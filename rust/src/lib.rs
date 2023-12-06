@@ -1,5 +1,6 @@
 use godot::prelude::*;
 
+mod leaderboard;
 mod networking;
 
 struct DeducersExtension;

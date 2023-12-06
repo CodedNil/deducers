@@ -1,11 +1,11 @@
-use std::{collections::HashMap, time::Duration};
-
+use crate::leaderboard;
 use chrono::{DateTime, Utc};
 use godot::{
     engine::{ColorRect, Control, IControl, Label, LineEdit},
     prelude::*,
 };
 use serde::{Deserialize, Serialize};
+use std::{collections::HashMap, time::Duration};
 
 #[derive(GodotClass)]
 #[class(base=Control)]
@@ -31,10 +31,10 @@ struct Server {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-struct Player {
-    name: String,
+pub struct Player {
+    pub name: String,
     last_contact: DateTime<Utc>,
-    score: i32,
+    pub score: i32,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -115,9 +115,8 @@ impl DeducersMain {
                         if server.key_player == self.player_name {
                             self.is_host = true;
                         }
-
-                        // Hide connect ui
-                        self.base.get_node_as::<Control>("ConnectUI").hide();
+                        self.process_join_server(&server);
+                        self.process_game_state(&server);
                     }
                     Ok(GameStateResponse::Error(err_msg)) => {
                         godot_print!("Error in game state response: {:?}", err_msg);
@@ -155,6 +154,57 @@ impl DeducersMain {
     fn on_error_dialog_ok_pressed(&mut self) {
         self.base.get_node_as::<ColorRect>("AlertDialog").hide();
     }
+
+    #[func]
+    fn on_start_server_pressed(&mut self) {}
+
+    #[func]
+    fn on_leave_server_pressed(&mut self) {
+        // Make post request to disconnect
+        let url = format!(
+            "http://{server_ip}/server/{room_name}/disconnect/{player_name}",
+            server_ip = self.server_ip,
+            room_name = self.room_name,
+            player_name = self.player_name
+        );
+        match self.http_client.post(&url).call() {
+            Ok(_) => {}
+            Err(error) => {
+                godot_print!("Error disconnecting from server {error}");
+            }
+        }
+
+        // Show connect ui
+        self.base.get_node_as::<Control>("ConnectUI").show();
+
+        self.connected = false;
+    }
+
+    fn process_join_server(&mut self, server: &Server) {
+        // Hide connect ui
+        self.base.get_node_as::<Control>("ConnectUI").hide();
+
+        // Set lobby id
+        self.base
+            .get_node_as::<Label>("GameUI/HBoxContainer/VBoxContainer/Leaderboard/LobbyStatus/MarginContainer/HBoxContainer/LobbyId")
+            .set_text(format!("Lobby ID: {}", self.room_name.clone()).into());
+
+        // Set start button visibility
+        self.base
+            .get_node_as::<Control>("GameUI/HBoxContainer/VBoxContainer/Leaderboard/LobbyStatus/MarginContainer/HBoxContainer/StartButton")
+            .set_visible(self.is_host && !server.started);
+    }
+
+    fn process_game_state(&mut self, server: &Server) {
+        leaderboard::update(
+            &self
+                .base
+                .get_node_as::<Control>("GameUI/HBoxContainer/VBoxContainer/Leaderboard"),
+            &server.players,
+            &self.player_name,
+            self.is_host,
+        );
+    }
 }
 
 #[godot_api]
@@ -171,5 +221,10 @@ impl IControl for DeducersMain {
             connected: false,
             is_host: false,
         }
+    }
+
+    fn ready(&mut self) {
+        // Show connect ui
+        self.base.get_node_as::<Control>("ConnectUI").show();
     }
 }

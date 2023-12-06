@@ -152,6 +152,7 @@ async fn disconnect_player(
 
     if let Some(server) = servers.get_mut(&server_id) {
         server.players.remove(&player_name);
+        println!("Player '{player_name}' disconnected from server '{server_id}'");
         if player_name == server.key_player {
             servers.remove(&server_id);
             println!("Key player left, server '{server_id}' closed");
@@ -160,7 +161,6 @@ async fn disconnect_player(
                 format!("Key player left, server '{server_id}' closed"),
             );
         }
-        println!("Player '{player_name}' disconnected from server '{server_id}'");
         (
             StatusCode::OK,
             format!("Player '{player_name}' disconnected from server '{server_id}'"),
@@ -254,7 +254,10 @@ async fn server_loop(servers: ServerStorage) {
                 }
             });
 
-            if server.players.is_empty() {
+            if !server.players.contains_key(&server.key_player) {
+                println!("Removing server '{id}' due to no key player");
+                false // Remove server if no key player
+            } else if server.players.is_empty() {
                 println!("Removing server '{id}' due to no players");
                 false // Remove server if no players
             } else {
