@@ -32,12 +32,14 @@ horizontal_alignment = 1
 [node name="HBoxContainer" type="HBoxContainer" parent="MarginContainer/VBoxContainer"]
 layout_mode = 2
 
-[node name="QuestionTextEdit" type="TextEdit" parent="MarginContainer/VBoxContainer/HBoxContainer"]
+[node name="QuestionTextEdit" type="LineEdit" parent="MarginContainer/VBoxContainer/HBoxContainer"]
 custom_minimum_size = Vector2(0, 35)
 layout_mode = 2
 size_flags_horizontal = 3
 placeholder_text = "Question to ask"
+max_length = 50
 context_menu_enabled = false
+clear_button_enabled = true
 
 [node name="SubmitButton" type="Button" parent="MarginContainer/VBoxContainer/HBoxContainer"]
 layout_mode = 2

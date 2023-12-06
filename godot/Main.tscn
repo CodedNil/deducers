@@ -1,5 +1,6 @@
-[gd_scene load_steps=5 format=3 uid="uid://b420mhnfvct05"]
+[gd_scene load_steps=6 format=3 uid="uid://b420mhnfvct05"]
 
+[ext_resource type="Script" path="res://Main.gd" id="1_8sapj"]
 [ext_resource type="PackedScene" uid="uid://1cdi3tl5ef0l" path="res://Leaderboard/Leaderboard.tscn" id="1_lxit3"]
 [ext_resource type="PackedScene" uid="uid://du21sbvsxk8qr" path="res://Items/Items.tscn" id="2_7bovt"]
 [ext_resource type="PackedScene" uid="uid://i16aebnq4lbl" path="res://Management/Management.tscn" id="3_4eh0p"]
@@ -12,8 +13,9 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+script = ExtResource("1_8sapj")
 
-[node name="MarginContainer" type="MarginContainer" parent="."]
+[node name="GameUI" type="MarginContainer" parent="."]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -25,28 +27,89 @@ theme_override_constants/margin_top = 10
 theme_override_constants/margin_right = 10
 theme_override_constants/margin_bottom = 10
 
-[node name="HBoxContainer" type="HBoxContainer" parent="MarginContainer"]
+[node name="HBoxContainer" type="HBoxContainer" parent="GameUI"]
 layout_mode = 2
 theme_override_constants/separation = 20
 
-[node name="Items" parent="MarginContainer/HBoxContainer" instance=ExtResource("2_7bovt")]
+[node name="Items" parent="GameUI/HBoxContainer" instance=ExtResource("2_7bovt")]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_stretch_ratio = 1.5
 
-[node name="VBoxContainer" type="VBoxContainer" parent="MarginContainer/HBoxContainer"]
+[node name="VBoxContainer" type="VBoxContainer" parent="GameUI/HBoxContainer"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 20
 
-[node name="Leaderboard" parent="MarginContainer/HBoxContainer/VBoxContainer" instance=ExtResource("1_lxit3")]
+[node name="Leaderboard" parent="GameUI/HBoxContainer/VBoxContainer" instance=ExtResource("1_lxit3")]
 layout_mode = 2
 size_flags_vertical = 3
 
-[node name="Management" parent="MarginContainer/HBoxContainer/VBoxContainer" instance=ExtResource("3_4eh0p")]
+[node name="Management" parent="GameUI/HBoxContainer/VBoxContainer" instance=ExtResource("3_4eh0p")]
 layout_mode = 2
 size_flags_vertical = 3
 
-[node name="QuestionVotes" parent="MarginContainer/HBoxContainer/VBoxContainer" instance=ExtResource("3_o8jl5")]
+[node name="QuestionVotes" parent="GameUI/HBoxContainer/VBoxContainer" instance=ExtResource("3_o8jl5")]
 layout_mode = 2
 size_flags_vertical = 3
+
+[node name="ConnectUI" type="MarginContainer" parent="."]
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 10
+
+[node name="ColorRect" type="ColorRect" parent="ConnectUI"]
+layout_mode = 2
+color = Color(0.172549, 0.172549, 0.227451, 1)
+
+[node name="HBoxContainer" type="HBoxContainer" parent="ConnectUI/ColorRect"]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -22.0
+offset_top = -20.0
+offset_right = 22.0
+offset_bottom = 20.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="PlayerName" type="LineEdit" parent="ConnectUI/ColorRect/HBoxContainer"]
+process_mode = 3
+custom_minimum_size = Vector2(120, 0)
+layout_mode = 2
+placeholder_text = "Player Name"
+max_length = 20
+expand_to_text_length = true
+
+[node name="Host" type="Button" parent="ConnectUI/ColorRect/HBoxContainer"]
+process_mode = 3
+layout_mode = 2
+text = "Host"
+
+[node name="Connect" type="Button" parent="ConnectUI/ColorRect/HBoxContainer"]
+process_mode = 3
+layout_mode = 2
+text = "Connect"
+
+[node name="Remote" type="LineEdit" parent="ConnectUI/ColorRect/HBoxContainer"]
+process_mode = 3
+custom_minimum_size = Vector2(120, 0)
+layout_mode = 2
+text = "127.0.0.1"
+placeholder_text = "Connect IP"
+max_length = 20
+expand_to_text_length = true
+
+[connection signal="pressed" from="ConnectUI/ColorRect/HBoxContainer/Host" to="." method="_on_host_pressed"]
+[connection signal="pressed" from="ConnectUI/ColorRect/HBoxContainer/Connect" to="." method="_on_connect_pressed"]
