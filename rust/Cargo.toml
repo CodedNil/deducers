@@ -3,12 +3,13 @@ name = "deducers"
 version = "0.1.0"
 edition = "2021"
 
-[lib]
-crate-type = ["cdylib"]
-
 [dependencies]
-godot = { git = "https://github.com/godot-rust/gdext", branch = "master" }
 anyhow = "1.0"
+axum = "0.7"
+tokio = { version = "1.0", features = ["full"] }
+chrono = { version = "0.4", features = ["serde"] }
+serde = { version = "1.0", features = ["derive"] }
+reqwest = "0.11"
 
 # Enable optimization in debug mode
 [profile.dev]
@@ -17,6 +18,3 @@ opt-level = 3
 # Enable high optimizations for dependencies
 [profile.dev.package."*"]
 opt-level = 3
-
-[profile.release]
-codegen-units = 1

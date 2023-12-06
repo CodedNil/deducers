@@ -54,7 +54,6 @@ layout_mode = 2
 size_flags_vertical = 3
 
 [node name="ConnectUI" type="MarginContainer" parent="."]
-visible = false
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -70,46 +69,107 @@ theme_override_constants/margin_bottom = 10
 layout_mode = 2
 color = Color(0.172549, 0.172549, 0.227451, 1)
 
-[node name="HBoxContainer" type="HBoxContainer" parent="ConnectUI/ColorRect"]
+[node name="VBoxContainer" type="VBoxContainer" parent="ConnectUI/ColorRect"]
 layout_mode = 1
 anchors_preset = 8
 anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -22.0
+offset_left = -184.0
 offset_top = -20.0
-offset_right = 22.0
+offset_right = 184.0
 offset_bottom = 20.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="PlayerName" type="LineEdit" parent="ConnectUI/ColorRect/HBoxContainer"]
+[node name="ServerIp" type="LineEdit" parent="ConnectUI/ColorRect/VBoxContainer"]
+process_mode = 3
+custom_minimum_size = Vector2(200, 0)
+layout_mode = 2
+size_flags_horizontal = 4
+text = "localhost:3013"
+placeholder_text = "Server IP"
+max_length = 20
+expand_to_text_length = true
+
+[node name="HBoxContainer" type="HBoxContainer" parent="ConnectUI/ColorRect/VBoxContainer"]
+layout_mode = 2
+size_flags_horizontal = 4
+
+[node name="PlayerName" type="LineEdit" parent="ConnectUI/ColorRect/VBoxContainer/HBoxContainer"]
 process_mode = 3
 custom_minimum_size = Vector2(120, 0)
 layout_mode = 2
+text = "Dan"
 placeholder_text = "Player Name"
 max_length = 20
 expand_to_text_length = true
 
-[node name="Host" type="Button" parent="ConnectUI/ColorRect/HBoxContainer"]
+[node name="RoomName" type="LineEdit" parent="ConnectUI/ColorRect/VBoxContainer/HBoxContainer"]
 process_mode = 3
+custom_minimum_size = Vector2(120, 0)
 layout_mode = 2
-text = "Host"
+text = "trium"
+placeholder_text = "Server Room"
+max_length = 20
+expand_to_text_length = true
 
-[node name="Connect" type="Button" parent="ConnectUI/ColorRect/HBoxContainer"]
+[node name="Connect" type="Button" parent="ConnectUI/ColorRect/VBoxContainer/HBoxContainer"]
 process_mode = 3
 layout_mode = 2
 text = "Connect"
 
-[node name="Remote" type="LineEdit" parent="ConnectUI/ColorRect/HBoxContainer"]
-process_mode = 3
-custom_minimum_size = Vector2(120, 0)
-layout_mode = 2
-text = "127.0.0.1"
-placeholder_text = "Connect IP"
-max_length = 20
-expand_to_text_length = true
+[node name="ErrorDialog" type="MarginContainer" parent="."]
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 10
 
-[connection signal="pressed" from="ConnectUI/ColorRect/HBoxContainer/Host" to="." method="_on_host_pressed"]
-[connection signal="pressed" from="ConnectUI/ColorRect/HBoxContainer/Connect" to="." method="_on_connect_pressed"]
+[node name="ColorRect" type="ColorRect" parent="ErrorDialog"]
+custom_minimum_size = Vector2(500, 300)
+layout_mode = 2
+size_flags_horizontal = 4
+size_flags_vertical = 4
+color = Color(0.282353, 0.121569, 0.145098, 1)
+
+[node name="MarginContainer" type="MarginContainer" parent="ErrorDialog/ColorRect"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 20
+theme_override_constants/margin_top = 20
+theme_override_constants/margin_right = 20
+theme_override_constants/margin_bottom = 20
+
+[node name="VBoxContainer" type="VBoxContainer" parent="ErrorDialog/ColorRect/MarginContainer"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="ErrorDialog/ColorRect/MarginContainer/VBoxContainer"]
+custom_minimum_size = Vector2(200, 200)
+layout_mode = 2
+size_flags_vertical = 3
+text = "Error"
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 3
+
+[node name="CloseError" type="Button" parent="ErrorDialog/ColorRect/MarginContainer/VBoxContainer"]
+process_mode = 3
+custom_minimum_size = Vector2(100, 0)
+layout_mode = 2
+size_flags_horizontal = 4
+text = "Ok"
+
+[connection signal="pressed" from="ConnectUI/ColorRect/VBoxContainer/HBoxContainer/Connect" to="." method="_on_connect_pressed"]
+[connection signal="pressed" from="ErrorDialog/ColorRect/MarginContainer/VBoxContainer/CloseError" to="." method="_on_close_error_pressed"]
