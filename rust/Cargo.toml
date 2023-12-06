@@ -9,6 +9,7 @@ crate-type = ["cdylib"]
 [dependencies]
 godot = { git = "https://github.com/godot-rust/gdext", branch = "master" }
 anyhow = "1.0"
+ureq = "2.7"
 
 # Enable optimization in debug mode
 [profile.dev]

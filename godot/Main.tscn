@@ -169,3 +169,5 @@ custom_minimum_size = Vector2(100, 0)
 layout_mode = 2
 size_flags_horizontal = 4
 text = "Ok"
+
+[connection signal="pressed" from="ConnectUI/ColorRect/VBoxContainer/HBoxContainer/Connect" to="." method="on_connect_button_pressed"]

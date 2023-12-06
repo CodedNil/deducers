@@ -139,11 +139,12 @@ async fn connect_player(
         .entry(player_name.clone())
         .and_modify(|player| player.last_contact = Utc::now())
         .or_insert(Player {
-            name: player_name,
+            name: player_name.clone(),
             last_contact: Utc::now(),
             score: 0,
         });
 
+    println!("Player {player_name} connected to server: {server_id}");
     (
         StatusCode::OK,
         format!("Player connected to server: {server_id}"),
@@ -160,11 +161,13 @@ async fn disconnect_player(
         server.players.remove(&player_name);
         if player_name == server.key_player {
             servers.remove(&server_id);
+            println!("Key player left, server {server_id} closed.");
             return (
                 StatusCode::OK,
                 format!("Key player left, server {server_id} closed."),
             );
         }
+        println!("Player {player_name} disconnected from server: {server_id}");
         (
             StatusCode::OK,
             format!("Player {player_name} disconnected from server: {server_id}"),
@@ -186,6 +189,7 @@ async fn start_server(
     if let Some(server) = servers.get_mut(&server_id) {
         if player_name == server.key_player {
             server.started = true;
+            println!("Server {server_id} started by key player {player_name}.");
             (
                 StatusCode::OK,
                 format!("Server {server_id} started by key player {player_name}."),
@@ -220,47 +224,30 @@ async fn get_players(
 
 async fn server_loop(servers: ServerStorage) {
     loop {
-        // Create a list of server IDs that need to be modified or removed
-        let mut to_modify = Vec::new();
-        let mut to_remove = Vec::new();
+        // Lock the servers once and perform all operations
+        let mut servers = servers.lock().await;
 
-        // Lock, read, and immediately release the lock
-        {
-            let servers = servers.lock().await;
-            for (id, server) in servers.iter() {
-                let is_active = server.players.iter().any(|(_, player)| {
-                    Utc::now()
-                        .signed_duration_since(player.last_contact)
-                        .num_seconds()
-                        < IDLE_KICK_TIME
-                });
-
-                if is_active {
-                    to_modify.push(id.clone());
+        servers.retain(|id, server| {
+            server.players.retain(|player_id, player| {
+                if Utc::now()
+                    .signed_duration_since(player.last_contact)
+                    .num_seconds()
+                    > IDLE_KICK_TIME
+                {
+                    println!("Kicking player {player_id} due to idle");
+                    false // Remove idle players
                 } else {
-                    to_remove.push(id.clone());
+                    true // Keep active players
                 }
-            }
-        }
+            });
 
-        // Lock again to modify the data
-        {
-            let mut servers = servers.lock().await;
-            for id in to_modify {
-                if let Some(server) = servers.get_mut(&id) {
-                    server.players.retain(|_, player| {
-                        Utc::now()
-                            .signed_duration_since(player.last_contact)
-                            .num_seconds()
-                            < IDLE_KICK_TIME
-                    });
-                }
+            if server.players.is_empty() {
+                println!("Removing server due to no players {id}");
+                false // Remove server if no players
+            } else {
+                true // Keep server with players
             }
-
-            for id in to_remove {
-                servers.remove(&id);
-            }
-        }
+        });
 
         tokio::time::sleep(Duration::from_secs(1)).await;
     }
