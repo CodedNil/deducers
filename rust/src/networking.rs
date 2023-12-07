@@ -1,7 +1,7 @@
 use crate::leaderboard;
 use chrono::{DateTime, Utc};
 use godot::{
-    engine::{Button, ColorRect, Control, IControl, Label, LineEdit, Timer},
+    engine::{Button, ColorRect, Control, IControl, Label, LineEdit},
     prelude::*,
 };
 use serde::{Deserialize, Serialize};
@@ -13,6 +13,7 @@ const UPDATE_TIME: f64 = 0.5;
 struct Server {
     id: String,
     started: bool,
+    elapsed_time: f64,
     key_player: String,
     players: HashMap<String, Player>,
     questions_queue: Vec<QueuedQuestion>,
@@ -24,6 +25,7 @@ pub struct Player {
     pub name: String,
     last_contact: DateTime<Utc>,
     pub score: i32,
+    coins: i32,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -36,6 +38,7 @@ struct QueuedQuestion {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 struct Item {
     name: String,
+    id: u32,
     questions: Vec<Question>,
 }
 
@@ -73,8 +76,7 @@ struct DeducersMain {
     room_name: String,
     connected: bool,
     is_host: bool,
-    elapsed_time: f64,
-    ping: f64,
+    time_since_update: f64,
 }
 
 #[godot_api]
@@ -216,10 +218,10 @@ impl DeducersMain {
         match result {
             Ok(response) => {
                 // Calculate the round-trip time (ping)
-                self.ping = (Utc::now() - start_time).num_milliseconds() as f64;
+                let ping = (Utc::now() - start_time).num_milliseconds();
                 self.base
                     .get_node_as::<Label>("GameUI/HBoxContainer/VBoxContainer/Leaderboard/LobbyStatus/MarginContainer/HBoxContainer/Ping")
-                    .set_text(format!("Ping: {}ms", self.ping).into());
+                    .set_text(format!("Ping: {ping}ms").into());
 
                 match serde_json::from_str::<GameStateResponse>(
                     &response.into_string().unwrap_or_default(),
@@ -258,6 +260,7 @@ impl DeducersMain {
             .set_visible(self.is_host && !server.started);
     }
 
+    #[allow(clippy::cast_possible_truncation)]
     fn process_game_state(&mut self, server: &Server) {
         leaderboard::update(
             &self
@@ -267,6 +270,17 @@ impl DeducersMain {
             &self.player_name,
             self.is_host,
         );
+
+        let elapsed_seconds = server.elapsed_time as i32;
+        println!("Elapsed seconds: {}", server.elapsed_time);
+        self.base
+        .get_node_as::<Label>("GameUI/HBoxContainer/VBoxContainer/Leaderboard/LobbyStatus/MarginContainer/HBoxContainer/Time")
+        .set_text(format!("Time: {elapsed_seconds}s").into());
+
+        let coins = server.players.get(&self.player_name).unwrap().coins;
+        self.base
+            .get_node_as::<Label>("GameUI/HBoxContainer/VBoxContainer/Management/MarginContainer/VBoxContainer/CoinsLabel")
+            .set_text(format!("{coins} Coins Available").into());
     }
 }
 
@@ -283,8 +297,7 @@ impl IControl for DeducersMain {
             room_name: String::new(),
             connected: false,
             is_host: false,
-            elapsed_time: 0.0,
-            ping: 0.0,
+            time_since_update: 0.0,
         }
     }
 
@@ -295,9 +308,9 @@ impl IControl for DeducersMain {
 
     fn process(&mut self, delta: f64) {
         if self.connected {
-            self.elapsed_time += delta;
-            if self.elapsed_time >= UPDATE_TIME {
-                self.elapsed_time = 0.0;
+            self.time_since_update += delta;
+            if self.time_since_update >= UPDATE_TIME {
+                self.time_since_update = 0.0;
 
                 self.refresh_game_state();
             }

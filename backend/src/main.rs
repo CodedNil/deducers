@@ -17,6 +17,8 @@ const IDLE_KICK_TIME: i64 = 10;
 struct Server {
     id: String,
     started: bool,
+    elapsed_time: f64,
+    last_update: DateTime<Utc>,
     key_player: String,
     players: HashMap<String, Player>,
     questions_queue: Vec<QueuedQuestion>,
@@ -28,6 +30,7 @@ struct Player {
     name: String,
     last_contact: DateTime<Utc>,
     score: i32,
+    coins: i32,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -40,6 +43,7 @@ struct QueuedQuestion {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 struct Item {
     name: String,
+    id: u32,
     questions: Vec<Question>,
 }
 
@@ -117,6 +121,8 @@ async fn connect_player(
             key_player: player_name.clone(),
             players: HashMap::new(),
             started: false,
+            elapsed_time: 0.0,
+            last_update: Utc::now(),
             questions_queue: Vec::new(),
             items: Vec::new(),
         }
@@ -137,6 +143,7 @@ async fn connect_player(
         name: player_name.clone(),
         last_contact: Utc::now(),
         score: 0,
+        coins: 3,
     });
 
     // Return the game state
@@ -191,6 +198,7 @@ async fn start_server(
             )
         } else if player_name == server.key_player {
             server.started = true;
+            server.last_update = Utc::now();
             println!("Server '{server_id}' started by key player '{player_name}'");
             (
                 StatusCode::OK,
@@ -244,15 +252,16 @@ async fn get_game_state(
     }
 }
 
+#[allow(clippy::cast_precision_loss)]
 async fn server_loop(servers: ServerStorage) {
     loop {
-        // Define a vector to store servers that need to be updated
-        let mut servers_to_update = Vec::new();
+        let current_time = Utc::now();
 
         // Lock and process servers to decide which ones to update or remove
+        let mut servers_to_update = Vec::new();
         {
             let servers = servers.lock().await;
-            for (id, server) in &*servers {
+            for (id, server) in servers.iter() {
                 let mut active_players = HashMap::new();
                 let mut remove_server = true;
 
@@ -271,10 +280,10 @@ async fn server_loop(servers: ServerStorage) {
                     }
                 }
 
-                if !remove_server && !active_players.is_empty() {
-                    servers_to_update.push((id.clone(), active_players)); // Cloning `id` here
-                } else {
+                if remove_server {
                     println!("Removing server '{id}' due to no key player or no players");
+                } else {
+                    servers_to_update.push((id.clone(), active_players));
                 }
             }
         }
@@ -282,18 +291,44 @@ async fn server_loop(servers: ServerStorage) {
         // Apply updates to the servers
         {
             let mut servers = servers.lock().await;
+            // Remove servers that are not in the update list
             servers.retain(|id, _| {
                 servers_to_update
                     .iter()
                     .any(|(update_id, _)| update_id == id)
             });
+            // Update servers that are in the update list
             for (id, active_players) in servers_to_update {
                 if let Some(server) = servers.get_mut(&id) {
                     server.players = active_players;
+                    if server.started {
+                        let elapsed_time_update = current_time
+                            .signed_duration_since(server.last_update)
+                            .num_milliseconds()
+                            as f64
+                            / 1_000.0;
+
+                        // Determine the previous and current multiples of 3 seconds
+                        let previous_multiple_of_three = server.elapsed_time / 3.0;
+                        let current_multiple_of_three =
+                            (server.elapsed_time + elapsed_time_update) / 3.0;
+
+                        // Check if the elapsed time has crossed a multiple of 3 seconds
+                        if current_multiple_of_three.trunc() > previous_multiple_of_three.trunc() {
+                            // Give a coin to each player
+                            for player in server.players.values_mut() {
+                                player.coins += 1;
+                            }
+                        }
+
+                        // Update elapsed time and last update time
+                        server.elapsed_time += elapsed_time_update;
+                        server.last_update = current_time;
+                    }
                 }
             }
         }
 
-        tokio::time::sleep(Duration::from_secs(1)).await;
+        tokio::time::sleep(Duration::from_millis(500)).await;
     }
 }
