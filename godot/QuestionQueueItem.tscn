@@ -1,4 +1,7 @@
-[gd_scene format=3 uid="uid://b47th8fk5yg1p"]
+[gd_scene load_steps=3 format=3 uid="uid://b47th8fk5yg1p"]
+
+[ext_resource type="Texture2D" uid="uid://pg3thv4imb2y" path="res://Resources/coin.png" id="1_ii3iy"]
+[ext_resource type="Script" path="res://QuestionQueueItem.gd" id="1_j27ei"]
 
 [node name="QuestionVotesItem" type="HBoxContainer"]
 anchors_preset = 15
@@ -6,6 +9,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+script = ExtResource("1_j27ei")
 
 [node name="ColorRect1" type="ColorRect" parent="."]
 custom_minimum_size = Vector2(0, 30)
@@ -64,9 +68,13 @@ text = "0
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="Button" type="Button" parent="ColorRect3/HBoxContainer"]
+[node name="VoteButton" type="Button" parent="ColorRect3/HBoxContainer"]
+custom_minimum_size = Vector2(30, 30)
 layout_mode = 2
 size_flags_horizontal = 8
-size_flags_vertical = 4
 tooltip_text = "Vote for this question, 1 coin"
-text = "+"
+icon = ExtResource("1_ii3iy")
+icon_alignment = 1
+expand_icon = true
+
+[connection signal="pressed" from="ColorRect3/HBoxContainer/VoteButton" to="." method="_on_vote_button_pressed"]

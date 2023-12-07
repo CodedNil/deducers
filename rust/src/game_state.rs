@@ -28,10 +28,10 @@ pub struct Player {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-struct QueuedQuestion {
-    player: String,
-    question: String,
-    votes: u32,
+pub struct QueuedQuestion {
+    pub player: String,
+    pub question: String,
+    pub votes: u32,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -166,6 +166,8 @@ impl DeducersMain {
             &self.player_name,
             self.is_host,
         );
+
+        self.questions_queue_update(&server.questions_queue);
 
         let elapsed_seconds = server.elapsed_time as i32;
         println!("Elapsed seconds: {}", server.elapsed_time);

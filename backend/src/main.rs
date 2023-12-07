@@ -9,17 +9,20 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, sync::Arc, time::Duration};
 use tokio::{net::TcpListener, sync::Mutex};
+mod items;
+mod question_queue;
 
 const SERVER_PORT: u16 = 3013;
 const IDLE_KICK_TIME: i64 = 10;
-const COINS_EVERY_X_SECONDS: f64 = 3.0;
-const SUBMIT_QUESTION_EVERY_X_SECONDS: f64 = 5.0;
-const SUBMIT_QUESTION_COST: i32 = 2;
-const ANONYMOUS_QUESTION_COST: i32 = 5;
-const SCORE_TO_COINS_RATIO: i32 = 2;
+pub const COINS_EVERY_X_SECONDS: f64 = 3.0;
+pub const SUBMIT_QUESTION_EVERY_X_SECONDS: f64 = 5.0;
+pub const SUBMIT_QUESTION_COST: i32 = 2;
+pub const ANONYMOUS_QUESTION_COST: i32 = 5;
+pub const VOTE_QUESTION_COST: i32 = 1;
+pub const SCORE_TO_COINS_RATIO: i32 = 2;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-struct Server {
+pub struct Server {
     id: String,
     started: bool,
     elapsed_time: f64,
@@ -28,6 +31,7 @@ struct Server {
     players: HashMap<String, Player>,
     questions_queue: Vec<QueuedQuestion>,
     items: Vec<Item>,
+    items_history: Vec<String>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -70,7 +74,7 @@ enum Answer {
     Irrelevant,
 }
 
-type ServerStorage = Arc<Mutex<HashMap<String, Server>>>;
+pub type ServerStorage = Arc<Mutex<HashMap<String, Server>>>;
 
 #[tokio::main]
 async fn main() {
@@ -100,7 +104,11 @@ async fn main() {
         )
         .route(
             "/server/:server_id/submitquestion/:player_name/:question/:options",
-            post(player_submit_question),
+            post(question_queue::player_submit_question),
+        )
+        .route(
+            "/server/:server_id/votequestion/:player_name/:question",
+            post(question_queue::player_vote_question),
         )
         .layer(Extension(servers));
 
@@ -135,6 +143,7 @@ async fn connect_player(
             last_update: Utc::now(),
             questions_queue: Vec::new(),
             items: Vec::new(),
+            items_history: Vec::new(),
         }
     });
 
@@ -226,78 +235,6 @@ async fn start_server(
             format!("Server '{server_id}' not found"),
         )
     }
-}
-
-// Define a struct to deserialize the options JSON
-#[derive(Deserialize)]
-struct QuestionOptions {
-    anonymous: bool,
-}
-
-async fn player_submit_question(
-    Path((server_id, player_name, question, options)): Path<(String, String, String, String)>,
-    Extension(servers): Extension<ServerStorage>,
-) -> impl IntoResponse {
-    let mut servers = servers.lock().await;
-
-    if let Some(server) = servers.get_mut(&server_id) {
-        if let Some(player) = server.players.get_mut(&player_name) {
-            // Attempt to parse options JSON
-            let Ok(question_options) = serde_json::from_str::<QuestionOptions>(&options) else {
-                return (
-                    StatusCode::BAD_REQUEST,
-                    "Invalid options format".to_string(),
-                );
-            };
-
-            // Calculate submission cost and check if player has enough coins
-            let total_cost = if question_options.anonymous {
-                SUBMIT_QUESTION_COST + ANONYMOUS_QUESTION_COST
-            } else {
-                SUBMIT_QUESTION_COST
-            };
-            if player.coins < total_cost {
-                return (
-                    StatusCode::BAD_REQUEST,
-                    "Insufficient coins to submit question".to_string(),
-                );
-            }
-
-            // Validate the question
-            if !is_valid_question(&question) {
-                return (
-                    StatusCode::BAD_REQUEST,
-                    "Invalid question format".to_string(),
-                );
-            }
-
-            // Deduct coins and add question to queue
-            player.coins -= total_cost;
-            server.questions_queue.push(QueuedQuestion {
-                player: player_name.clone(),
-                question,
-                votes: 0,
-                anonymous: question_options.anonymous,
-            });
-            (
-                StatusCode::OK,
-                "Question submitted successfully".to_string(),
-            )
-        } else {
-            (
-                StatusCode::NOT_FOUND,
-                "Player not found in server".to_string(),
-            )
-        }
-    } else {
-        (StatusCode::NOT_FOUND, "Server not found".to_string())
-    }
-}
-
-// Helper function to validate a question
-fn is_valid_question(question: &str) -> bool {
-    // Implement actual question validation logic here
-    !question.trim().is_empty()
 }
 
 async fn get_game_state(

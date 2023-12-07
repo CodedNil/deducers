@@ -144,6 +144,11 @@ impl DeducersMain {
     }
 
     #[func]
+    fn on_question_queue_vote_pressed(&mut self, button_id: u32) {
+        self.question_queue_vote_clicked(button_id);
+    }
+
+    #[func]
     fn on_convert_score_pressed(&mut self) {}
 }
 

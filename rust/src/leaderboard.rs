@@ -7,12 +7,12 @@ use std::collections::HashMap;
 
 #[allow(clippy::cast_possible_wrap, clippy::cast_possible_truncation)]
 pub fn update(
-    leaderboard: &Gd<Control>,
+    ui_root: &Gd<Control>,
     players: &HashMap<String, Player>,
     player_name: &String,
     is_host: bool,
 ) {
-    let mut items_container = leaderboard.get_node_as::<VBoxContainer>(
+    let mut items_container = ui_root.get_node_as::<VBoxContainer>(
         "LeaderboardColorRect/MarginContainer/ScrollContainer/VBoxContainer",
     );
 
@@ -20,11 +20,11 @@ pub fn update(
     let children_to_add = (players.len() + 1) as i32 - items_container.get_child_count();
     if children_to_add > 0 {
         for _ in 0..children_to_add {
-            let leaderboard_item_scene = ResourceLoader::singleton()
+            let item_scene = ResourceLoader::singleton()
                 .load("res://LeaderboardItem.tscn".into())
                 .unwrap()
                 .cast::<PackedScene>();
-            let new_item = leaderboard_item_scene.instantiate().unwrap();
+            let new_item = item_scene.instantiate().unwrap();
             items_container.add_child(new_item);
         }
     }

@@ -325,12 +325,12 @@ text = "Convert Leaderboard Point To 2 Coins"
 layout_mode = 2
 horizontal_alignment = 1
 
-[node name="QuestionVotes" type="ColorRect" parent="GameUI/HBoxContainer/VBoxContainer"]
+[node name="QuestionQueue" type="ColorRect" parent="GameUI/HBoxContainer/VBoxContainer"]
 layout_mode = 2
 size_flags_vertical = 3
 color = Color(0.172549, 0.172549, 0.227451, 1)
 
-[node name="MarginContainer" type="MarginContainer" parent="GameUI/HBoxContainer/VBoxContainer/QuestionVotes"]
+[node name="MarginContainer" type="MarginContainer" parent="GameUI/HBoxContainer/VBoxContainer/QuestionQueue"]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -342,29 +342,29 @@ theme_override_constants/margin_top = 10
 theme_override_constants/margin_right = 10
 theme_override_constants/margin_bottom = 10
 
-[node name="ScrollContainer" type="ScrollContainer" parent="GameUI/HBoxContainer/VBoxContainer/QuestionVotes/MarginContainer"]
+[node name="ScrollContainer" type="ScrollContainer" parent="GameUI/HBoxContainer/VBoxContainer/QuestionQueue/MarginContainer"]
 layout_mode = 2
 horizontal_scroll_mode = 0
 
-[node name="VBoxContainer" type="VBoxContainer" parent="GameUI/HBoxContainer/VBoxContainer/QuestionVotes/MarginContainer/ScrollContainer"]
+[node name="VBoxContainer" type="VBoxContainer" parent="GameUI/HBoxContainer/VBoxContainer/QuestionQueue/MarginContainer/ScrollContainer"]
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="Label" type="Label" parent="GameUI/HBoxContainer/VBoxContainer/QuestionVotes/MarginContainer/ScrollContainer/VBoxContainer"]
+[node name="Label" type="Label" parent="GameUI/HBoxContainer/VBoxContainer/QuestionQueue/MarginContainer/ScrollContainer/VBoxContainer"]
 layout_mode = 2
 text = "Top Question Submitted in 5 Seconds"
 horizontal_alignment = 1
 
-[node name="HBoxContainer" type="HBoxContainer" parent="GameUI/HBoxContainer/VBoxContainer/QuestionVotes/MarginContainer/ScrollContainer/VBoxContainer"]
+[node name="HBoxContainer" type="HBoxContainer" parent="GameUI/HBoxContainer/VBoxContainer/QuestionQueue/MarginContainer/ScrollContainer/VBoxContainer"]
 layout_mode = 2
 
-[node name="ColorRect1" type="ColorRect" parent="GameUI/HBoxContainer/VBoxContainer/QuestionVotes/MarginContainer/ScrollContainer/VBoxContainer/HBoxContainer"]
+[node name="ColorRect1" type="ColorRect" parent="GameUI/HBoxContainer/VBoxContainer/QuestionQueue/MarginContainer/ScrollContainer/VBoxContainer/HBoxContainer"]
 custom_minimum_size = Vector2(0, 30)
 layout_mode = 2
 size_flags_horizontal = 3
 color = Color(0.121569, 0.121569, 0.176471, 1)
 
-[node name="Label" type="Label" parent="GameUI/HBoxContainer/VBoxContainer/QuestionVotes/MarginContainer/ScrollContainer/VBoxContainer/HBoxContainer/ColorRect1"]
+[node name="Label" type="Label" parent="GameUI/HBoxContainer/VBoxContainer/QuestionQueue/MarginContainer/ScrollContainer/VBoxContainer/HBoxContainer/ColorRect1"]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -376,14 +376,14 @@ horizontal_alignment = 1
 vertical_alignment = 1
 uppercase = true
 
-[node name="ColorRect2" type="ColorRect" parent="GameUI/HBoxContainer/VBoxContainer/QuestionVotes/MarginContainer/ScrollContainer/VBoxContainer/HBoxContainer"]
+[node name="ColorRect2" type="ColorRect" parent="GameUI/HBoxContainer/VBoxContainer/QuestionQueue/MarginContainer/ScrollContainer/VBoxContainer/HBoxContainer"]
 custom_minimum_size = Vector2(0, 30)
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_stretch_ratio = 3.0
 color = Color(0.121569, 0.121569, 0.176471, 1)
 
-[node name="Label" type="Label" parent="GameUI/HBoxContainer/VBoxContainer/QuestionVotes/MarginContainer/ScrollContainer/VBoxContainer/HBoxContainer/ColorRect2"]
+[node name="Label" type="Label" parent="GameUI/HBoxContainer/VBoxContainer/QuestionQueue/MarginContainer/ScrollContainer/VBoxContainer/HBoxContainer/ColorRect2"]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -395,13 +395,13 @@ horizontal_alignment = 1
 vertical_alignment = 1
 uppercase = true
 
-[node name="ColorRect3" type="ColorRect" parent="GameUI/HBoxContainer/VBoxContainer/QuestionVotes/MarginContainer/ScrollContainer/VBoxContainer/HBoxContainer"]
+[node name="ColorRect3" type="ColorRect" parent="GameUI/HBoxContainer/VBoxContainer/QuestionQueue/MarginContainer/ScrollContainer/VBoxContainer/HBoxContainer"]
 custom_minimum_size = Vector2(0, 30)
 layout_mode = 2
 size_flags_horizontal = 3
 color = Color(0.121569, 0.121569, 0.176471, 1)
 
-[node name="Label" type="Label" parent="GameUI/HBoxContainer/VBoxContainer/QuestionVotes/MarginContainer/ScrollContainer/VBoxContainer/HBoxContainer/ColorRect3"]
+[node name="Label" type="Label" parent="GameUI/HBoxContainer/VBoxContainer/QuestionQueue/MarginContainer/ScrollContainer/VBoxContainer/HBoxContainer/ColorRect3"]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
