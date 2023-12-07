@@ -20,6 +20,7 @@ pub const SUBMIT_QUESTION_COST: i32 = 2;
 pub const ANONYMOUS_QUESTION_COST: i32 = 5;
 pub const VOTE_QUESTION_COST: i32 = 1;
 pub const SCORE_TO_COINS_RATIO: i32 = 2;
+pub const ADD_ITEM_EVERY_X_QUESTIONS: u32 = 5;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Server {
@@ -32,6 +33,7 @@ pub struct Server {
     questions_queue: Vec<QueuedQuestion>,
     items: Vec<Item>,
     items_history: Vec<String>,
+    questions_counter: u32,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -142,6 +144,7 @@ async fn connect_player(
             questions_queue: Vec::new(),
             items: Vec::new(),
             items_history: Vec::new(),
+            questions_counter: 0,
         }
     });
 
@@ -284,7 +287,7 @@ async fn server_loop(servers: ServerStorage) {
         let mut servers_to_update = Vec::new();
         {
             let servers = servers.lock().await;
-            for (id, server) in servers.iter() {
+            for (id, server) in &*servers {
                 let mut active_players = HashMap::new();
                 let mut remove_server = true;
 
@@ -331,17 +334,23 @@ async fn server_loop(servers: ServerStorage) {
                             as f64
                             / 1_000.0;
 
-                        // Determine the previous and current multiples of x seconds
+                        // Check if the elapsed time has crossed a multiple of x seconds, if so give coins to each player
                         let previous_multiple = server.elapsed_time / COINS_EVERY_X_SECONDS;
                         let current_multiple =
                             (server.elapsed_time + elapsed_time_update) / COINS_EVERY_X_SECONDS;
-
-                        // Check if the elapsed time has crossed a multiple of x seconds
                         if current_multiple.trunc() > previous_multiple.trunc() {
-                            // Give a coin to each player
                             for player in server.players.values_mut() {
                                 player.coins += 1;
                             }
+                        }
+
+                        // Check if the elapsed time has crossed a multiple of x seconds, if so submit a question to the queue
+                        let previous_multiple =
+                            server.elapsed_time / SUBMIT_QUESTION_EVERY_X_SECONDS;
+                        let current_multiple = (server.elapsed_time + elapsed_time_update)
+                            / SUBMIT_QUESTION_EVERY_X_SECONDS;
+                        if current_multiple.trunc() > previous_multiple.trunc() {
+                            items::ask_top_question(server);
                         }
 
                         // Update elapsed time and last update time

@@ -1,5 +1,7 @@
 Send limited game state data, hide unneeded data and also intentionally obscured data such as item names
-Submit top voted question every x seconds, use ai to ask it against each item
-Add new item every 5 questions
-Remove items when they reach 20 questions
+Use AI to answer questions against items
+Use AI to generate new items, add 2 items on start and then 1 every 5 questions
+Use AI to verify a question is valid and format it before adding it to the queue
+Countdown timer on question queue
 Ability to guess an item and get score from it
+Key player can kick players
