@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3 uid="uid://baqgtovxupkv5"]
 
-[ext_resource type="Texture2D" uid="uid://pg3thv4imb2y" path="res://Resources/coin.png" id="1_dqp3p"]
+[ext_resource type="Texture2D" uid="uid://cyi2so1qm8s6p" path="res://Resources/star.png" id="1_gmqj6"]
 
 [node name="ColorRect" type="ColorRect"]
 custom_minimum_size = Vector2(60, 30)
@@ -23,5 +23,5 @@ layout_mode = 2
 
 [node name="TextureRect" type="TextureRect" parent="MarginContainer/AspectRatioContainer"]
 layout_mode = 2
-texture = ExtResource("1_dqp3p")
+texture = ExtResource("1_gmqj6")
 expand_mode = 2

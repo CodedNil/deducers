@@ -1,7 +1,8 @@
-[gd_scene load_steps=3 format=3 uid="uid://b420mhnfvct05"]
+[gd_scene load_steps=4 format=3 uid="uid://b420mhnfvct05"]
 
-[ext_resource type="PackedScene" uid="uid://du21sbvsxk8qr" path="res://Items/Items.tscn" id="2_7bovt"]
-[ext_resource type="PackedScene" uid="uid://dxp1qaj5t5l3l" path="res://QuestionVotes/QuestionVotes.tscn" id="3_o8jl5"]
+[ext_resource type="PackedScene" uid="uid://cjhgur13aq42x" path="res://Items/ItemsHeader.tscn" id="1_4djrp"]
+[ext_resource type="PackedScene" uid="uid://ccwo4nudofgf7" path="res://Items/ItemsItem.tscn" id="2_a4aqj"]
+[ext_resource type="Texture2D" uid="uid://pg3thv4imb2y" path="res://Resources/coin.png" id="3_hsx0t"]
 
 [node name="Main" type="DeducersMain"]
 anchors_preset = 15
@@ -27,10 +28,116 @@ theme_override_constants/margin_bottom = 10
 layout_mode = 2
 theme_override_constants/separation = 20
 
-[node name="Items" parent="GameUI/HBoxContainer" instance=ExtResource("2_7bovt")]
+[node name="Items" type="ColorRect" parent="GameUI/HBoxContainer"]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_stretch_ratio = 1.5
+color = Color(0.172549, 0.172549, 0.227451, 1)
+
+[node name="MarginContainer" type="MarginContainer" parent="GameUI/HBoxContainer/Items"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 10
+
+[node name="ScrollContainer" type="ScrollContainer" parent="GameUI/HBoxContainer/Items/MarginContainer"]
+layout_mode = 2
+horizontal_scroll_mode = 0
+
+[node name="VBoxContainer" type="VBoxContainer" parent="GameUI/HBoxContainer/Items/MarginContainer/ScrollContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="Header" type="HBoxContainer" parent="GameUI/HBoxContainer/Items/MarginContainer/ScrollContainer/VBoxContainer"]
+layout_mode = 2
+
+[node name="ColorRect" type="ColorRect" parent="GameUI/HBoxContainer/Items/MarginContainer/ScrollContainer/VBoxContainer/Header"]
+custom_minimum_size = Vector2(0, 30)
+layout_mode = 2
+size_flags_horizontal = 3
+color = Color(0.121569, 0.121569, 0.176471, 1)
+
+[node name="Label" type="Label" parent="GameUI/HBoxContainer/Items/MarginContainer/ScrollContainer/VBoxContainer/Header/ColorRect"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+text = "Question"
+horizontal_alignment = 1
+vertical_alignment = 1
+uppercase = true
+
+[node name="ItemsHeader1" parent="GameUI/HBoxContainer/Items/MarginContainer/ScrollContainer/VBoxContainer/Header" instance=ExtResource("1_4djrp")]
+layout_mode = 2
+
+[node name="Item1" parent="GameUI/HBoxContainer/Items/MarginContainer/ScrollContainer/VBoxContainer" instance=ExtResource("2_a4aqj")]
+layout_mode = 2
+
+[node name="Item2" parent="GameUI/HBoxContainer/Items/MarginContainer/ScrollContainer/VBoxContainer" instance=ExtResource("2_a4aqj")]
+layout_mode = 2
+
+[node name="Item3" parent="GameUI/HBoxContainer/Items/MarginContainer/ScrollContainer/VBoxContainer" instance=ExtResource("2_a4aqj")]
+layout_mode = 2
+
+[node name="Item4" parent="GameUI/HBoxContainer/Items/MarginContainer/ScrollContainer/VBoxContainer" instance=ExtResource("2_a4aqj")]
+layout_mode = 2
+
+[node name="Item5" parent="GameUI/HBoxContainer/Items/MarginContainer/ScrollContainer/VBoxContainer" instance=ExtResource("2_a4aqj")]
+layout_mode = 2
+
+[node name="Item6" parent="GameUI/HBoxContainer/Items/MarginContainer/ScrollContainer/VBoxContainer" instance=ExtResource("2_a4aqj")]
+layout_mode = 2
+
+[node name="Item7" parent="GameUI/HBoxContainer/Items/MarginContainer/ScrollContainer/VBoxContainer" instance=ExtResource("2_a4aqj")]
+layout_mode = 2
+
+[node name="Item8" parent="GameUI/HBoxContainer/Items/MarginContainer/ScrollContainer/VBoxContainer" instance=ExtResource("2_a4aqj")]
+layout_mode = 2
+
+[node name="Item9" parent="GameUI/HBoxContainer/Items/MarginContainer/ScrollContainer/VBoxContainer" instance=ExtResource("2_a4aqj")]
+layout_mode = 2
+
+[node name="Item10" parent="GameUI/HBoxContainer/Items/MarginContainer/ScrollContainer/VBoxContainer" instance=ExtResource("2_a4aqj")]
+layout_mode = 2
+
+[node name="Item11" parent="GameUI/HBoxContainer/Items/MarginContainer/ScrollContainer/VBoxContainer" instance=ExtResource("2_a4aqj")]
+layout_mode = 2
+
+[node name="Item12" parent="GameUI/HBoxContainer/Items/MarginContainer/ScrollContainer/VBoxContainer" instance=ExtResource("2_a4aqj")]
+layout_mode = 2
+
+[node name="Item13" parent="GameUI/HBoxContainer/Items/MarginContainer/ScrollContainer/VBoxContainer" instance=ExtResource("2_a4aqj")]
+layout_mode = 2
+
+[node name="Item14" parent="GameUI/HBoxContainer/Items/MarginContainer/ScrollContainer/VBoxContainer" instance=ExtResource("2_a4aqj")]
+layout_mode = 2
+
+[node name="Item15" parent="GameUI/HBoxContainer/Items/MarginContainer/ScrollContainer/VBoxContainer" instance=ExtResource("2_a4aqj")]
+layout_mode = 2
+
+[node name="Item16" parent="GameUI/HBoxContainer/Items/MarginContainer/ScrollContainer/VBoxContainer" instance=ExtResource("2_a4aqj")]
+layout_mode = 2
+
+[node name="Item17" parent="GameUI/HBoxContainer/Items/MarginContainer/ScrollContainer/VBoxContainer" instance=ExtResource("2_a4aqj")]
+layout_mode = 2
+
+[node name="Item18" parent="GameUI/HBoxContainer/Items/MarginContainer/ScrollContainer/VBoxContainer" instance=ExtResource("2_a4aqj")]
+layout_mode = 2
+
+[node name="Item19" parent="GameUI/HBoxContainer/Items/MarginContainer/ScrollContainer/VBoxContainer" instance=ExtResource("2_a4aqj")]
+layout_mode = 2
+
+[node name="Item20" parent="GameUI/HBoxContainer/Items/MarginContainer/ScrollContainer/VBoxContainer" instance=ExtResource("2_a4aqj")]
+layout_mode = 2
 
 [node name="VBoxContainer" type="VBoxContainer" parent="GameUI/HBoxContainer"]
 layout_mode = 2
@@ -172,16 +279,27 @@ theme_override_constants/margin_bottom = 10
 [node name="VBoxContainer" type="VBoxContainer" parent="GameUI/HBoxContainer/VBoxContainer/Management/MarginContainer"]
 layout_mode = 2
 
-[node name="CoinsLabel" type="Label" parent="GameUI/HBoxContainer/VBoxContainer/Management/MarginContainer/VBoxContainer"]
+[node name="CoinsRow" type="HBoxContainer" parent="GameUI/HBoxContainer/VBoxContainer/Management/MarginContainer/VBoxContainer"]
 layout_mode = 2
+size_flags_horizontal = 4
+
+[node name="TextureRect" type="TextureRect" parent="GameUI/HBoxContainer/VBoxContainer/Management/MarginContainer/VBoxContainer/CoinsRow"]
+layout_mode = 2
+size_flags_horizontal = 0
+texture = ExtResource("3_hsx0t")
+expand_mode = 2
+
+[node name="CoinsLabel" type="Label" parent="GameUI/HBoxContainer/VBoxContainer/Management/MarginContainer/VBoxContainer/CoinsRow"]
+layout_mode = 2
+size_flags_horizontal = 0
 theme_override_font_sizes/font_size = 20
-text = "5 Coins Available"
+text = "0 Coins Available"
 horizontal_alignment = 1
 
-[node name="HBoxContainer" type="HBoxContainer" parent="GameUI/HBoxContainer/VBoxContainer/Management/MarginContainer/VBoxContainer"]
+[node name="QuestionSubmit" type="HBoxContainer" parent="GameUI/HBoxContainer/VBoxContainer/Management/MarginContainer/VBoxContainer"]
 layout_mode = 2
 
-[node name="QuestionTextEdit" type="LineEdit" parent="GameUI/HBoxContainer/VBoxContainer/Management/MarginContainer/VBoxContainer/HBoxContainer"]
+[node name="QuestionTextEdit" type="LineEdit" parent="GameUI/HBoxContainer/VBoxContainer/Management/MarginContainer/VBoxContainer/QuestionSubmit"]
 custom_minimum_size = Vector2(0, 35)
 layout_mode = 2
 size_flags_horizontal = 3
@@ -190,7 +308,7 @@ max_length = 50
 context_menu_enabled = false
 clear_button_enabled = true
 
-[node name="SubmitButton" type="Button" parent="GameUI/HBoxContainer/VBoxContainer/Management/MarginContainer/VBoxContainer/HBoxContainer"]
+[node name="SubmitButton" type="Button" parent="GameUI/HBoxContainer/VBoxContainer/Management/MarginContainer/VBoxContainer/QuestionSubmit"]
 layout_mode = 2
 text = "Submit Question 2 Coins"
 
@@ -203,9 +321,93 @@ text = "Anonymous (5 coins)"
 layout_mode = 2
 text = "Convert Leaderboard Point To 2 Coins"
 
-[node name="QuestionVotes" parent="GameUI/HBoxContainer/VBoxContainer" instance=ExtResource("3_o8jl5")]
+[node name="QuestionVotes" type="ColorRect" parent="GameUI/HBoxContainer/VBoxContainer"]
 layout_mode = 2
 size_flags_vertical = 3
+color = Color(0.172549, 0.172549, 0.227451, 1)
+
+[node name="MarginContainer" type="MarginContainer" parent="GameUI/HBoxContainer/VBoxContainer/QuestionVotes"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 10
+
+[node name="ScrollContainer" type="ScrollContainer" parent="GameUI/HBoxContainer/VBoxContainer/QuestionVotes/MarginContainer"]
+layout_mode = 2
+horizontal_scroll_mode = 0
+
+[node name="VBoxContainer" type="VBoxContainer" parent="GameUI/HBoxContainer/VBoxContainer/QuestionVotes/MarginContainer/ScrollContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Label" type="Label" parent="GameUI/HBoxContainer/VBoxContainer/QuestionVotes/MarginContainer/ScrollContainer/VBoxContainer"]
+layout_mode = 2
+text = "Top Question Submitted in 5 Seconds"
+horizontal_alignment = 1
+
+[node name="HBoxContainer" type="HBoxContainer" parent="GameUI/HBoxContainer/VBoxContainer/QuestionVotes/MarginContainer/ScrollContainer/VBoxContainer"]
+layout_mode = 2
+
+[node name="ColorRect1" type="ColorRect" parent="GameUI/HBoxContainer/VBoxContainer/QuestionVotes/MarginContainer/ScrollContainer/VBoxContainer/HBoxContainer"]
+custom_minimum_size = Vector2(0, 30)
+layout_mode = 2
+size_flags_horizontal = 3
+color = Color(0.121569, 0.121569, 0.176471, 1)
+
+[node name="Label" type="Label" parent="GameUI/HBoxContainer/VBoxContainer/QuestionVotes/MarginContainer/ScrollContainer/VBoxContainer/HBoxContainer/ColorRect1"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+text = "Player"
+horizontal_alignment = 1
+vertical_alignment = 1
+uppercase = true
+
+[node name="ColorRect2" type="ColorRect" parent="GameUI/HBoxContainer/VBoxContainer/QuestionVotes/MarginContainer/ScrollContainer/VBoxContainer/HBoxContainer"]
+custom_minimum_size = Vector2(0, 30)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 3.0
+color = Color(0.121569, 0.121569, 0.176471, 1)
+
+[node name="Label" type="Label" parent="GameUI/HBoxContainer/VBoxContainer/QuestionVotes/MarginContainer/ScrollContainer/VBoxContainer/HBoxContainer/ColorRect2"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+text = "Question"
+horizontal_alignment = 1
+vertical_alignment = 1
+uppercase = true
+
+[node name="ColorRect3" type="ColorRect" parent="GameUI/HBoxContainer/VBoxContainer/QuestionVotes/MarginContainer/ScrollContainer/VBoxContainer/HBoxContainer"]
+custom_minimum_size = Vector2(0, 30)
+layout_mode = 2
+size_flags_horizontal = 3
+color = Color(0.121569, 0.121569, 0.176471, 1)
+
+[node name="Label" type="Label" parent="GameUI/HBoxContainer/VBoxContainer/QuestionVotes/MarginContainer/ScrollContainer/VBoxContainer/HBoxContainer/ColorRect3"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+text = "Votes"
+horizontal_alignment = 1
+vertical_alignment = 1
+uppercase = true
 
 [node name="ConnectUI" type="MarginContainer" parent="."]
 visible = false

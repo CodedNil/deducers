@@ -12,6 +12,7 @@ use tokio::{net::TcpListener, sync::Mutex};
 
 const SERVER_PORT: u16 = 3013;
 const IDLE_KICK_TIME: i64 = 10;
+const COINS_EVERY_X_SECONDS: f64 = 3.0;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 struct Server {
@@ -308,13 +309,13 @@ async fn server_loop(servers: ServerStorage) {
                             as f64
                             / 1_000.0;
 
-                        // Determine the previous and current multiples of 3 seconds
-                        let previous_multiple_of_three = server.elapsed_time / 3.0;
-                        let current_multiple_of_three =
-                            (server.elapsed_time + elapsed_time_update) / 3.0;
+                        // Determine the previous and current multiples of x seconds
+                        let previous_multiple = server.elapsed_time / COINS_EVERY_X_SECONDS;
+                        let current_multiple =
+                            (server.elapsed_time + elapsed_time_update) / COINS_EVERY_X_SECONDS;
 
-                        // Check if the elapsed time has crossed a multiple of 3 seconds
-                        if current_multiple_of_three.trunc() > previous_multiple_of_three.trunc() {
+                        // Check if the elapsed time has crossed a multiple of x seconds
+                        if current_multiple.trunc() > previous_multiple.trunc() {
                             // Give a coin to each player
                             for player in server.players.values_mut() {
                                 player.coins += 1;

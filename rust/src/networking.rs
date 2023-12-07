@@ -201,6 +201,12 @@ impl DeducersMain {
         self.connected = false;
     }
 
+    #[func]
+    fn on_submit_question_pressed(&mut self) {}
+
+    #[func]
+    fn on_convert_score_pressed(&mut self) {}
+
     #[allow(clippy::cast_precision_loss)]
     fn refresh_game_state(&mut self) {
         // Record the current time before sending the request
@@ -279,7 +285,7 @@ impl DeducersMain {
 
         let coins = server.players.get(&self.player_name).unwrap().coins;
         self.base
-            .get_node_as::<Label>("GameUI/HBoxContainer/VBoxContainer/Management/MarginContainer/VBoxContainer/CoinsLabel")
+            .get_node_as::<Label>("GameUI/HBoxContainer/VBoxContainer/Management/MarginContainer/VBoxContainer/CoinsRow/CoinsLabel")
             .set_text(format!("{coins} Coins Available").into());
     }
 }
