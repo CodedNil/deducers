@@ -37,24 +37,32 @@ pub struct QueuedQuestion {
 pub struct Item {
     name: String,
     pub id: u32,
-    questions: Vec<Question>,
+    pub questions: Vec<Question>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-struct Question {
-    player: String,
-    question: String,
-    answer: Answer,
-    anonymous: bool,
+pub struct Question {
+    pub player: String,
+    pub question: String,
+    pub answer: Answer,
+    pub anonymous: bool,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-enum Answer {
+pub enum Answer {
     Yes,
     No,
-    Sometimes,
-    Depends,
-    Irrelevant,
+    Maybe,
+}
+
+impl Answer {
+    pub fn to_color(&self) -> Color {
+        match self {
+            Answer::Yes => Color::from_rgb(0.25, 0.5, 0.2),
+            Answer::No => Color::from_rgb(0.5, 0.2, 0.2),
+            Answer::Maybe => Color::from_rgb(0.55, 0.35, 0.0),
+        }
+    }
 }
 
 #[derive(Deserialize)]

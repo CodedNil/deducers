@@ -1,6 +1,6 @@
 use crate::game_state::Player;
 use godot::{
-    engine::{Button, Control, Label, ResourceLoader, VBoxContainer},
+    engine::{Button, Control, Label, ResourceLoader},
     prelude::*,
 };
 use std::collections::HashMap;
@@ -12,7 +12,7 @@ pub fn update(
     player_name: &String,
     is_host: bool,
 ) {
-    let mut items_container = ui_root.get_node_as::<VBoxContainer>(
+    let mut items_container = ui_root.get_node_as::<Control>(
         "LeaderboardColorRect/MarginContainer/ScrollContainer/VBoxContainer",
     );
 
@@ -41,9 +41,8 @@ pub fn update(
     }
 
     // Update leaderboard items with player scores
-    let mut index = 1;
-    for player in players.values() {
-        let item = items_container.get_child(index).unwrap();
+    for (index, player) in players.values().enumerate() {
+        let item = items_container.get_child(index as i32 + 1).unwrap();
         item.get_node_as::<Label>("ColorName/PlayerName")
             .set_text(player.name.clone().into());
         item.get_node_as::<Label>("ColorScore/HBoxContainer/PlayerScore")
@@ -52,7 +51,5 @@ pub fn update(
         // Show kick button if host and not self
         item.get_node_as::<Button>("ColorScore/HBoxContainer/KickButton")
             .set_visible(is_host && (&player.name != player_name));
-
-        index += 1;
     }
 }

@@ -1,6 +1,4 @@
-[gd_scene load_steps=2 format=3 uid="uid://ccwo4nudofgf7"]
-
-[ext_resource type="PackedScene" uid="uid://baqgtovxupkv5" path="res://Items/ItemsAnswerBox.tscn" id="1_omn4r"]
+[gd_scene format=3 uid="uid://ccwo4nudofgf7"]
 
 [node name="ItemsItem" type="HBoxContainer"]
 anchors_preset = 15
@@ -43,6 +41,3 @@ size_flags_vertical = 1
 vertical_alignment = 1
 autowrap_mode = 3
 clip_text = true
-
-[node name="State1" parent="." instance=ExtResource("1_omn4r")]
-layout_mode = 2

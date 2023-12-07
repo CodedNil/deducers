@@ -69,9 +69,7 @@ struct Question {
 enum Answer {
     Yes,
     No,
-    Sometimes,
-    Depends,
-    Irrelevant,
+    Maybe,
 }
 
 pub type ServerStorage = Arc<Mutex<HashMap<String, Server>>>;
