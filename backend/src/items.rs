@@ -1,7 +1,7 @@
 use crate::{Item, Server};
 
 #[allow(clippy::cast_possible_truncation)]
-fn add_item(mut server: Server) {
+pub fn add_item(server: &mut Server) {
     let potential_items = vec![
         "Pizza",
         "Boat",
@@ -37,8 +37,10 @@ fn add_item(mut server: Server) {
 
     let random_item = potential_items[rand::random::<usize>() % potential_items.len()].to_string();
     server.items.push(Item {
-        name: random_item,
-        id: server.items_history.len() as u32,
+        name: random_item.clone(),
+        id: server.items_history.len() as u32 + 1,
         questions: Vec::new(),
     });
+
+    server.items_history.push(random_item);
 }

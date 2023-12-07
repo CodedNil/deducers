@@ -78,7 +78,6 @@ func _ready():
 				break
 
 	var items_container = $MarginContainer/ScrollContainer/VBoxContainer
-	manage_items(items_container, 20, items_item_scene)
 
 	# Update items with question text
 	index = 1

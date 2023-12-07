@@ -1,5 +1,4 @@
-use crate::leaderboard;
-use crate::networking::DeducersMain;
+use crate::{items, leaderboard, networking::DeducersMain};
 use chrono::{DateTime, Utc};
 use godot::{
     engine::{Control, Label},
@@ -35,9 +34,9 @@ pub struct QueuedQuestion {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-struct Item {
+pub struct Item {
     name: String,
-    id: u32,
+    pub id: u32,
     questions: Vec<Question>,
 }
 
@@ -166,9 +165,16 @@ impl DeducersMain {
             &self.player_name,
             self.is_host,
         );
+        items::update(
+            &self
+                .base
+                .get_node_as::<Control>("GameUI/HBoxContainer/Items"),
+            &server.items,
+        );
 
         self.questions_queue_update(&server.questions_queue);
 
+        // Set time label
         let elapsed_seconds = server.elapsed_time as i32;
         println!("Elapsed seconds: {}", server.elapsed_time);
         self.base
@@ -176,6 +182,7 @@ impl DeducersMain {
         .set_text(format!("Time: {elapsed_seconds}s").into());
         self.server_started = server.started;
 
+        // Set coins available label
         let coins = server.players.get(&self.player_name).unwrap().coins;
         self.base
             .get_node_as::<Label>("GameUI/HBoxContainer/VBoxContainer/Management/MarginContainer/VBoxContainer/CoinsRow/CoinsLabel")

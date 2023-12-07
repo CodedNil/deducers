@@ -218,6 +218,12 @@ async fn start_server(
         } else if player_name == server.key_player {
             server.started = true;
             server.last_update = Utc::now();
+
+            // Add 2 items to the server
+            for _ in 0..2 {
+                items::add_item(server);
+            }
+
             println!("Server '{server_id}' started by key player '{player_name}'");
             (
                 StatusCode::OK,
