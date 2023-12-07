@@ -1,82 +1,26 @@
-use crate::leaderboard;
 use chrono::{DateTime, Utc};
 use godot::{
     engine::{Button, ColorRect, Control, IControl, Label, LineEdit},
     prelude::*,
 };
-use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, time::Duration};
+use std::time::Duration;
 
 const UPDATE_TIME: f64 = 0.5;
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-struct Server {
-    id: String,
-    started: bool,
-    elapsed_time: f64,
-    key_player: String,
-    players: HashMap<String, Player>,
-    questions_queue: Vec<QueuedQuestion>,
-    items: Vec<Item>,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct Player {
-    pub name: String,
-    last_contact: DateTime<Utc>,
-    pub score: i32,
-    coins: i32,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-struct QueuedQuestion {
-    player: String,
-    question: String,
-    votes: u32,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-struct Item {
-    name: String,
-    id: u32,
-    questions: Vec<Question>,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-struct Question {
-    player: String,
-    question: String,
-    answer: Answer,
-    anonymous: bool,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-enum Answer {
-    Yes,
-    No,
-    Sometimes,
-    Depends,
-    Irrelevant,
-}
-
-#[derive(Deserialize)]
-enum GameStateResponse {
-    ServerState(Server),
-    Error(String),
-}
-
 #[derive(GodotClass)]
 #[class(base=Control)]
-struct DeducersMain {
+pub struct DeducersMain {
     #[base]
-    base: Base<Control>,
-    http_client: ureq::Agent,
-    server_ip: String,
-    player_name: String,
-    room_name: String,
-    connected: bool,
-    is_host: bool,
+    pub base: Base<Control>,
+    pub http_client: ureq::Agent,
+    pub server_ip: String,
+    pub player_name: String,
+    pub room_name: String,
+    pub connected: bool,
+    pub server_started: bool,
+    pub is_host: bool,
     time_since_update: f64,
+    management_info_text_clear_time: Option<DateTime<Utc>>,
 }
 
 #[godot_api]
@@ -107,28 +51,12 @@ impl DeducersMain {
 
         match result {
             Ok(response) => {
-                match serde_json::from_str::<GameStateResponse>(
+                self.process_join_server(
                     &response.into_string().unwrap_or_default(),
-                ) {
-                    Ok(GameStateResponse::ServerState(server)) => {
-                        // Set fields
-                        self.server_ip = server_ip_text;
-                        self.player_name = player_name_text;
-                        self.room_name = room_name_text;
-                        self.connected = true;
-                        if server.key_player == self.player_name {
-                            self.is_host = true;
-                        }
-                        self.process_join_server(&server);
-                        self.process_game_state(&server);
-                    }
-                    Ok(GameStateResponse::Error(err_msg)) => {
-                        godot_print!("Error in game state response: {:?}", err_msg);
-                    }
-                    Err(e) => {
-                        godot_print!("Failed to parse response, error: {:?}", e);
-                    }
-                }
+                    server_ip_text,
+                    room_name_text,
+                    player_name_text,
+                );
             }
             Err(error) => {
                 let error_message = if let ureq::Error::Status(_, response) = error {
@@ -147,11 +75,20 @@ impl DeducersMain {
         }
     }
 
-    fn show_alert(&mut self, message: String) {
+    pub fn show_alert(&mut self, message: String) {
         self.base
             .get_node_as::<Label>("AlertDialog/MarginContainer/VBoxContainer/Label")
             .set_text(message.into());
         self.base.get_node_as::<ColorRect>("AlertDialog").show();
+    }
+
+    pub fn show_management_info(&mut self, message: String, duration: i64) {
+        // Set message text, then wait duration and if message text is still the same, clear it
+        self.base
+            .get_node_as::<Label>("GameUI/HBoxContainer/VBoxContainer/Management/MarginContainer/VBoxContainer/ManagementInfoLabel").set_text(message.into());
+        // Set mana
+        self.management_info_text_clear_time =
+            Some(Utc::now() + chrono::Duration::milliseconds(duration));
     }
 
     #[func]
@@ -202,92 +139,12 @@ impl DeducersMain {
     }
 
     #[func]
-    fn on_submit_question_pressed(&mut self) {}
+    fn on_submit_question_pressed(&mut self) {
+        self.submit_question();
+    }
 
     #[func]
     fn on_convert_score_pressed(&mut self) {}
-
-    #[allow(clippy::cast_precision_loss)]
-    fn refresh_game_state(&mut self) {
-        // Record the current time before sending the request
-        let start_time = Utc::now();
-
-        // Make get request to get game state
-        let url = format!(
-            "http://{server_ip}/server/{room_name}/getstate/{player_name}",
-            server_ip = self.server_ip,
-            room_name = self.room_name,
-            player_name = self.player_name
-        );
-        let result = self.http_client.get(&url).call();
-
-        match result {
-            Ok(response) => {
-                // Calculate the round-trip time (ping)
-                let ping = (Utc::now() - start_time).num_milliseconds();
-                self.base
-                    .get_node_as::<Label>("GameUI/HBoxContainer/VBoxContainer/Leaderboard/LobbyStatus/MarginContainer/HBoxContainer/Ping")
-                    .set_text(format!("Ping: {ping}ms").into());
-
-                match serde_json::from_str::<GameStateResponse>(
-                    &response.into_string().unwrap_or_default(),
-                ) {
-                    Ok(GameStateResponse::ServerState(server)) => {
-                        self.process_game_state(&server);
-                    }
-                    _ => {
-                        godot_print!("Failed to parse game state");
-                    }
-                }
-            }
-            Err(error) => {
-                godot_print!("Error getting game state {error}");
-
-                // Show connect ui
-                self.base.get_node_as::<Control>("ConnectUI").show();
-                self.connected = false;
-                self.show_alert("Lost connection to server".to_string());
-            }
-        }
-    }
-
-    fn process_join_server(&mut self, server: &Server) {
-        // Hide connect ui
-        self.base.get_node_as::<Control>("ConnectUI").hide();
-
-        // Set lobby id
-        self.base
-            .get_node_as::<Label>("GameUI/HBoxContainer/VBoxContainer/Leaderboard/LobbyStatus/MarginContainer/HBoxContainer/LobbyId")
-            .set_text(format!("Lobby ID: {}", self.room_name.clone()).into());
-
-        // Set start button visibility
-        self.base
-            .get_node_as::<Control>("GameUI/HBoxContainer/VBoxContainer/Leaderboard/LobbyStatus/MarginContainer/HBoxContainer/StartButton")
-            .set_visible(self.is_host && !server.started);
-    }
-
-    #[allow(clippy::cast_possible_truncation)]
-    fn process_game_state(&mut self, server: &Server) {
-        leaderboard::update(
-            &self
-                .base
-                .get_node_as::<Control>("GameUI/HBoxContainer/VBoxContainer/Leaderboard"),
-            &server.players,
-            &self.player_name,
-            self.is_host,
-        );
-
-        let elapsed_seconds = server.elapsed_time as i32;
-        println!("Elapsed seconds: {}", server.elapsed_time);
-        self.base
-        .get_node_as::<Label>("GameUI/HBoxContainer/VBoxContainer/Leaderboard/LobbyStatus/MarginContainer/HBoxContainer/Time")
-        .set_text(format!("Time: {elapsed_seconds}s").into());
-
-        let coins = server.players.get(&self.player_name).unwrap().coins;
-        self.base
-            .get_node_as::<Label>("GameUI/HBoxContainer/VBoxContainer/Management/MarginContainer/VBoxContainer/CoinsRow/CoinsLabel")
-            .set_text(format!("{coins} Coins Available").into());
-    }
 }
 
 #[godot_api]
@@ -302,8 +159,10 @@ impl IControl for DeducersMain {
             player_name: String::new(),
             room_name: String::new(),
             connected: false,
+            server_started: false,
             is_host: false,
             time_since_update: 0.0,
+            management_info_text_clear_time: None,
         }
     }
 
@@ -319,6 +178,15 @@ impl IControl for DeducersMain {
                 self.time_since_update = 0.0;
 
                 self.refresh_game_state();
+            }
+        }
+        // Clear management info text if it's time
+        if let Some(clear_time) = self.management_info_text_clear_time {
+            if clear_time < Utc::now() {
+                self.base
+                    .get_node_as::<Label>("GameUI/HBoxContainer/VBoxContainer/Management/MarginContainer/VBoxContainer/ManagementInfoLabel")
+                    .set_text("".into());
+                self.management_info_text_clear_time = None;
             }
         }
     }

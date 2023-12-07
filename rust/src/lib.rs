@@ -1,7 +1,9 @@
 use godot::prelude::*;
 
+mod game_state;
 mod leaderboard;
 mod networking;
+mod questions_queue;
 
 struct DeducersExtension;
 

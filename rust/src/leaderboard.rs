@@ -1,4 +1,4 @@
-use crate::networking::Player;
+use crate::game_state::Player;
 use godot::{
     engine::{Button, Control, Label, ResourceLoader, VBoxContainer},
     prelude::*,

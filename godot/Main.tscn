@@ -315,11 +315,15 @@ text = "Submit Question 2 Coins"
 [node name="AnonymouseCheckbox" type="CheckBox" parent="GameUI/HBoxContainer/VBoxContainer/Management/MarginContainer/VBoxContainer"]
 layout_mode = 2
 tooltip_text = "Hide the question from other players, they will see the answers still"
-text = "Anonymous (5 coins)"
+text = "Anonymous (+5 coins)"
 
 [node name="ConvertPointsButton" type="Button" parent="GameUI/HBoxContainer/VBoxContainer/Management/MarginContainer/VBoxContainer"]
 layout_mode = 2
 text = "Convert Leaderboard Point To 2 Coins"
+
+[node name="ManagementInfoLabel" type="Label" parent="GameUI/HBoxContainer/VBoxContainer/Management/MarginContainer/VBoxContainer"]
+layout_mode = 2
+horizontal_alignment = 1
 
 [node name="QuestionVotes" type="ColorRect" parent="GameUI/HBoxContainer/VBoxContainer"]
 layout_mode = 2
@@ -521,5 +525,7 @@ text = "Ok"
 
 [connection signal="pressed" from="GameUI/HBoxContainer/VBoxContainer/Leaderboard/LobbyStatus/MarginContainer/HBoxContainer/StartButton" to="." method="on_start_server_pressed"]
 [connection signal="pressed" from="GameUI/HBoxContainer/VBoxContainer/Leaderboard/LobbyStatus/MarginContainer/HBoxContainer/LeaveButton" to="." method="on_leave_server_pressed"]
+[connection signal="pressed" from="GameUI/HBoxContainer/VBoxContainer/Management/MarginContainer/VBoxContainer/QuestionSubmit/SubmitButton" to="." method="on_submit_question_pressed"]
+[connection signal="pressed" from="GameUI/HBoxContainer/VBoxContainer/Management/MarginContainer/VBoxContainer/ConvertPointsButton" to="." method="on_convert_score_pressed"]
 [connection signal="pressed" from="ConnectUI/ColorRect/VBoxContainer/HBoxContainer/Connect" to="." method="on_connect_button_pressed"]
 [connection signal="pressed" from="AlertDialog/MarginContainer/VBoxContainer/AlertOk" to="." method="on_error_dialog_ok_pressed"]

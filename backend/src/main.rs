@@ -13,6 +13,10 @@ use tokio::{net::TcpListener, sync::Mutex};
 const SERVER_PORT: u16 = 3013;
 const IDLE_KICK_TIME: i64 = 10;
 const COINS_EVERY_X_SECONDS: f64 = 3.0;
+const SUBMIT_QUESTION_EVERY_X_SECONDS: f64 = 5.0;
+const SUBMIT_QUESTION_COST: i32 = 2;
+const ANONYMOUS_QUESTION_COST: i32 = 5;
+const SCORE_TO_COINS_RATIO: i32 = 2;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 struct Server {
@@ -38,6 +42,7 @@ struct Player {
 struct QueuedQuestion {
     player: String,
     question: String,
+    anonymous: bool,
     votes: u32,
 }
 
@@ -85,14 +90,18 @@ async fn main() {
             post(connect_player),
         )
         .route(
-            "/server/:server_id/getstate/:player_name",
-            get(get_game_state),
-        )
-        .route(
             "/server/:server_id/disconnect/:player_name",
             post(disconnect_player),
         )
         .route("/server/:server_id/start/:player_name", post(start_server))
+        .route(
+            "/server/:server_id/getstate/:player_name",
+            get(get_game_state),
+        )
+        .route(
+            "/server/:server_id/submitquestion/:player_name/:question/:options",
+            post(player_submit_question),
+        )
         .layer(Extension(servers));
 
     // Server setup
@@ -217,6 +226,78 @@ async fn start_server(
             format!("Server '{server_id}' not found"),
         )
     }
+}
+
+// Define a struct to deserialize the options JSON
+#[derive(Deserialize)]
+struct QuestionOptions {
+    anonymous: bool,
+}
+
+async fn player_submit_question(
+    Path((server_id, player_name, question, options)): Path<(String, String, String, String)>,
+    Extension(servers): Extension<ServerStorage>,
+) -> impl IntoResponse {
+    let mut servers = servers.lock().await;
+
+    if let Some(server) = servers.get_mut(&server_id) {
+        if let Some(player) = server.players.get_mut(&player_name) {
+            // Attempt to parse options JSON
+            let Ok(question_options) = serde_json::from_str::<QuestionOptions>(&options) else {
+                return (
+                    StatusCode::BAD_REQUEST,
+                    "Invalid options format".to_string(),
+                );
+            };
+
+            // Calculate submission cost and check if player has enough coins
+            let total_cost = if question_options.anonymous {
+                SUBMIT_QUESTION_COST + ANONYMOUS_QUESTION_COST
+            } else {
+                SUBMIT_QUESTION_COST
+            };
+            if player.coins < total_cost {
+                return (
+                    StatusCode::BAD_REQUEST,
+                    "Insufficient coins to submit question".to_string(),
+                );
+            }
+
+            // Validate the question
+            if !is_valid_question(&question) {
+                return (
+                    StatusCode::BAD_REQUEST,
+                    "Invalid question format".to_string(),
+                );
+            }
+
+            // Deduct coins and add question to queue
+            player.coins -= total_cost;
+            server.questions_queue.push(QueuedQuestion {
+                player: player_name.clone(),
+                question,
+                votes: 0,
+                anonymous: question_options.anonymous,
+            });
+            (
+                StatusCode::OK,
+                "Question submitted successfully".to_string(),
+            )
+        } else {
+            (
+                StatusCode::NOT_FOUND,
+                "Player not found in server".to_string(),
+            )
+        }
+    } else {
+        (StatusCode::NOT_FOUND, "Server not found".to_string())
+    }
+}
+
+// Helper function to validate a question
+fn is_valid_question(question: &str) -> bool {
+    // Implement actual question validation logic here
+    !question.trim().is_empty()
 }
 
 async fn get_game_state(
