@@ -7,6 +7,8 @@ use godot::{
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+pub const SUBMIT_QUESTION_EVERY_X_SECONDS: i32 = 5;
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 struct Server {
     id: String,
@@ -173,6 +175,12 @@ impl DeducersMain {
             &self.player_name,
             self.is_host,
         );
+        items::set_guess_list(
+            &self
+                .base
+                .get_node_as::<Control>("GameUI/HBoxContainer/VBoxContainer/Management"),
+            &server.items,
+        );
         items::update(
             &self
                 .base
@@ -189,6 +197,13 @@ impl DeducersMain {
         .get_node_as::<Label>("GameUI/HBoxContainer/VBoxContainer/Leaderboard/LobbyStatus/MarginContainer/HBoxContainer/Time")
         .set_text(format!("Time: {elapsed_seconds}s").into());
         self.server_started = server.started;
+
+        // Countdown until question submitted every x seconds
+        let remaining_time =
+            SUBMIT_QUESTION_EVERY_X_SECONDS - (elapsed_seconds % SUBMIT_QUESTION_EVERY_X_SECONDS);
+        self.base
+            .get_node_as::<Label>("GameUI/HBoxContainer/VBoxContainer/QuestionQueue/MarginContainer/ScrollContainer/VBoxContainer/Label")
+            .set_text(format!("Top Question Submitted In {remaining_time} Seconds").into());
 
         // Set coins available label
         let coins = server.players.get(&self.player_name).unwrap().coins;

@@ -1,8 +1,38 @@
 use crate::game_state::Item;
 use godot::{
-    engine::{ColorRect, Control, Label, ResourceLoader},
+    engine::{ColorRect, Control, Label, OptionButton, ResourceLoader},
     prelude::*,
 };
+
+#[allow(
+    clippy::cast_possible_wrap,
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss
+)]
+pub fn set_guess_list(ui_root: &Gd<Control>, items: &Vec<Item>) {
+    let mut guess_item_choice =
+        ui_root.get_node_as::<OptionButton>("MarginContainer/VBoxContainer/GuessItem/ItemChoice");
+
+    // Add or remove items as needed
+    let item_count = guess_item_choice.get_item_count();
+    match items.len().cmp(&(item_count as usize)) {
+        std::cmp::Ordering::Less => {
+            for _ in items.len() as i32..item_count {
+                guess_item_choice.remove_item(items.len() as i32);
+            }
+        }
+        std::cmp::Ordering::Greater => {
+            for index in item_count..items.len() as i32 {
+                guess_item_choice.add_item(items[index as usize].id.to_string().into());
+            }
+        }
+        std::cmp::Ordering::Equal => {}
+    }
+    // Set item names
+    for (index, item) in items.iter().enumerate() {
+        guess_item_choice.set_item_text(index as i32, item.id.to_string().into());
+    }
+}
 
 #[allow(
     clippy::cast_possible_wrap,
