@@ -1,3 +1,4 @@
 .godot/
 rust/target/
 backend/target/
+gpt_log.txt

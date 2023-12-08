@@ -7,12 +7,13 @@ use axum::{
 };
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, sync::Arc, time::Duration};
+use std::{collections::HashMap, net::SocketAddr, sync::Arc, time::Duration};
 use tokio::{net::TcpListener, sync::Mutex};
 mod items;
+mod openai;
 mod question_queue;
 
-const SERVER_PORT: u16 = 3013;
+pub const SERVER_PORT: u16 = 3013;
 const IDLE_KICK_TIME: i64 = 10;
 pub const COINS_EVERY_X_SECONDS: f64 = 3.0;
 pub const SUBMIT_QUESTION_EVERY_X_SECONDS: f64 = 5.0;
@@ -110,7 +111,12 @@ async fn main() {
             "/server/:server_id/votequestion/:player_name/:question",
             post(question_queue::player_vote_question),
         )
-        .layer(Extension(servers));
+        .route(
+            "/internal/:server_id/additem/:item_name",
+            post(items::add_item_to_server),
+        )
+        .layer(Extension(servers))
+        .into_make_service_with_connect_info::<SocketAddr>();
 
     // Server setup
     let address = format!("0.0.0.0:{SERVER_PORT}");
@@ -221,9 +227,11 @@ async fn start_server(
             server.last_update = Utc::now();
 
             // Add 2 items to the server
-            for _ in 0..2 {
-                items::add_item(server);
-            }
+            let server_id_clone = server_id.clone();
+            let item_history_clone = server.items_history.clone();
+            tokio::spawn(async move {
+                items::add_item(server_id_clone, item_history_clone, 2, 0);
+            });
 
             println!("Server '{server_id}' started by key player '{player_name}'");
             (
