@@ -230,7 +230,7 @@ async fn start_server(
             let server_id_clone = server_id.clone();
             let item_history_clone = server.items_history.clone();
             tokio::spawn(async move {
-                items::add_item(server_id_clone, item_history_clone, 2, 0);
+                items::add_item(server_id_clone, item_history_clone, 2, 0).await;
             });
 
             println!("Server '{server_id}' started by key player '{player_name}'");

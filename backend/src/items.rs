@@ -2,6 +2,7 @@ use crate::openai::query;
 use crate::{
     Answer, Item, Question, Server, ServerStorage, ADD_ITEM_EVERY_X_QUESTIONS, SERVER_PORT,
 };
+use async_recursion::async_recursion;
 use axum::extract::ConnectInfo;
 use axum::{extract::Path, http::StatusCode, response::IntoResponse, Extension};
 use serde::{Deserialize, Serialize};
@@ -16,7 +17,8 @@ struct ItemsResponse {
     item3: String,
 }
 
-pub fn add_item(
+#[async_recursion]
+pub async fn add_item(
     server_id: String,
     mut items_history: Vec<String>,
     number_to_add: u32,
@@ -32,7 +34,7 @@ pub fn add_item(
     let response = query(
         &format!("u:Create 3 one word items to be used in a 20 questions game, such as Phone Bird Crystal, first letter capitalised, return compact JSON with keys item1 item2 item3, previous items were {items_history:?} don't repeat and aim for variety, British English"),
         100,
-    );
+    ).await;
     // let response: Result<String, Box<dyn std::error::Error>> =
     //     Ok("{\"item1\": \"Cactus\",\"item2\": \"Saxophone\",\"item3\": \"Glacier\"}".to_string());
     if let Ok(message) = response {
@@ -55,9 +57,12 @@ pub fn add_item(
                         "http://localhost:{SERVER_PORT}/internal/{server_id}/additem/{item}"
                     );
                     tokio::spawn(async move {
-                        match ureq::post(&url)
+                        let client = reqwest::Client::new();
+                        match client
+                            .post(&url)
                             .timeout(std::time::Duration::from_secs(5))
-                            .call()
+                            .send()
+                            .await
                         {
                             Ok(_) => {
                                 println!("Added item {item}");
@@ -81,15 +86,16 @@ pub fn add_item(
                     items_history,
                     number_to_add - added_count,
                     recursions + 1,
-                );
+                )
+                .await;
             }
         } else {
             // Try again
-            add_item(server_id, items_history, number_to_add, recursions + 1);
+            add_item(server_id, items_history, number_to_add, recursions + 1).await;
         }
     } else {
         // Try again
-        add_item(server_id, items_history, number_to_add, recursions + 1);
+        add_item(server_id, items_history, number_to_add, recursions + 1).await;
     }
 }
 
@@ -172,7 +178,7 @@ pub fn ask_top_question(server: &mut Server) {
             let server_id_clone = server.id.clone();
             let item_history_clone = server.items_history.clone();
             tokio::spawn(async move {
-                add_item(server_id_clone, item_history_clone, 1, 0);
+                add_item(server_id_clone, item_history_clone, 1, 0).await;
             });
         }
     }

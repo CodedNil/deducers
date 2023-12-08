@@ -1,6 +1,7 @@
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::io::Write;
+use std::time::Duration;
 use std::{env, fs::OpenOptions};
 
 const GPT_MODEL: &str = "gpt-4-1106-preview";
@@ -58,7 +59,7 @@ struct Usage {
     total_tokens: usize,
 }
 
-pub fn query(prompt: &String, max_tokens: usize) -> Result<String> {
+pub async fn query(prompt: &String, max_tokens: usize) -> Result<String> {
     let api_key = env::var("OPENAI_API_KEY").context("No OPENAI_API_KEY found in environment")?;
 
     let messages: Result<Vec<Message>> = prompt
@@ -93,12 +94,18 @@ pub fn query(prompt: &String, max_tokens: usize) -> Result<String> {
     let body_str = serde_json::to_string(&body).context("Failed to serialize the request body")?;
 
     // Execute the HTTP POST request to the OpenAI API.
-    let raw_response = ureq::post("https://api.openai.com/v1/chat/completions")
-        .set("Content-Type", "application/json")
-        .set("Authorization", &format!("Bearer {api_key}"))
-        .send_string(&body_str)
+    let client = reqwest::Client::new();
+    let raw_response = client
+        .post("https://api.openai.com/v1/chat/completions")
+        .header("Content-Type", "application/json")
+        .header("Authorization", &format!("Bearer {api_key}"))
+        .timeout(Duration::from_secs(5))
+        .body(body_str.to_string())
+        .send()
+        .await
         .context("Failed to make the HTTP request")?
-        .into_string()
+        .text()
+        .await
         .context("Failed to convert the response into a string")?;
 
     // Deserialize the response into our ApiResponse struct.
