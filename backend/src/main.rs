@@ -135,10 +135,10 @@ async fn connect_player(
     Path((server_id, player_name)): Path<(String, String)>,
     Extension(servers): Extension<ServerStorage>,
 ) -> impl IntoResponse {
-    let mut servers = servers.lock().await;
+    let mut servers_locked = servers.lock().await;
 
     // Get the server or create a new one
-    let server = servers.entry(server_id.clone()).or_insert_with(|| {
+    let server = servers_locked.entry(server_id.clone()).or_insert_with(|| {
         println!("Creating new server '{server_id}'");
         Server {
             id: server_id.clone(),
@@ -184,13 +184,13 @@ async fn disconnect_player(
     Path((server_id, player_name)): Path<(String, String)>,
     Extension(servers): Extension<ServerStorage>,
 ) -> impl IntoResponse {
-    let mut servers = servers.lock().await;
+    let mut servers_locked = servers.lock().await;
 
-    if let Some(server) = servers.get_mut(&server_id) {
+    if let Some(server) = servers_locked.get_mut(&server_id) {
         server.players.remove(&player_name);
         println!("Player '{player_name}' disconnected from server '{server_id}'");
         if player_name == server.key_player {
-            servers.remove(&server_id);
+            servers_locked.remove(&server_id);
             println!("Key player left, server '{server_id}' closed");
             return (
                 StatusCode::OK,
@@ -213,9 +213,9 @@ async fn start_server(
     Path((server_id, player_name)): Path<(String, String)>,
     Extension(servers): Extension<ServerStorage>,
 ) -> impl IntoResponse {
-    let mut servers = servers.lock().await;
+    let mut servers_locked = servers.lock().await;
 
-    if let Some(server) = servers.get_mut(&server_id) {
+    if let Some(server) = servers_locked.get_mut(&server_id) {
         if server.started {
             println!("Server '{server_id}' attempted to start, already started'");
             (
@@ -256,9 +256,9 @@ async fn get_game_state(
     Path((server_id, player_name)): Path<(String, String)>,
     Extension(servers): Extension<ServerStorage>,
 ) -> impl IntoResponse {
-    let mut servers = servers.lock().await;
+    let mut servers_locked = servers.lock().await;
 
-    if let Some(server) = servers.get_mut(&server_id) {
+    if let Some(server) = servers_locked.get_mut(&server_id) {
         if let Some(player) = server.players.get_mut(&player_name) {
             // Update last contact time for the player
             player.last_contact = Utc::now();
@@ -294,8 +294,8 @@ async fn server_loop(servers: ServerStorage) {
         // Lock and process servers to decide which ones to update or remove
         let mut servers_to_update = Vec::new();
         {
-            let servers = servers.lock().await;
-            for (id, server) in &*servers {
+            let servers_locked = servers.lock().await;
+            for (id, server) in &*servers_locked {
                 let mut active_players = HashMap::new();
                 let mut remove_server = true;
 
@@ -324,16 +324,16 @@ async fn server_loop(servers: ServerStorage) {
 
         // Apply updates to the servers
         {
-            let mut servers = servers.lock().await;
+            let mut servers_locked = servers.lock().await;
             // Remove servers that are not in the update list
-            servers.retain(|id, _| {
+            servers_locked.retain(|id, _| {
                 servers_to_update
                     .iter()
                     .any(|(update_id, _)| update_id == id)
             });
             // Update servers that are in the update list
             for (id, active_players) in servers_to_update {
-                if let Some(server) = servers.get_mut(&id) {
+                if let Some(server) = servers_locked.get_mut(&id) {
                     server.players = active_players;
                     if server.started {
                         let elapsed_time_update = current_time

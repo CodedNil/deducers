@@ -22,7 +22,6 @@ pub fn add_item(
     number_to_add: u32,
     recursions: u32,
 ) {
-    println!("Adding item to server {server_id} with {number_to_add} items left to add");
     // Check if maximum recursion depth has been reached
     if recursions >= MAX_RECURSIONS {
         println!("Maximum recursion depth reached on adding item");
@@ -34,6 +33,8 @@ pub fn add_item(
         &format!("u:Create 3 one word items to be used in a 20 questions game, such as Phone Bird Crystal, first letter capitalised, return compact JSON with keys item1 item2 item3, previous items were {items_history:?} don't repeat and aim for variety"),
         100,
     );
+    // let response: Result<String, Box<dyn std::error::Error>> =
+    //     Ok("{\"item1\": \"Cactus\",\"item2\": \"Saxophone\",\"item3\": \"Glacier\"}".to_string());
     if let Ok(message) = response {
         // Parse response
         if let Ok(items_response) = serde_json::from_str::<ItemsResponse>(&message) {
@@ -48,10 +49,6 @@ pub fn add_item(
                     // Add item to history
                     items_history.push(item.clone());
                     added_count += 1;
-                    if added_count >= number_to_add {
-                        println!("Added all items");
-                        return;
-                    }
 
                     // Send request to server with ureq
                     let url = format!(
@@ -70,6 +67,10 @@ pub fn add_item(
                             }
                         }
                     });
+
+                    if added_count >= number_to_add {
+                        return;
+                    }
                 }
             }
 
