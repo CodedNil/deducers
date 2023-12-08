@@ -538,6 +538,10 @@ layout_mode = 2
 size_flags_horizontal = 4
 text = "Ok"
 
+[node name="Timer" type="Timer" parent="."]
+wait_time = 0.5
+autostart = true
+
 [connection signal="pressed" from="GameUI/HBoxContainer/VBoxContainer/Leaderboard/LobbyStatus/MarginContainer/HBoxContainer/StartButton" to="." method="on_start_server_pressed"]
 [connection signal="pressed" from="GameUI/HBoxContainer/VBoxContainer/Leaderboard/LobbyStatus/MarginContainer/HBoxContainer/LeaveButton" to="." method="on_leave_server_pressed"]
 [connection signal="pressed" from="GameUI/HBoxContainer/VBoxContainer/Management/MarginContainer/VBoxContainer/QuestionSubmit/SubmitButton" to="." method="on_submit_question_pressed"]
@@ -545,3 +549,4 @@ text = "Ok"
 [connection signal="pressed" from="GameUI/HBoxContainer/VBoxContainer/Management/MarginContainer/VBoxContainer/GuessItem/SubmitButton" to="." method="on_submit_guess_pressed"]
 [connection signal="pressed" from="ConnectUI/ColorRect/VBoxContainer/HBoxContainer/Connect" to="." method="on_connect_button_pressed"]
 [connection signal="pressed" from="AlertDialog/MarginContainer/VBoxContainer/AlertOk" to="." method="on_error_dialog_ok_pressed"]
+[connection signal="timeout" from="Timer" to="." method="on_refresh_game_state"]

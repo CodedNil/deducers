@@ -30,7 +30,7 @@ pub fn add_item(
 
     // Create function
     let response = query(
-        &format!("u:Create 3 one word items to be used in a 20 questions game, such as Phone Bird Crystal, first letter capitalised, return compact JSON with keys item1 item2 item3, previous items were {items_history:?} don't repeat and aim for variety"),
+        &format!("u:Create 3 one word items to be used in a 20 questions game, such as Phone Bird Crystal, first letter capitalised, return compact JSON with keys item1 item2 item3, previous items were {items_history:?} don't repeat and aim for variety, British English"),
         100,
     );
     // let response: Result<String, Box<dyn std::error::Error>> =
@@ -99,28 +99,25 @@ pub async fn add_item_to_server(
     Extension(servers): Extension<ServerStorage>,
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
 ) -> impl IntoResponse {
-    println!("Adding item {item_name} to server {server_id}");
     // Check if the request is from localhost
     if addr.ip().is_loopback() {
         let mut servers = servers.lock().await;
         if let Some(server) = servers.get_mut(&server_id) {
-            // if !server.started {
-            //     return StatusCode::FORBIDDEN;
-            // }
+            if !server.started {
+                return StatusCode::FORBIDDEN;
+            }
             server.items.push(Item {
                 name: item_name.clone(),
                 id: server.items_history.len() as u32 + 1,
                 questions: Vec::new(),
             });
             server.items_history.push(item_name);
-        } else {
-            return StatusCode::NOT_FOUND;
-        }
-        StatusCode::OK
-    } else {
-        // Reject requests not from localhost
-        StatusCode::FORBIDDEN
+            return StatusCode::OK;
+        };
+        return StatusCode::NOT_FOUND;
     }
+    // Reject requests not from localhost
+    StatusCode::FORBIDDEN
 }
 
 pub fn ask_top_question(server: &mut Server) {

@@ -84,7 +84,7 @@ pub fn query(prompt: &String, max_tokens: usize) -> Result<String> {
     let body = RequestBody {
         model: GPT_MODEL.into(),
         max_tokens,
-        temperature: 1.5,
+        temperature: 2.0,
         messages,
         response_format: Some(ResponseFormat {
             response_type: "json_object".into(),

@@ -1,11 +1,9 @@
 use chrono::{DateTime, Utc};
 use godot::{
-    engine::{Button, ColorRect, Control, IControl, Label, LineEdit},
+    engine::{ColorRect, Control, IControl, Label, LineEdit},
     prelude::*,
 };
 use std::time::Duration;
-
-const UPDATE_TIME: f64 = 0.5;
 
 #[derive(GodotClass)]
 #[class(base=Control)]
@@ -19,7 +17,6 @@ pub struct DeducersMain {
     pub connected: bool,
     pub server_started: bool,
     pub is_host: bool,
-    time_since_update: f64,
     management_info_text_clear_time: Option<DateTime<Utc>>,
 }
 
@@ -104,12 +101,9 @@ impl DeducersMain {
             room_name = self.room_name,
             player_name = self.player_name
         );
+
         match self.http_client.post(&url).call() {
-            Ok(_) => {
-                self.base
-                    .get_node_as::<Button>("GameUI/HBoxContainer/VBoxContainer/Leaderboard/LobbyStatus/MarginContainer/HBoxContainer/StartButton")
-                    .hide();
-            }
+            Ok(_) => {}
             Err(error) => {
                 godot_print!("Error starting server {error}");
             }
@@ -153,6 +147,13 @@ impl DeducersMain {
 
     #[func]
     fn on_convert_score_pressed(&mut self) {}
+
+    #[func]
+    fn on_refresh_game_state(&mut self) {
+        if self.connected {
+            self.refresh_game_state();
+        }
+    }
 }
 
 #[godot_api]
@@ -169,7 +170,6 @@ impl IControl for DeducersMain {
             connected: false,
             server_started: false,
             is_host: false,
-            time_since_update: 0.0,
             management_info_text_clear_time: None,
         }
     }
@@ -179,15 +179,7 @@ impl IControl for DeducersMain {
         self.base.get_node_as::<Control>("ConnectUI").show();
     }
 
-    fn process(&mut self, delta: f64) {
-        if self.connected {
-            self.time_since_update += delta;
-            if self.time_since_update >= UPDATE_TIME {
-                self.time_since_update = 0.0;
-
-                self.refresh_game_state();
-            }
-        }
+    fn process(&mut self, _: f64) {
         // Clear management info text if it's time
         if let Some(clear_time) = self.management_info_text_clear_time {
             if clear_time < Utc::now() {
