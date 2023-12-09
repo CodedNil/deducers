@@ -18,31 +18,23 @@ struct ItemsResponse {
 }
 
 #[async_recursion]
-pub async fn add_item(
-    server_id: String,
-    mut items_history: Vec<String>,
-    number_to_add: u32,
-    recursions: u32,
-) {
+pub async fn add_item_to_queue(server_id: String, mut items_history: Vec<String>, recursions: u32) {
     // Check if maximum recursion depth has been reached
     if recursions >= MAX_RECURSIONS {
         println!("Maximum recursion depth reached on adding item");
         return;
     }
 
-    // Create function
+    // Query with OpenAI API
     let response = query(
         &format!("u:Create 3 one word items to be used in a 20 questions game, such as Phone Bird Crystal, first letter capitalised, return compact JSON with keys item1 item2 item3, previous items were {items_history:?} don't repeat and aim for variety, British English"),
         100,
     ).await;
-    // let response: Result<String, Box<dyn std::error::Error>> =
-    //     Ok("{\"item1\": \"Cactus\",\"item2\": \"Saxophone\",\"item3\": \"Glacier\"}".to_string());
     if let Ok(message) = response {
         // Parse response
         if let Ok(items_response) = serde_json::from_str::<ItemsResponse>(&message) {
             // Iterate and add items that aren't in history
-            let mut added_count = 0;
-            for item in vec![
+            for item in [
                 items_response.item1,
                 items_response.item2,
                 items_response.item3,
@@ -50,11 +42,10 @@ pub async fn add_item(
                 if !items_history.contains(&item) {
                     // Add item to history
                     items_history.push(item.clone());
-                    added_count += 1;
 
                     // Send request to server with ureq
                     let url = format!(
-                        "http://localhost:{SERVER_PORT}/internal/{server_id}/additem/{item}"
+                        "http://localhost:{SERVER_PORT}/internal/{server_id}/additemqueued/{item}"
                     );
                     tokio::spawn(async move {
                         let client = reqwest::Client::new();
@@ -72,35 +63,20 @@ pub async fn add_item(
                             }
                         }
                     });
-
-                    if added_count >= number_to_add {
-                        return;
-                    }
                 }
-            }
-
-            // If needed items are not added, try again
-            if added_count < number_to_add {
-                add_item(
-                    server_id,
-                    items_history,
-                    number_to_add - added_count,
-                    recursions + 1,
-                )
-                .await;
             }
         } else {
             // Try again
-            add_item(server_id, items_history, number_to_add, recursions + 1).await;
+            add_item_to_queue(server_id, items_history, recursions + 1).await;
         }
     } else {
         // Try again
-        add_item(server_id, items_history, number_to_add, recursions + 1).await;
+        add_item_to_queue(server_id, items_history, recursions + 1).await;
     }
 }
 
 #[allow(clippy::cast_possible_truncation)]
-pub async fn add_item_to_server(
+pub async fn add_item_to_server_queue(
     Path((server_id, item_name)): Path<(String, String)>,
     Extension(servers): Extension<ServerStorage>,
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
@@ -109,21 +85,35 @@ pub async fn add_item_to_server(
     if addr.ip().is_loopback() {
         let mut servers = servers.lock().await;
         if let Some(server) = servers.get_mut(&server_id) {
-            if !server.started {
-                return StatusCode::FORBIDDEN;
+            if !server.items_history.contains(&item_name) {
+                server.items_queue.insert(0, item_name.clone());
+                return StatusCode::OK;
             }
-            server.items.push(Item {
-                name: item_name.clone(),
-                id: server.items_history.len() as u32 + 1,
-                questions: Vec::new(),
-            });
-            server.items_history.push(item_name);
-            return StatusCode::OK;
+            return StatusCode::BAD_REQUEST;
         };
         return StatusCode::NOT_FOUND;
     }
     // Reject requests not from localhost
     StatusCode::FORBIDDEN
+}
+
+#[allow(clippy::cast_possible_truncation)]
+pub fn add_item_to_server(server: &mut Server) {
+    if !server.started {
+        return;
+    }
+    // Get oldest item in queue, if no items return
+    let Some(item_name) = server.items_queue.pop() else {
+        return;
+    };
+
+    // Add item to server
+    server.items.push(Item {
+        name: item_name.clone(),
+        id: server.items_history.len() as u32 + 1,
+        questions: Vec::new(),
+    });
+    server.items_history.push(item_name);
 }
 
 pub fn ask_top_question(server: &mut Server) {
@@ -175,11 +165,7 @@ pub fn ask_top_question(server: &mut Server) {
 
         // Add new item if x questions have been asked
         if server.questions_counter % ADD_ITEM_EVERY_X_QUESTIONS == 0 {
-            let server_id_clone = server.id.clone();
-            let item_history_clone = server.items_history.clone();
-            tokio::spawn(async move {
-                add_item(server_id_clone, item_history_clone, 1, 0).await;
-            });
+            add_item_to_server(server);
         }
     }
 }

@@ -14,7 +14,7 @@ mod openai;
 mod question_queue;
 
 pub const SERVER_PORT: u16 = 3013;
-const IDLE_KICK_TIME: i64 = 10;
+pub const IDLE_KICK_TIME: i64 = 10;
 pub const COINS_EVERY_X_SECONDS: f64 = 3.0;
 pub const SUBMIT_QUESTION_EVERY_X_SECONDS: f64 = 5.0;
 pub const SUBMIT_QUESTION_COST: i32 = 2;
@@ -34,6 +34,8 @@ pub struct Server {
     questions_queue: Vec<QueuedQuestion>,
     items: Vec<Item>,
     items_history: Vec<String>,
+    items_queue: Vec<String>,
+    last_add_to_queue: DateTime<Utc>,
     questions_counter: u32,
 }
 
@@ -112,8 +114,8 @@ async fn main() {
             post(question_queue::player_vote_question),
         )
         .route(
-            "/internal/:server_id/additem/:item_name",
-            post(items::add_item_to_server),
+            "/internal/:server_id/additemqueued/:item_name",
+            post(items::add_item_to_server_queue),
         )
         .layer(Extension(servers))
         .into_make_service_with_connect_info::<SocketAddr>();
@@ -125,6 +127,7 @@ async fn main() {
     axum::serve(listener, app).await.unwrap();
 }
 
+#[allow(clippy::large_enum_variant)]
 #[derive(Serialize)]
 enum GameStateResponse {
     ServerState(Server),
@@ -140,6 +143,12 @@ async fn connect_player(
     // Get the server or create a new one
     let server = servers_locked.entry(server_id.clone()).or_insert_with(|| {
         println!("Creating new server '{server_id}'");
+        // Add initial items to the servers queue
+        let server_id_clone = server_id.clone();
+        tokio::spawn(async move {
+            items::add_item_to_queue(server_id_clone, vec![], 0).await;
+        });
+
         Server {
             id: server_id.clone(),
             key_player: player_name.clone(),
@@ -150,6 +159,8 @@ async fn connect_player(
             questions_queue: Vec::new(),
             items: Vec::new(),
             items_history: Vec::new(),
+            items_queue: Vec::new(),
+            last_add_to_queue: Utc::now(),
             questions_counter: 0,
         }
     });
@@ -218,32 +229,31 @@ async fn start_server(
     if let Some(server) = servers_locked.get_mut(&server_id) {
         if server.started {
             println!("Server '{server_id}' attempted to start, already started'");
-            (
+            return (
                 StatusCode::BAD_REQUEST,
                 "Server already started".to_string(),
-            )
-        } else if player_name == server.key_player {
-            server.started = true;
-            server.last_update = Utc::now();
-
-            // Add 2 items to the server
-            let server_id_clone = server_id.clone();
-            let item_history_clone = server.items_history.clone();
-            tokio::spawn(async move {
-                items::add_item(server_id_clone, item_history_clone, 2, 0).await;
-            });
-
-            println!("Server '{server_id}' started by key player '{player_name}'");
-            (
-                StatusCode::OK,
-                format!("Server '{server_id}' started by key player '{player_name}'"),
-            )
-        } else {
-            (
+            );
+        } else if player_name != server.key_player {
+            return (
                 StatusCode::FORBIDDEN,
                 "Only the key player can start the server".to_string(),
-            )
+            );
+        } else if server.items_queue.is_empty() {
+            println!("Server '{server_id}' attempted to start, no items in queue'");
+            return (StatusCode::BAD_REQUEST, "No items in queue".to_string());
         }
+        server.started = true;
+        server.last_update = Utc::now();
+
+        // Add 2 items to the server
+        items::add_item_to_server(server);
+        items::add_item_to_server(server);
+
+        println!("Server '{server_id}' started by key player '{player_name}'");
+        (
+            StatusCode::OK,
+            format!("Server '{server_id}' started by key player '{player_name}'"),
+        )
     } else {
         (
             StatusCode::NOT_FOUND,
@@ -289,8 +299,6 @@ async fn get_game_state(
 #[allow(clippy::cast_precision_loss)]
 async fn server_loop(servers: ServerStorage) {
     loop {
-        let current_time = Utc::now();
-
         // Lock and process servers to decide which ones to update or remove
         let mut servers_to_update = Vec::new();
         {
@@ -336,7 +344,7 @@ async fn server_loop(servers: ServerStorage) {
                 if let Some(server) = servers_locked.get_mut(&id) {
                     server.players = active_players;
                     if server.started {
-                        let elapsed_time_update = current_time
+                        let elapsed_time_update = Utc::now()
                             .signed_duration_since(server.last_update)
                             .num_milliseconds()
                             as f64
@@ -361,9 +369,21 @@ async fn server_loop(servers: ServerStorage) {
                             items::ask_top_question(server);
                         }
 
+                        // If server item queue is low, add more items
+                        let time_since_last_add_to_queue = Utc::now()
+                            .signed_duration_since(server.last_add_to_queue)
+                            .num_seconds();
+                        if server.items_queue.len() < 3 && time_since_last_add_to_queue > 5 {
+                            server.last_add_to_queue = Utc::now();
+                            let server_id_clone = server.id.clone();
+                            tokio::spawn(async move {
+                                items::add_item_to_queue(server_id_clone, vec![], 0).await;
+                            });
+                        }
+
                         // Update elapsed time and last update time
                         server.elapsed_time += elapsed_time_update;
-                        server.last_update = current_time;
+                        server.last_update = Utc::now();
                     }
                 }
             }

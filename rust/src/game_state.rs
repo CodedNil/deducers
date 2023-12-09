@@ -86,9 +86,7 @@ impl DeducersMain {
             room_name = self.room_name,
             player_name = self.player_name
         );
-        let result = self.http_client.get(&url).call();
-
-        match result {
+        match self.http_client.get(&url).call() {
             Ok(response) => {
                 // Calculate the round-trip time (ping)
                 let ping = (Utc::now() - start_time).num_milliseconds();
