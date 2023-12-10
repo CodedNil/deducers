@@ -25,8 +25,8 @@ pub async fn add_item_to_queue(server_id: String, mut items_history: Vec<String>
 
     // Query with OpenAI API
     let response = query(
-        &format!("u:Create 3 one word items to be used in a 20 questions game, such as Phone Bird Crystal, first letter capitalised, return compact JSON with keys item1 item2 item3, previous items were {items_history:?} don't repeat and aim for variety, British English"),
-        100,
+        &format!("u:Create 3 one word items to be used in a 20 questions game, such as Phone Bird Crystal, first letter capitalised, return compact one line JSON with keys item1 item2 item3, previous items were {items_history:?} don't repeat and aim for variety, British English"),
+        100, 2.0
     ).await;
     if let Ok(message) = response {
         // Parse response
@@ -105,50 +105,95 @@ pub fn add_item_to_server(server: &mut Server) {
     server.items_history.push(item_name);
 }
 
-pub fn ask_top_question(server: &mut Server) {
+// Helper function to validate a question
+#[derive(Deserialize, Serialize, Debug)]
+struct AskQuestionResponse {
+    answers: Vec<String>,
+}
+
+pub async fn ask_top_question(servers: ServerStorage, server_id: String) {
+    let mut servers_lock = servers.lock().await;
+    let Some(server) = servers_lock.get_mut(&server_id) else {
+        drop(servers_lock);
+        return;
+    };
+
     let top_question = server.questions_queue.iter().max_by_key(|question| question.votes);
+    let Some(question) = top_question else {
+        drop(servers_lock);
+        return;
+    };
 
-    if let Some(question) = top_question {
-        let question_clone = question.question.clone();
-        let question_id = server.questions_counter;
+    let question_clone = question.question.clone();
+    let question_id = server.questions_counter;
 
-        // Ask question against each item (give random answer temporarily)
-        let mut retain_items = Vec::new();
-        for item in &mut server.items {
-            // Check if item already has question
-            if item.questions.iter().any(|q| q.question == question.question) {
-                retain_items.push(item.clone());
-                continue;
-            }
+    // Create list of items in string
+    let items_str = server.items.iter().map(|item| item.name.as_str()).collect::<Vec<&str>>().join(", ");
 
-            let random_answer = match rand::random::<usize>() % 3 {
-                0 => Answer::Yes,
-                1 => Answer::No,
-                _ => Answer::Maybe,
-            };
-            item.questions.push(Question {
-                player: question.player.clone(),
-                id: question_id,
-                question: question.question.clone(),
-                answer: random_answer,
-                anonymous: question.anonymous,
-            });
+    // Query with OpenAI API
+    let mut answers = Vec::new();
+    let mut attempt_count = 0;
 
-            // If item has 20 questions, remove the item
-            if item.questions.len() < 20 {
-                retain_items.push(item.clone());
+    while attempt_count < 4 && answers.len() != server.items.len() {
+        let response = query(
+            &format!("u:For each item in this list '{items_str}', answer the question '{question_clone}', return compact one line JSON with key answers which is a list of yes, no or maybe, this is a 20 questions game, British English"),
+            100,
+            1.0,
+        )
+        .await;
+
+        println!("Attempt {attempt_count}, Response: {response:?}");
+
+        if let Ok(message) = response {
+            if let Ok(validate_response) = serde_json::from_str::<AskQuestionResponse>(&message) {
+                println!("Attempt {attempt_count}, Answers: {validate_response:?}");
+                answers.clear();
+                for answer in validate_response.answers {
+                    let answer = match answer.to_lowercase().trim() {
+                        "yes" => Answer::Yes,
+                        "no" => Answer::No,
+                        "maybe" => Answer::Maybe,
+                        _ => continue,
+                    };
+                    answers.push(answer);
+                }
             }
         }
-        server.items = retain_items;
 
-        // Remove question from queue
-        server.questions_queue.retain(|q| q.question != question_clone);
-        server.questions_counter += 1;
+        attempt_count += 1;
+    }
 
-        // Add new item if x questions have been asked
-        if server.questions_counter % ADD_ITEM_EVERY_X_QUESTIONS == 0 {
-            add_item_to_server(server);
+    // Default to "maybe" if correct response not received after 4 attempts
+    if answers.len() != server.items.len() {
+        answers = vec![Answer::Maybe; server.items.len()];
+    }
+
+    // Ask question against each item (give random answer temporarily)
+    let mut retain_items = Vec::new();
+    for (index, item) in &mut server.items.iter_mut().enumerate() {
+        let random_answer = answers.get(index).unwrap_or(&Answer::Maybe).clone();
+        item.questions.push(Question {
+            player: question.player.clone(),
+            id: question_id,
+            question: question.question.clone(),
+            answer: random_answer,
+            anonymous: question.anonymous,
+        });
+
+        // If item has 20 questions, remove the item
+        if item.questions.len() < 20 {
+            retain_items.push(item.clone());
         }
+    }
+    server.items = retain_items;
+
+    // Remove question from queue
+    server.questions_queue.retain(|q| q.question != question_clone);
+    server.questions_counter += 1;
+
+    // Add new item if x questions have been asked
+    if server.questions_counter % ADD_ITEM_EVERY_X_QUESTIONS == 0 {
+        add_item_to_server(server);
     }
 }
 

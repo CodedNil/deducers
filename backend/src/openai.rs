@@ -59,7 +59,7 @@ struct Usage {
     total_tokens: usize,
 }
 
-pub async fn query(prompt: &String, max_tokens: usize) -> Result<String> {
+pub async fn query(prompt: &String, max_tokens: usize, temperature: f32) -> Result<String> {
     let api_key = env::var("OPENAI_API_KEY").context("No OPENAI_API_KEY found in environment")?;
 
     let messages: Result<Vec<Message>> = prompt
@@ -85,7 +85,7 @@ pub async fn query(prompt: &String, max_tokens: usize) -> Result<String> {
     let body = RequestBody {
         model: GPT_MODEL.into(),
         max_tokens,
-        temperature: 2.0,
+        temperature,
         messages,
         response_format: Some(ResponseFormat {
             response_type: "json_object".into(),

@@ -233,7 +233,7 @@ impl IControl for DeducersMain {
         Self {
             base,
             runtime: tokio::runtime::Runtime::new().unwrap(),
-            http_client: reqwest::Client::builder().timeout(Duration::from_secs(5)).build().unwrap(),
+            http_client: reqwest::Client::builder().timeout(Duration::from_secs(10)).build().unwrap(),
             result_sender: Arc::new(Mutex::new(tx)),
             result_receiver: Arc::new(Mutex::new(rx)),
             server_ip: String::new(),

@@ -49,6 +49,7 @@ impl DeducersMain {
             match http_client_clone.post(&url).send().await {
                 Ok(response) => {
                     if response.error_for_status_ref().is_err() {
+                        godot_print!("Error submitting question: {:?}", response);
                         // Handle the error case, where the status code indicates a failure.
                         let error_message = (response.text().await).map_or_else(|_| "Error submitting question".to_string(), |custom_message| custom_message);
 

@@ -280,7 +280,11 @@ async fn server_loop(servers: ServerStorage) {
                     let previous_question_multiple = server.elapsed_time / SUBMIT_QUESTION_EVERY_X_SECONDS;
                     let current_question_multiple = (server.elapsed_time + elapsed_time_update) / SUBMIT_QUESTION_EVERY_X_SECONDS;
                     if current_question_multiple.trunc() > previous_question_multiple.trunc() {
-                        items::ask_top_question(server);
+                        let server_id_clone = server.id.clone();
+                        let servers_clone = servers.clone();
+                        tokio::spawn(async move {
+                            items::ask_top_question(servers_clone, server_id_clone).await;
+                        });
                     }
 
                     // Add more items to the server's item queue if it's low

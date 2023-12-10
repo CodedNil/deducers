@@ -118,14 +118,10 @@ impl DeducersMain {
     }
 
     #[allow(clippy::cast_precision_loss)]
-    pub fn refresh_game_state_received(&mut self, response_str: &String, ping: i64) {
+    pub fn refresh_game_state_received(&mut self, response_str: &str, ping: i64) {
         self.base
             .get_node_as::<Label>("GameUI/HBoxContainer/VBoxContainer/Leaderboard/LobbyStatus/MarginContainer/HBoxContainer/Ping")
             .set_text(format!("Ping: {ping}ms").into());
-
-        // Calculate and print the size of the response in kilobytes
-        let size_in_kb = response_str.as_bytes().len() as f64 / 1024.0;
-        godot_print!("Response size: {:.2} KB", size_in_kb);
 
         match serde_json::from_str::<GameStateResponse>(response_str) {
             Ok(GameStateResponse::ServerState(server)) => {
