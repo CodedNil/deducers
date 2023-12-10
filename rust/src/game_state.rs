@@ -1,4 +1,7 @@
-use crate::{items, leaderboard, networking::DeducersMain};
+use crate::{
+    items, leaderboard,
+    networking::{AsyncResult, DeducersMain},
+};
 use chrono::{DateTime, Utc};
 use godot::{
     engine::{Control, Label},
@@ -74,7 +77,6 @@ enum GameStateResponse {
 }
 
 impl DeducersMain {
-    #[allow(clippy::cast_precision_loss)]
     pub fn refresh_game_state(&mut self) {
         // Record the current time before sending the request
         let start_time = Utc::now();
@@ -86,37 +88,63 @@ impl DeducersMain {
             room_name = self.room_name,
             player_name = self.player_name
         );
-        match self.http_client.get(&url).call() {
-            Ok(response) => {
-                // Calculate the round-trip time (ping)
-                let ping = (Utc::now() - start_time).num_milliseconds();
-                self.base
-                    .get_node_as::<Label>("GameUI/HBoxContainer/VBoxContainer/Leaderboard/LobbyStatus/MarginContainer/HBoxContainer/Ping")
-                    .set_text(format!("Ping: {ping}ms").into());
+        let http_client_clone = self.http_client.clone();
+        let tx = self.result_sender.clone();
+        self.runtime.spawn(async move {
+            match http_client_clone.get(&url).send().await {
+                Ok(response) => {
+                    // Calculate the round-trip time (ping)
+                    let ping = (Utc::now() - start_time).num_milliseconds();
+                    let Ok(response_str) = response.text().await else {
+                        tx.lock()
+                            .await
+                            .send(AsyncResult::RefreshGameStateError(
+                                "Error getting game state".to_string(),
+                            ))
+                            .await
+                            .unwrap();
+                        return;
+                    };
+                    tx.lock()
+                        .await
+                        .send(AsyncResult::RefreshGameState(response_str, ping))
+                        .await
+                        .unwrap();
+                }
+                Err(error) => {
+                    let error_message = if let Some(status) = error.status() {
+                        format!("Error getting game state {status}")
+                    } else {
+                        format!("Error getting game state {error}")
+                    };
 
-                // Convert response to string
-                let response_str = response.into_string().unwrap_or_default();
-
-                // Calculate and print the size of the response in kilobytes
-                let size_in_kb = response_str.as_bytes().len() as f64 / 1024.0;
-                godot_print!("Response size: {:.2} KB", size_in_kb);
-
-                match serde_json::from_str::<GameStateResponse>(&response_str) {
-                    Ok(GameStateResponse::ServerState(server)) => {
-                        self.process_game_state(&server);
-                    }
-                    _ => {
-                        godot_print!("Failed to parse game state");
-                    }
+                    tx.lock()
+                        .await
+                        .send(AsyncResult::RefreshGameStateError(error_message))
+                        .await
+                        .unwrap();
                 }
             }
-            Err(error) => {
-                godot_print!("Error getting game state {error}");
+        });
+    }
 
-                // Show connect ui
-                self.base.get_node_as::<Control>("ConnectUI").show();
-                self.connected = false;
-                self.show_alert("Lost connection to server".to_string());
+    #[allow(clippy::cast_precision_loss)]
+    pub fn refresh_game_state_received(&mut self, response_str: &String, ping: i64) {
+        godot_print!("Response {} ping {}", response_str, ping);
+        self.base
+                        .get_node_as::<Label>("GameUI/HBoxContainer/VBoxContainer/Leaderboard/LobbyStatus/MarginContainer/HBoxContainer/Ping")
+                        .set_text(format!("Ping: {ping}ms").into());
+
+        // Calculate and print the size of the response in kilobytes
+        let size_in_kb = response_str.as_bytes().len() as f64 / 1024.0;
+        godot_print!("Response size: {:.2} KB", size_in_kb);
+
+        match serde_json::from_str::<GameStateResponse>(response_str) {
+            Ok(GameStateResponse::ServerState(server)) => {
+                self.process_game_state(&server);
+            }
+            _ => {
+                godot_print!("Failed to parse game state");
             }
         }
     }

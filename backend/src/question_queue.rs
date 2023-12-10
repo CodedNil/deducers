@@ -125,10 +125,10 @@ async fn is_valid_question(question: &str) -> ValidateQuestionResponse {
 
     // Query with OpenAI API
     let response = query(
-        &format!("u:Check {question} for suitability in a 20 Questions game, format it, and return a JSON with is_suitable (bool, indicating if it's yes/no answerable and relevant, if uncertain err on allowing the question), formatted_question (string, the input question capitalized and with a question mark), and suitable_reasoning (a few word explanation for suitability decision)"),
+        &format!("u:Check '{question}' for suitability in a 20 Questions game, format it, and return a JSON with is_suitable (bool, indicating if it's yes/no/maybe answerable and relevant, if uncertain err on allowing the question), formatted_question (string, the input question capitalized and with a question mark), and suitable_reasoning (a few word explanation for suitability decision)"),
         100,
     ).await;
-    println!("Response: {:?}", response);
+    println!("Response: {response:?}");
     if let Ok(message) = response {
         // Parse response
         if let Ok(validate_response) = serde_json::from_str::<ValidateQuestionResponse>(&message) {

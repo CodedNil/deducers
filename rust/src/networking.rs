@@ -3,14 +3,27 @@ use godot::{
     engine::{ColorRect, Control, IControl, Label, LineEdit},
     prelude::*,
 };
-use std::time::Duration;
+use std::{sync::Arc, time::Duration};
+use tokio::sync::{mpsc, Mutex};
+
+pub enum AsyncResult {
+    ProcessJoinServer(String, String, String, String),
+    ProcessJoinServerError(String),
+    QuestionSubmitted,
+    QuestionSubmitError(String),
+    RefreshGameState(String, i64),
+    RefreshGameStateError(String),
+}
 
 #[derive(GodotClass)]
 #[class(base=Control)]
 pub struct DeducersMain {
     #[base]
     pub base: Base<Control>,
-    pub http_client: ureq::Agent,
+    pub runtime: tokio::runtime::Runtime,
+    pub http_client: reqwest::Client,
+    pub result_sender: Arc<Mutex<mpsc::Sender<AsyncResult>>>,
+    result_receiver: Arc<Mutex<mpsc::Receiver<AsyncResult>>>,
     pub server_ip: String,
     pub player_name: String,
     pub room_name: String,
@@ -44,32 +57,38 @@ impl DeducersMain {
         // Make post request to connect
         let url =
             format!("http://{server_ip_text}/server/{room_name_text}/connect/{player_name_text}");
-        let result = self.http_client.post(&url).call();
+        let http_client_clone = self.http_client.clone();
+        let tx = self.result_sender.clone();
+        self.runtime.spawn(async move {
+            match http_client_clone.post(&url).send().await {
+                Ok(response) => {
+                    let result_text = response.text().await.unwrap_or_default();
+                    tx.lock()
+                        .await
+                        .send(AsyncResult::ProcessJoinServer(
+                            result_text,
+                            server_ip_text.to_string(),
+                            room_name_text.to_string(),
+                            player_name_text.to_string(),
+                        ))
+                        .await
+                        .unwrap();
+                }
+                Err(error) => {
+                    let error_message = if let Some(status) = error.status() {
+                        format!("Error connecting to server {status}")
+                    } else {
+                        format!("Error connecting to server {error}")
+                    };
 
-        match result {
-            Ok(response) => {
-                self.process_join_server(
-                    &response.into_string().unwrap_or_default(),
-                    server_ip_text,
-                    room_name_text,
-                    player_name_text,
-                );
+                    tx.lock()
+                        .await
+                        .send(AsyncResult::ProcessJoinServerError(error_message))
+                        .await
+                        .unwrap();
+                }
             }
-            Err(error) => {
-                let error_message = if let ureq::Error::Status(_, response) = error {
-                    response
-                        .into_string()
-                        .unwrap_or_else(|_| "Failed to read error message".to_string())
-                } else {
-                    format!("Connection error: {error}")
-                };
-
-                godot_print!("Error: {error_message}");
-                self.show_alert(
-                    format!("Could not connect to server:\n{error_message}").to_string(),
-                );
-            }
-        }
+        });
     }
 
     pub fn show_alert(&mut self, message: String) {
@@ -102,12 +121,15 @@ impl DeducersMain {
             player_name = self.player_name
         );
 
-        match self.http_client.post(&url).call() {
-            Ok(_) => {}
-            Err(error) => {
-                godot_print!("Error starting server {error}");
+        let http_client_clone = self.http_client.clone();
+        self.runtime.spawn(async move {
+            match http_client_clone.post(&url).send().await {
+                Ok(_) => {}
+                Err(error) => {
+                    godot_print!("Error starting server {error}");
+                }
             }
-        }
+        });
     }
 
     #[func]
@@ -119,12 +141,15 @@ impl DeducersMain {
             room_name = self.room_name,
             player_name = self.player_name
         );
-        match self.http_client.post(&url).call() {
-            Ok(_) => {}
-            Err(error) => {
-                godot_print!("Error disconnecting from server {error}");
+        let http_client_clone = self.http_client.clone();
+        self.runtime.spawn(async move {
+            match http_client_clone.post(&url).send().await {
+                Ok(_) => {}
+                Err(error) => {
+                    godot_print!("Error disconnecting from server {error}");
+                }
             }
-        }
+        });
 
         // Show connect ui
         self.base.get_node_as::<Control>("ConnectUI").show();
@@ -159,11 +184,17 @@ impl DeducersMain {
 #[godot_api]
 impl IControl for DeducersMain {
     fn init(base: Base<Control>) -> Self {
+        let (tx, rx) = mpsc::channel::<AsyncResult>(32);
+
         Self {
             base,
-            http_client: ureq::builder()
-                .timeout_connect(Duration::from_secs(5))
-                .build(),
+            runtime: tokio::runtime::Runtime::new().unwrap(),
+            http_client: reqwest::Client::builder()
+                .timeout(Duration::from_secs(5))
+                .build()
+                .unwrap(),
+            result_sender: Arc::new(Mutex::new(tx)),
+            result_receiver: Arc::new(Mutex::new(rx)),
             server_ip: String::new(),
             player_name: String::new(),
             room_name: String::new(),
@@ -187,6 +218,44 @@ impl IControl for DeducersMain {
                     .get_node_as::<Label>("GameUI/HBoxContainer/VBoxContainer/Management/MarginContainer/VBoxContainer/ManagementInfoLabel")
                     .set_text("".into());
                 self.management_info_text_clear_time = None;
+            }
+        }
+
+        // Collect results
+        let mut results = Vec::new();
+        {
+            let mut receiver = self.result_receiver.blocking_lock();
+            while let Ok(result) = receiver.try_recv() {
+                results.push(result);
+            }
+        }
+
+        // Process async results
+        for result in results {
+            match result {
+                AsyncResult::ProcessJoinServer(response, server_ip, room_name, player_name) => {
+                    self.process_join_server(&response, server_ip, room_name, player_name);
+                }
+                AsyncResult::ProcessJoinServerError(error_message) => {
+                    self.show_alert(error_message);
+                }
+                AsyncResult::QuestionSubmitted => {
+                    self.question_submitted();
+                }
+                AsyncResult::QuestionSubmitError(error_message) => {
+                    self.show_management_info(error_message, 2000);
+                }
+                AsyncResult::RefreshGameState(response, ping) => {
+                    self.refresh_game_state_received(&response, ping);
+                }
+                AsyncResult::RefreshGameStateError(error_message) => {
+                    godot_print!("Error getting game state {error_message}");
+
+                    // Disconnect
+                    self.base.get_node_as::<Control>("ConnectUI").show();
+                    self.connected = false;
+                    self.show_alert("Lost connection to server".to_string());
+                }
             }
         }
     }

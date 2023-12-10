@@ -1,5 +1,5 @@
-use crate::game_state::QueuedQuestion;
 use crate::networking::DeducersMain;
+use crate::{game_state::QueuedQuestion, networking::AsyncResult};
 use godot::{
     engine::{Button, CheckBox, Control, Label, LineEdit, ResourceLoader, VBoxContainer},
     prelude::*,
@@ -45,33 +45,43 @@ impl DeducersMain {
             question = encoded_question,
             options = encoded_options
         );
-
-        match self.http_client.post(&url).call() {
-            Ok(result) => {
-                // Clear question text
-                self.base
-                .get_node_as::<LineEdit>("GameUI/HBoxContainer/VBoxContainer/Management/MarginContainer/VBoxContainer/QuestionSubmit/QuestionTextEdit")
-                .set_text("".into());
-                // Untick anonymous checkbox
-                self.base
-                .get_node_as::<CheckBox>("GameUI/HBoxContainer/VBoxContainer/Management/MarginContainer/VBoxContainer/AnonymouseCheckbox")
-                .set_pressed(false);
-
-                // Print result
-                godot_print!("Result: {:?}", result.into_string());
-            }
-            Err(error) => {
-                if let ureq::Error::Status(_, response) = error {
-                    if let Ok(text) = response.into_string() {
-                        self.show_management_info(text, 2000);
+        let http_client_clone = self.http_client.clone();
+        let tx = self.result_sender.clone();
+        self.runtime.spawn(async move {
+            match http_client_clone.post(&url).send().await {
+                Ok(_) => {
+                    tx.lock()
+                        .await
+                        .send(AsyncResult::QuestionSubmitted)
+                        .await
+                        .unwrap();
+                }
+                Err(error) => {
+                    let error_message = if let Some(status) = error.status() {
+                        format!("Error submitting question {status}")
                     } else {
-                        godot_print!("Error submitting question");
-                    }
-                } else {
-                    godot_print!("Error submitting question: {error}");
-                };
+                        format!("Error submitting question {error}")
+                    };
+
+                    tx.lock()
+                        .await
+                        .send(AsyncResult::QuestionSubmitError(error_message))
+                        .await
+                        .unwrap();
+                }
             }
-        }
+        });
+    }
+
+    pub fn question_submitted(&mut self) {
+        // Clear question text
+        self.base
+            .get_node_as::<LineEdit>("GameUI/HBoxContainer/VBoxContainer/Management/MarginContainer/VBoxContainer/QuestionSubmit/QuestionTextEdit")
+            .set_text("".into());
+        // Untick anonymous checkbox
+        self.base
+            .get_node_as::<CheckBox>("GameUI/HBoxContainer/VBoxContainer/Management/MarginContainer/VBoxContainer/AnonymouseCheckbox")
+            .set_pressed(false);
     }
 
     pub fn question_queue_vote_clicked(&mut self, button_id: u32) {
@@ -114,14 +124,15 @@ impl DeducersMain {
             question = encoded_question,
         );
 
-        match self.http_client.post(&url).call() {
-            Ok(result) => {
-                godot_print!("Voted for question: {:?}", result.into_string());
+        let http_client_clone = self.http_client.clone();
+        self.runtime.spawn(async move {
+            match http_client_clone.post(&url).send().await {
+                Ok(_) => {}
+                Err(error) => {
+                    godot_print!("Error voting for question {error}");
+                }
             }
-            Err(error) => {
-                godot_print!("Error voting for question: {error}");
-            }
-        }
+        });
     }
 
     #[allow(clippy::cast_possible_truncation, clippy::cast_possible_wrap)]
