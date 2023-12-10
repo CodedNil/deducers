@@ -160,6 +160,23 @@ impl DeducersMain {
                 // Generate random id for button
                 let button_id = rand::random::<u32>();
                 vote_button.set_meta("button_id".into(), button_id.to_variant());
+                let tx = self.result_sender.clone();
+                let runtime = self.runtime.handle().clone();
+                vote_button.connect(
+                    "pressed".into(),
+                    Callable::from_fn("question_vote_pressed", move |_| {
+                        let tx_clone = tx.clone();
+                        runtime.spawn(async move {
+                            tx_clone
+                                .lock()
+                                .await
+                                .send(AsyncResult::QuestionVoted(button_id))
+                                .await
+                                .unwrap();
+                        });
+                        Ok(Variant::nil())
+                    }),
+                );
 
                 items_container.add_child(new_item);
             }

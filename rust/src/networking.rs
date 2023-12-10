@@ -11,6 +11,7 @@ pub enum AsyncResult {
     ProcessJoinServerError(String),
     QuestionSubmitted,
     QuestionSubmitError(String),
+    QuestionVoted(u32),
     RefreshGameState(String, i64),
     RefreshGameStateError(String),
 }
@@ -244,6 +245,9 @@ impl IControl for DeducersMain {
                 }
                 AsyncResult::QuestionSubmitError(error_message) => {
                     self.show_management_info(error_message, 2000);
+                }
+                AsyncResult::QuestionVoted(button_id) => {
+                    self.question_queue_vote_clicked(button_id);
                 }
                 AsyncResult::RefreshGameState(response, ping) => {
                     self.refresh_game_state_received(&response, ping);
