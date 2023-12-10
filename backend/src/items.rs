@@ -25,7 +25,7 @@ pub async fn add_item_to_queue(server_id: String, mut items_history: Vec<String>
 
     // Query with OpenAI API
     let response = query(
-        &format!("u:Create 3 one word items to be used in a 20 questions game, such as Phone Bird Crystal, first letter capitalised, return compact one line JSON with keys item1 item2 item3, previous items were {items_history:?} don't repeat and aim for variety, British English"),
+        &format!("u:Create 3 one word items to be used in a 20 questions game, such as Phone Bird Crystal, first letter capitalised, return compact one line JSON with keys item1 item2 item3, previous items were {items_history:?} don't repeat and aim for variety, British English, categories are [plant, animal, object]"),
         100, 2.0
     ).await;
     if let Ok(message) = response {
