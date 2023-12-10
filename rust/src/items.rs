@@ -65,8 +65,8 @@ pub fn update(ui_root: &Gd<Control>, items: &Vec<Item>) {
     let mut active_questions = vec![];
     for item in items {
         for question in &item.questions {
-            if !active_questions.contains(&question.question) {
-                active_questions.push(question.question.clone());
+            if !active_questions.contains(&(question.id, question.question.clone())) {
+                active_questions.push((question.id, question.question.clone()));
             }
         }
     }
@@ -95,9 +95,16 @@ pub fn update(ui_root: &Gd<Control>, items: &Vec<Item>) {
             active_questions
                 .get(question_index as usize)
                 .unwrap()
+                .1
                 .clone()
+                .unwrap_or("ANONYMOUS".into())
         } else {
             String::new()
+        };
+        let question_id = if question_index < 20 - num_blanks {
+            active_questions.get(question_index as usize).unwrap().0
+        } else {
+            0
         };
         child
             .get_node_as::<Label>("ColorRect/MarginContainer/HBoxContainer/Question")
@@ -116,7 +123,7 @@ pub fn update(ui_root: &Gd<Control>, items: &Vec<Item>) {
             let mut answer: Option<crate::game_state::Answer> = None;
             if question_index < 20 - num_blanks {
                 for answer_question in &item.questions {
-                    if answer_question.question == question_string {
+                    if answer_question.id == question_id {
                         answer = Some(answer_question.answer.clone());
                         break;
                     }

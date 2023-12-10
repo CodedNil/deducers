@@ -2,7 +2,7 @@ use crate::{
     items, leaderboard,
     networking::{AsyncResult, DeducersMain},
 };
-use chrono::{DateTime, Utc};
+use chrono::Utc;
 use godot::{
     engine::{Control, Label},
     prelude::*,
@@ -13,7 +13,7 @@ use std::collections::HashMap;
 pub const SUBMIT_QUESTION_EVERY_X_SECONDS: i32 = 5;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-struct Server {
+pub struct ServerMinimal {
     id: String,
     started: bool,
     elapsed_time: f64,
@@ -26,31 +26,31 @@ struct Server {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Player {
     pub name: String,
-    last_contact: DateTime<Utc>,
     pub score: i32,
-    coins: i32,
+    coins: Option<i32>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct QueuedQuestion {
     pub player: String,
-    pub question: String,
+    pub question: Option<String>,
+    pub anonymous: bool,
     pub votes: u32,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Item {
-    name: String,
     pub id: u32,
     pub questions: Vec<Question>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Question {
-    pub player: String,
-    pub question: String,
+    player: String,
+    pub id: u32,
+    pub question: Option<String>,
     pub answer: Answer,
-    pub anonymous: bool,
+    anonymous: bool,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -72,7 +72,7 @@ impl Answer {
 
 #[derive(Deserialize)]
 enum GameStateResponse {
-    ServerState(Server),
+    ServerState(ServerMinimal),
     Error(String),
 }
 
@@ -130,7 +130,6 @@ impl DeducersMain {
 
     #[allow(clippy::cast_precision_loss)]
     pub fn refresh_game_state_received(&mut self, response_str: &String, ping: i64) {
-        godot_print!("Response {} ping {}", response_str, ping);
         self.base
                         .get_node_as::<Label>("GameUI/HBoxContainer/VBoxContainer/Leaderboard/LobbyStatus/MarginContainer/HBoxContainer/Ping")
                         .set_text(format!("Ping: {ping}ms").into());
@@ -192,7 +191,7 @@ impl DeducersMain {
     }
 
     #[allow(clippy::cast_possible_truncation)]
-    fn process_game_state(&mut self, server: &Server) {
+    fn process_game_state(&mut self, server: &ServerMinimal) {
         leaderboard::update(
             &self
                 .base
@@ -232,7 +231,12 @@ impl DeducersMain {
             .set_text(format!("Top Question Submitted In {remaining_time} Seconds").into());
 
         // Set coins available label
-        let coins = server.players.get(&self.player_name).unwrap().coins;
+        let coins = server
+            .players
+            .get(&self.player_name)
+            .unwrap()
+            .coins
+            .unwrap_or_default();
         self.base
             .get_node_as::<Label>("GameUI/HBoxContainer/VBoxContainer/Management/MarginContainer/VBoxContainer/CoinsRow/CoinsLabel")
             .set_text(format!("{coins} Coins Available").into());

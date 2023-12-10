@@ -184,11 +184,13 @@ impl DeducersMain {
         // Update queue items
         let mut index = 2;
         for question in questions_queue_sorted {
+            let question_text = question.question.clone().unwrap_or("ANONYMOUS".into());
+
             let item = items_container.get_child(index).unwrap();
             item.get_node_as::<Label>("ColorRect1/PlayerLabel")
                 .set_text(question.player.clone().into());
             item.get_node_as::<Label>("ColorRect2/QuestionLabel")
-                .set_text(question.question.clone().into());
+                .set_text(question_text.into());
             item.get_node_as::<Label>("ColorRect3/HBoxContainer/VotesLabel")
                 .set_text(question.votes.to_string().into());
 

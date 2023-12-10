@@ -9,6 +9,8 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, net::SocketAddr, sync::Arc, time::Duration};
 use tokio::{net::TcpListener, sync::Mutex};
+
+mod game_state;
 mod items;
 mod openai;
 mod question_queue;
@@ -65,6 +67,7 @@ struct Item {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 struct Question {
     player: String,
+    id: u32,
     question: String,
     answer: Answer,
     anonymous: bool,
@@ -103,7 +106,7 @@ async fn main() {
         .route("/server/:server_id/start/:player_name", post(start_server))
         .route(
             "/server/:server_id/getstate/:player_name",
-            get(get_game_state),
+            get(game_state::get_state),
         )
         .route(
             "/server/:server_id/submitquestion/:player_name/:question/:options",
@@ -125,13 +128,6 @@ async fn main() {
     let listener = TcpListener::bind(&address).await.unwrap();
     println!("Server running on {address}");
     axum::serve(listener, app).await.unwrap();
-}
-
-#[allow(clippy::large_enum_variant)]
-#[derive(Serialize)]
-enum GameStateResponse {
-    ServerState(Server),
-    Error(String),
 }
 
 async fn connect_player(
@@ -169,7 +165,7 @@ async fn connect_player(
     if server.players.contains_key(&player_name) {
         return (
             StatusCode::BAD_REQUEST,
-            Json(GameStateResponse::Error(format!(
+            Json(game_state::Response::Error(format!(
                 "Player '{player_name}' is already connected to server '{server_id}'"
             ))),
         );
@@ -185,9 +181,10 @@ async fn connect_player(
 
     // Return the game state
     println!("Player '{player_name}' connected to server '{server_id}'");
+    let minimal_server = game_state::convert_to_minimal(server, &player_name);
     (
         StatusCode::OK,
-        Json(GameStateResponse::ServerState(server.clone())),
+        Json(game_state::Response::ServerState(minimal_server)),
     )
 }
 
@@ -258,40 +255,6 @@ async fn start_server(
         (
             StatusCode::NOT_FOUND,
             format!("Server '{server_id}' not found"),
-        )
-    }
-}
-
-async fn get_game_state(
-    Path((server_id, player_name)): Path<(String, String)>,
-    Extension(servers): Extension<ServerStorage>,
-) -> impl IntoResponse {
-    let mut servers_locked = servers.lock().await;
-
-    if let Some(server) = servers_locked.get_mut(&server_id) {
-        if let Some(player) = server.players.get_mut(&player_name) {
-            // Update last contact time for the player
-            player.last_contact = Utc::now();
-
-            // Return the entire state of the server
-            (
-                StatusCode::OK,
-                Json(GameStateResponse::ServerState(server.clone())),
-            )
-        } else {
-            (
-                StatusCode::NOT_FOUND,
-                Json(GameStateResponse::Error(format!(
-                    "Player '{player_name}' not found in server '{server_id}'"
-                ))),
-            )
-        }
-    } else {
-        (
-            StatusCode::NOT_FOUND,
-            Json(GameStateResponse::Error(format!(
-                "Server '{server_id}' not found"
-            ))),
         )
     }
 }

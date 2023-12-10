@@ -124,6 +124,7 @@ pub fn ask_top_question(server: &mut Server) {
 
     if let Some(question) = top_question {
         let question_clone = question.question.clone();
+        let question_id = server.questions_counter;
 
         // Ask question against each item (give random answer temporarily)
         let mut retain_items = Vec::new();
@@ -145,6 +146,7 @@ pub fn ask_top_question(server: &mut Server) {
             };
             item.questions.push(Question {
                 player: question.player.clone(),
+                id: question_id,
                 question: question.question.clone(),
                 answer: random_answer,
                 anonymous: question.anonymous,
