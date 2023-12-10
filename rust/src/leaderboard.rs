@@ -10,18 +10,9 @@ use std::collections::HashMap;
 
 impl DeducersMain {
     #[allow(clippy::cast_possible_wrap, clippy::cast_possible_truncation)]
-    pub fn update_leaderboard(
-        &mut self,
-        players: &HashMap<String, Player>,
-        player_name: &String,
-        is_host: bool,
-    ) {
-        let ui_root = self
-            .base
-            .get_node_as::<Control>("GameUI/HBoxContainer/VBoxContainer/Leaderboard");
-        let mut items_container = ui_root.get_node_as::<Control>(
-            "LeaderboardColorRect/MarginContainer/ScrollContainer/VBoxContainer",
-        );
+    pub fn update_leaderboard(&mut self, players: &HashMap<String, Player>, player_name: &String, is_host: bool) {
+        let ui_root = self.base.get_node_as::<Control>("GameUI/HBoxContainer/VBoxContainer/Leaderboard");
+        let mut items_container = ui_root.get_node_as::<Control>("LeaderboardColorRect/MarginContainer/ScrollContainer/VBoxContainer");
 
         // Add new items if needed
         let children_to_add = (players.len() + 1) as i32 - items_container.get_child_count();
@@ -34,8 +25,7 @@ impl DeducersMain {
                 let new_item = item_scene.instantiate().unwrap();
 
                 // Set kick button callback
-                let mut kick_button =
-                    new_item.get_node_as::<Button>("ColorScore/HBoxContainer/KickButton");
+                let mut kick_button = new_item.get_node_as::<Button>("ColorScore/HBoxContainer/KickButton");
                 // Generate random id for button
                 let button_id = rand::random::<u32>();
                 kick_button.set_meta("button_id".into(), button_id.to_variant());
@@ -46,12 +36,7 @@ impl DeducersMain {
                     Callable::from_fn("kick_pressed", move |_| {
                         let tx_clone = tx.clone();
                         runtime.spawn(async move {
-                            tx_clone
-                                .lock()
-                                .await
-                                .send(AsyncResult::KickPlayer(button_id))
-                                .await
-                                .unwrap();
+                            tx_clone.lock().await.send(AsyncResult::KickPlayer(button_id)).await.unwrap();
                         });
                         Ok(Variant::nil())
                     }),
@@ -65,18 +50,14 @@ impl DeducersMain {
         let children_to_remove = items_container.get_child_count() - (players.len() + 1) as i32;
         if children_to_remove > 0 {
             for _ in 0..children_to_remove {
-                items_container
-                    .get_child(items_container.get_child_count() - 1)
-                    .unwrap()
-                    .queue_free();
+                items_container.get_child(items_container.get_child_count() - 1).unwrap().queue_free();
             }
         }
 
         // Update leaderboard items with player scores
         for (index, player) in players.values().enumerate() {
             let item = items_container.get_child(index as i32 + 1).unwrap();
-            item.get_node_as::<Label>("ColorName/PlayerName")
-                .set_text(player.name.clone().into());
+            item.get_node_as::<Label>("ColorName/PlayerName").set_text(player.name.clone().into());
             item.get_node_as::<Label>("ColorScore/HBoxContainer/PlayerScore")
                 .set_text(player.score.to_string().into());
 
@@ -88,12 +69,8 @@ impl DeducersMain {
 
     pub fn kick_player_pressed(&mut self, button_id: u32) {
         // Find the player name from button_id
-        let ui_root = self
-            .base
-            .get_node_as::<Control>("GameUI/HBoxContainer/VBoxContainer/Leaderboard");
-        let items_container = ui_root.get_node_as::<Control>(
-            "LeaderboardColorRect/MarginContainer/ScrollContainer/VBoxContainer",
-        );
+        let ui_root = self.base.get_node_as::<Control>("GameUI/HBoxContainer/VBoxContainer/Leaderboard");
+        let items_container = ui_root.get_node_as::<Control>("LeaderboardColorRect/MarginContainer/ScrollContainer/VBoxContainer");
 
         let mut player_name = String::new();
         for i in 2..items_container.get_child_count() {
@@ -101,10 +78,7 @@ impl DeducersMain {
             let kick_button = item.get_node_as::<Button>("ColorScore/HBoxContainer/KickButton");
             let id = kick_button.get_meta("button_id".into()).to::<u32>();
             if id == button_id {
-                player_name = item
-                    .get_node_as::<Label>("ColorName/PlayerName")
-                    .get_text()
-                    .to_string();
+                player_name = item.get_node_as::<Label>("ColorName/PlayerName").get_text().to_string();
                 break;
             }
         }

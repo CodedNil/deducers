@@ -61,11 +61,11 @@ pub enum Answer {
 }
 
 impl Answer {
-    pub fn to_color(&self) -> Color {
+    pub const fn to_color(&self) -> Color {
         match self {
-            Answer::Yes => Color::from_rgb(0.25, 0.5, 0.2),
-            Answer::No => Color::from_rgb(0.5, 0.2, 0.2),
-            Answer::Maybe => Color::from_rgb(0.55, 0.35, 0.0),
+            Self::Yes => Color::from_rgb(0.25, 0.5, 0.2),
+            Self::No => Color::from_rgb(0.5, 0.2, 0.2),
+            Self::Maybe => Color::from_rgb(0.55, 0.35, 0.0),
         }
     }
 }
@@ -98,31 +98,20 @@ impl DeducersMain {
                     let Ok(response_str) = response.text().await else {
                         tx.lock()
                             .await
-                            .send(AsyncResult::RefreshGameStateError(
-                                "Error getting game state".to_string(),
-                            ))
+                            .send(AsyncResult::RefreshGameStateError("Error getting game state".to_string()))
                             .await
                             .unwrap();
                         return;
                     };
-                    tx.lock()
-                        .await
-                        .send(AsyncResult::RefreshGameState(response_str, ping))
-                        .await
-                        .unwrap();
+                    tx.lock().await.send(AsyncResult::RefreshGameState(response_str, ping)).await.unwrap();
                 }
                 Err(error) => {
-                    let error_message = if let Some(status) = error.status() {
-                        format!("Error getting game state {status}")
-                    } else {
-                        format!("Error getting game state {error}")
-                    };
+                    let error_message = error.status().map_or_else(
+                        || format!("Error getting game state {error}"),
+                        |status| format!("Error getting game state {status}"),
+                    );
 
-                    tx.lock()
-                        .await
-                        .send(AsyncResult::RefreshGameStateError(error_message))
-                        .await
-                        .unwrap();
+                    tx.lock().await.send(AsyncResult::RefreshGameStateError(error_message)).await.unwrap();
                 }
             }
         });
@@ -131,8 +120,8 @@ impl DeducersMain {
     #[allow(clippy::cast_precision_loss)]
     pub fn refresh_game_state_received(&mut self, response_str: &String, ping: i64) {
         self.base
-                        .get_node_as::<Label>("GameUI/HBoxContainer/VBoxContainer/Leaderboard/LobbyStatus/MarginContainer/HBoxContainer/Ping")
-                        .set_text(format!("Ping: {ping}ms").into());
+            .get_node_as::<Label>("GameUI/HBoxContainer/VBoxContainer/Leaderboard/LobbyStatus/MarginContainer/HBoxContainer/Ping")
+            .set_text(format!("Ping: {ping}ms").into());
 
         // Calculate and print the size of the response in kilobytes
         let size_in_kb = response_str.as_bytes().len() as f64 / 1024.0;
@@ -148,13 +137,7 @@ impl DeducersMain {
         }
     }
 
-    pub fn process_join_server(
-        &mut self,
-        response: &str,
-        server_ip_text: String,
-        room_name_text: String,
-        player_name_text: String,
-    ) {
+    pub fn process_join_server(&mut self, response: &str, server_ip_text: String, room_name_text: String, player_name_text: String) {
         match serde_json::from_str::<GameStateResponse>(response) {
             Ok(GameStateResponse::ServerState(server)) => {
                 // Set fields
@@ -194,17 +177,10 @@ impl DeducersMain {
     fn process_game_state(&mut self, server: &ServerMinimal) {
         self.update_leaderboard(&server.players, &self.player_name.clone(), self.is_host);
         items::set_guess_list(
-            &self
-                .base
-                .get_node_as::<Control>("GameUI/HBoxContainer/VBoxContainer/Management"),
+            &self.base.get_node_as::<Control>("GameUI/HBoxContainer/VBoxContainer/Management"),
             &server.items,
         );
-        items::update(
-            &self
-                .base
-                .get_node_as::<Control>("GameUI/HBoxContainer/Items"),
-            &server.items,
-        );
+        items::update(&self.base.get_node_as::<Control>("GameUI/HBoxContainer/Items"), &server.items);
 
         self.questions_queue_update(&server.questions_queue);
 
@@ -222,19 +198,13 @@ impl DeducersMain {
         self.server_started = server.started;
 
         // Countdown until question submitted every x seconds
-        let remaining_time =
-            SUBMIT_QUESTION_EVERY_X_SECONDS - (elapsed_seconds % SUBMIT_QUESTION_EVERY_X_SECONDS);
+        let remaining_time = SUBMIT_QUESTION_EVERY_X_SECONDS - (elapsed_seconds % SUBMIT_QUESTION_EVERY_X_SECONDS);
         self.base
             .get_node_as::<Label>("GameUI/HBoxContainer/VBoxContainer/QuestionQueue/MarginContainer/ScrollContainer/VBoxContainer/Label")
             .set_text(format!("Top Question Submitted In {remaining_time} Seconds").into());
 
         // Set coins available label
-        let coins = server
-            .players
-            .get(&self.player_name)
-            .unwrap()
-            .coins
-            .unwrap_or_default();
+        let coins = server.players.get(&self.player_name).unwrap().coins.unwrap_or_default();
         self.base
             .get_node_as::<Label>("GameUI/HBoxContainer/VBoxContainer/Management/MarginContainer/VBoxContainer/CoinsRow/CoinsLabel")
             .set_text(format!("{coins} Coins Available").into());

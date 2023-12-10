@@ -52,35 +52,22 @@ pub enum Response {
     Error(String),
 }
 
-pub async fn get_state(
-    Path((server_id, player_name)): Path<(String, String)>,
-    Extension(servers): Extension<ServerStorage>,
-) -> impl IntoResponse {
-    let mut servers_locked = servers.lock().await;
+pub async fn get_state(Path((server_id, player_name)): Path<(String, String)>, Extension(servers): Extension<ServerStorage>) -> impl IntoResponse {
+    let mut servers_lock = servers.lock().await;
+    let Some(server) = servers_lock.get_mut(&server_id) else {
+        return (StatusCode::NOT_FOUND, Json(Response::Error("Server not found".into())));
+    };
+    let Some(player) = server.players.get_mut(&player_name) else {
+        return (StatusCode::NOT_FOUND, Json(Response::Error("Player not found in server".into())));
+    };
 
-    if let Some(server) = servers_locked.get_mut(&server_id) {
-        if let Some(player) = server.players.get_mut(&player_name) {
-            // Update last contact time for the player
-            player.last_contact = Utc::now();
+    // Update last contact time for the player and convert to minimal server
+    player.last_contact = Utc::now();
+    let minimal_server = convert_to_minimal(server, &player_name);
+    drop(servers_lock);
 
-            let minimal_server = convert_to_minimal(server, &player_name);
-
-            // Return the entire state of the server
-            (StatusCode::OK, Json(Response::ServerState(minimal_server)))
-        } else {
-            (
-                StatusCode::NOT_FOUND,
-                Json(Response::Error(format!(
-                    "Player '{player_name}' not found in server '{server_id}'"
-                ))),
-            )
-        }
-    } else {
-        (
-            StatusCode::NOT_FOUND,
-            Json(Response::Error(format!("Server '{server_id}' not found"))),
-        )
-    }
+    // Return the entire state of the server
+    (StatusCode::OK, Json(Response::ServerState(minimal_server)))
 }
 
 // Convert server to minimal server
@@ -90,12 +77,11 @@ pub fn convert_to_minimal(server: &Server, player_name: &String) -> ServerMinima
         .questions_queue
         .iter()
         .map(|queued_question| {
-            let question_value =
-                if queued_question.anonymous && &queued_question.player != player_name {
-                    None
-                } else {
-                    Some(queued_question.question.clone())
-                };
+            let question_value = if queued_question.anonymous && &queued_question.player != player_name {
+                None
+            } else {
+                Some(queued_question.question.clone())
+            };
 
             QueuedQuestion {
                 player: queued_question.player.clone(),
@@ -140,11 +126,7 @@ pub fn convert_to_minimal(server: &Server, player_name: &String) -> ServerMinima
         .iter()
         .map(|(other_player_name, player)| {
             (other_player_name.clone(), {
-                let coins_value = if other_player_name == player_name {
-                    Some(player.coins)
-                } else {
-                    None
-                };
+                let coins_value = if other_player_name == player_name { Some(player.coins) } else { None };
                 Player {
                     name: player.name.clone(),
                     score: player.score,

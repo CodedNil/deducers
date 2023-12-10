@@ -58,8 +58,7 @@ impl DeducersMain {
             .to_string();
 
         // Make post request to connect
-        let url =
-            format!("http://{server_ip_text}/server/{room_name_text}/connect/{player_name_text}");
+        let url = format!("http://{server_ip_text}/server/{room_name_text}/connect/{player_name_text}");
         let http_client_clone = self.http_client.clone();
         let tx = self.result_sender.clone();
         self.runtime.spawn(async move {
@@ -78,17 +77,12 @@ impl DeducersMain {
                         .unwrap();
                 }
                 Err(error) => {
-                    let error_message = if let Some(status) = error.status() {
-                        format!("Error connecting to server {status}")
-                    } else {
-                        format!("Error connecting to server {error}")
-                    };
+                    let error_message = error.status().map_or_else(
+                        || format!("Error connecting to server {error}"),
+                        |status| format!("Error connecting to server {status}"),
+                    );
 
-                    tx.lock()
-                        .await
-                        .send(AsyncResult::ProcessJoinServerError(error_message))
-                        .await
-                        .unwrap();
+                    tx.lock().await.send(AsyncResult::ProcessJoinServerError(error_message)).await.unwrap();
                 }
             }
         });
@@ -104,10 +98,10 @@ impl DeducersMain {
     pub fn show_management_info(&mut self, message: String, duration: i64) {
         // Set message text, then wait duration and if message text is still the same, clear it
         self.base
-            .get_node_as::<Label>("GameUI/HBoxContainer/VBoxContainer/Management/MarginContainer/VBoxContainer/ManagementInfoLabel").set_text(message.into());
+            .get_node_as::<Label>("GameUI/HBoxContainer/VBoxContainer/Management/MarginContainer/VBoxContainer/ManagementInfoLabel")
+            .set_text(message.into());
         // Set mana
-        self.management_info_text_clear_time =
-            Some(Utc::now() + chrono::Duration::milliseconds(duration));
+        self.management_info_text_clear_time = Some(Utc::now() + chrono::Duration::milliseconds(duration));
     }
 
     #[func]
@@ -178,9 +172,7 @@ impl DeducersMain {
         if item_choice_button.get_selected() == -1 {
             return;
         }
-        let item_choice = item_choice_button
-            .get_item_text(item_choice_button.get_selected())
-            .to_string();
+        let item_choice = item_choice_button.get_item_text(item_choice_button.get_selected()).to_string();
 
         // Make post request to guess
         let url = format!(
@@ -195,17 +187,11 @@ impl DeducersMain {
             match http_client_clone.post(&url).send().await {
                 Ok(_) => {}
                 Err(error) => {
-                    let error_message = if let Some(status) = error.status() {
-                        format!("Error guessing item {status}")
-                    } else {
-                        format!("Error guessing item {error}")
-                    };
+                    let error_message = error
+                        .status()
+                        .map_or_else(|| format!("Error guessing item {error}"), |status| format!("Error guessing item {status}"));
 
-                    tx.lock()
-                        .await
-                        .send(AsyncResult::GuessItemError(error_message))
-                        .await
-                        .unwrap();
+                    tx.lock().await.send(AsyncResult::GuessItemError(error_message)).await.unwrap();
                 }
             }
         });
@@ -247,10 +233,7 @@ impl IControl for DeducersMain {
         Self {
             base,
             runtime: tokio::runtime::Runtime::new().unwrap(),
-            http_client: reqwest::Client::builder()
-                .timeout(Duration::from_secs(5))
-                .build()
-                .unwrap(),
+            http_client: reqwest::Client::builder().timeout(Duration::from_secs(5)).build().unwrap(),
             result_sender: Arc::new(Mutex::new(tx)),
             result_receiver: Arc::new(Mutex::new(rx)),
             server_ip: String::new(),
@@ -300,8 +283,7 @@ impl IControl for DeducersMain {
                 AsyncResult::QuestionSubmitted => {
                     self.question_submitted();
                 }
-                AsyncResult::QuestionSubmitError(error_message)
-                | AsyncResult::GuessItemError(error_message) => {
+                AsyncResult::QuestionSubmitError(error_message) | AsyncResult::GuessItemError(error_message) => {
                     self.show_management_info(error_message, 5000);
                 }
                 AsyncResult::QuestionVoted(button_id) => {

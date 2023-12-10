@@ -8,22 +8,20 @@ use godot::{
 impl DeducersMain {
     pub fn submit_question(&mut self) {
         if !self.connected || !self.server_started {
-            self.show_management_info(
-                "Cannot submit question, game has not started yet".to_string(),
-                2000,
-            );
+            self.show_management_info("Cannot submit question, game has not started yet".to_string(), 2000);
             return;
         }
 
         // Get question text and options
         let question = self
-        .base
-        .get_node_as::<LineEdit>("GameUI/HBoxContainer/VBoxContainer/Management/MarginContainer/VBoxContainer/QuestionSubmit/QuestionTextEdit")
-        .get_text()
-        .to_string();
+            .base
+            .get_node_as::<LineEdit>("GameUI/HBoxContainer/VBoxContainer/Management/MarginContainer/VBoxContainer/QuestionSubmit/QuestionTextEdit")
+            .get_text()
+            .to_string();
         let anonymous = self
-        .base
-        .get_node_as::<CheckBox>("GameUI/HBoxContainer/VBoxContainer/Management/MarginContainer/VBoxContainer/AnonymouseCheckbox").is_pressed();
+            .base
+            .get_node_as::<CheckBox>("GameUI/HBoxContainer/VBoxContainer/Management/MarginContainer/VBoxContainer/AnonymouseCheckbox")
+            .is_pressed();
 
         // Check if question is empty
         if question.trim().is_empty() {
@@ -52,31 +50,18 @@ impl DeducersMain {
                 Ok(response) => {
                     if response.error_for_status_ref().is_err() {
                         // Handle the error case, where the status code indicates a failure.
-                        let error_message = match response.text().await {
-                            Ok(custom_message) => custom_message,
-                            Err(_) => "Error submitting question".to_string(),
-                        };
+                        let error_message = (response.text().await).map_or_else(|_| "Error submitting question".to_string(), |custom_message| custom_message);
 
-                        tx.lock()
-                            .await
-                            .send(AsyncResult::QuestionSubmitError(error_message))
-                            .await
-                            .unwrap();
+                        tx.lock().await.send(AsyncResult::QuestionSubmitError(error_message)).await.unwrap();
                     } else {
                         // Handle the success case.
-                        tx.lock()
-                            .await
-                            .send(AsyncResult::QuestionSubmitted)
-                            .await
-                            .unwrap();
+                        tx.lock().await.send(AsyncResult::QuestionSubmitted).await.unwrap();
                     }
                 }
                 Err(_) => {
                     tx.lock()
                         .await
-                        .send(AsyncResult::QuestionSubmitError(
-                            "Error submitting question".into(),
-                        ))
+                        .send(AsyncResult::QuestionSubmitError("Error submitting question".into()))
                         .await
                         .unwrap();
                 }
@@ -97,11 +82,8 @@ impl DeducersMain {
 
     pub fn question_queue_vote_pressed(&mut self, button_id: u32) {
         // Find the question text from button_id
-        let ui_root = self
-            .base
-            .get_node_as::<Control>("GameUI/HBoxContainer/VBoxContainer/QuestionQueue");
-        let items_container =
-            ui_root.get_node_as::<VBoxContainer>("MarginContainer/ScrollContainer/VBoxContainer");
+        let ui_root = self.base.get_node_as::<Control>("GameUI/HBoxContainer/VBoxContainer/QuestionQueue");
+        let items_container = ui_root.get_node_as::<VBoxContainer>("MarginContainer/ScrollContainer/VBoxContainer");
 
         let mut question_text = String::new();
         for i in 2..items_container.get_child_count() {
@@ -109,19 +91,13 @@ impl DeducersMain {
             let vote_button = item.get_node_as::<Button>("ColorRect3/HBoxContainer/VoteButton");
             let id = vote_button.get_meta("button_id".into()).to::<u32>();
             if id == button_id {
-                question_text = item
-                    .get_node_as::<Label>("ColorRect2/QuestionLabel")
-                    .get_text()
-                    .to_string();
+                question_text = item.get_node_as::<Label>("ColorRect2/QuestionLabel").get_text().to_string();
                 break;
             }
         }
 
         if question_text.is_empty() {
-            godot_print!(
-                "Failed to find question text for button id: {:?}",
-                button_id
-            );
+            godot_print!("Failed to find question text for button id: {:?}", button_id);
             return;
         }
 
@@ -148,15 +124,11 @@ impl DeducersMain {
 
     #[allow(clippy::cast_possible_truncation, clippy::cast_possible_wrap)]
     pub fn questions_queue_update(&mut self, questions_queue: &Vec<QueuedQuestion>) {
-        let ui_root = self
-            .base
-            .get_node_as::<Control>("GameUI/HBoxContainer/VBoxContainer/QuestionQueue");
-        let mut items_container =
-            ui_root.get_node_as::<VBoxContainer>("MarginContainer/ScrollContainer/VBoxContainer");
+        let ui_root = self.base.get_node_as::<Control>("GameUI/HBoxContainer/VBoxContainer/QuestionQueue");
+        let mut items_container = ui_root.get_node_as::<VBoxContainer>("MarginContainer/ScrollContainer/VBoxContainer");
 
         // Add new items if needed
-        let children_to_add =
-            (questions_queue.len() + 2) as i32 - items_container.get_child_count();
+        let children_to_add = (questions_queue.len() + 2) as i32 - items_container.get_child_count();
         if children_to_add > 0 {
             for _ in 0..children_to_add {
                 let item_scene = ResourceLoader::singleton()
@@ -166,8 +138,7 @@ impl DeducersMain {
                 let new_item = item_scene.instantiate().unwrap();
 
                 // Set vote button callback
-                let mut vote_button =
-                    new_item.get_node_as::<Button>("ColorRect3/HBoxContainer/VoteButton");
+                let mut vote_button = new_item.get_node_as::<Button>("ColorRect3/HBoxContainer/VoteButton");
                 // Generate random id for button
                 let button_id = rand::random::<u32>();
                 vote_button.set_meta("button_id".into(), button_id.to_variant());
@@ -178,12 +149,7 @@ impl DeducersMain {
                     Callable::from_fn("question_vote_pressed", move |_| {
                         let tx_clone = tx.clone();
                         runtime.spawn(async move {
-                            tx_clone
-                                .lock()
-                                .await
-                                .send(AsyncResult::QuestionVoted(button_id))
-                                .await
-                                .unwrap();
+                            tx_clone.lock().await.send(AsyncResult::QuestionVoted(button_id)).await.unwrap();
                         });
                         Ok(Variant::nil())
                     }),
@@ -194,14 +160,10 @@ impl DeducersMain {
         }
 
         // Remove excess items if needed
-        let children_to_remove =
-            items_container.get_child_count() - (questions_queue.len() + 2) as i32;
+        let children_to_remove = items_container.get_child_count() - (questions_queue.len() + 2) as i32;
         if children_to_remove > 0 {
             for _ in 0..children_to_remove {
-                items_container
-                    .get_child(items_container.get_child_count() - 1)
-                    .unwrap()
-                    .queue_free();
+                items_container.get_child(items_container.get_child_count() - 1).unwrap().queue_free();
             }
         }
 
@@ -212,13 +174,11 @@ impl DeducersMain {
         // Update queue items
         let mut index = 2;
         for question in questions_queue_sorted {
-            let question_text = question.question.clone().unwrap_or("ANONYMOUS".into());
+            let question_text = question.question.clone().unwrap_or_else(|| "ANONYMOUS".into());
 
             let item = items_container.get_child(index).unwrap();
-            item.get_node_as::<Label>("ColorRect1/PlayerLabel")
-                .set_text(question.player.clone().into());
-            item.get_node_as::<Label>("ColorRect2/QuestionLabel")
-                .set_text(question_text.into());
+            item.get_node_as::<Label>("ColorRect1/PlayerLabel").set_text(question.player.clone().into());
+            item.get_node_as::<Label>("ColorRect2/QuestionLabel").set_text(question_text.into());
             item.get_node_as::<Label>("ColorRect3/HBoxContainer/VotesLabel")
                 .set_text(question.votes.to_string().into());
 

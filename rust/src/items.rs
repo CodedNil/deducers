@@ -4,14 +4,9 @@ use godot::{
     prelude::*,
 };
 
-#[allow(
-    clippy::cast_possible_wrap,
-    clippy::cast_possible_truncation,
-    clippy::cast_sign_loss
-)]
+#[allow(clippy::cast_possible_wrap, clippy::cast_possible_truncation, clippy::cast_sign_loss)]
 pub fn set_guess_list(ui_root: &Gd<Control>, items: &Vec<Item>) {
-    let mut guess_item_choice =
-        ui_root.get_node_as::<OptionButton>("MarginContainer/VBoxContainer/GuessItem/ItemChoice");
+    let mut guess_item_choice = ui_root.get_node_as::<OptionButton>("MarginContainer/VBoxContainer/GuessItem/ItemChoice");
 
     // Add or remove items as needed
     let item_count = guess_item_choice.get_item_count();
@@ -34,32 +29,20 @@ pub fn set_guess_list(ui_root: &Gd<Control>, items: &Vec<Item>) {
     }
 }
 
-#[allow(
-    clippy::cast_possible_wrap,
-    clippy::cast_possible_truncation,
-    clippy::cast_sign_loss
-)]
+#[allow(clippy::cast_possible_wrap, clippy::cast_possible_truncation, clippy::cast_sign_loss)]
 pub fn update(ui_root: &Gd<Control>, items: &Vec<Item>) {
-    let mut header_container =
-        ui_root.get_node_as::<Control>("MarginContainer/ScrollContainer/VBoxContainer/Header");
+    let mut header_container = ui_root.get_node_as::<Control>("MarginContainer/ScrollContainer/VBoxContainer/Header");
 
     // Manage header items, add and remove as needed
-    manage_items(
-        &mut header_container,
-        items.len() as i32 + 1,
-        "res://Items/ItemsHeader.tscn",
-    );
+    manage_items(&mut header_container, items.len() as i32 + 1, "res://Items/ItemsHeader.tscn");
 
     // Update headers
     for (index, item) in items.iter().enumerate() {
         let header_node = header_container.get_child(index as i32 + 1).unwrap();
-        header_node
-            .get_node_as::<Label>("Label")
-            .set_text(item.id.to_string().into());
+        header_node.get_node_as::<Label>("Label").set_text(item.id.to_string().into());
     }
 
-    let items_container =
-        ui_root.get_node_as::<Control>("MarginContainer/ScrollContainer/VBoxContainer");
+    let items_container = ui_root.get_node_as::<Control>("MarginContainer/ScrollContainer/VBoxContainer");
 
     // Get list of questions that are active
     let mut active_questions = vec![];
@@ -75,29 +58,24 @@ pub fn update(ui_root: &Gd<Control>, items: &Vec<Item>) {
     for question_index in 0..20 {
         let num_blanks = 20 - active_questions.len() as i32;
 
-        let mut child = items_container
-            .get_child(question_index + 1)
-            .unwrap()
-            .cast::<Control>();
+        let mut child = items_container.get_child(question_index + 1).unwrap().cast::<Control>();
 
         // Set question id and text
-        child
-            .get_node_as::<Label>("ColorRect/MarginContainer/HBoxContainer/Index")
-            .set_text(
-                if question_index < 20 - num_blanks {
-                    format!("{}: ", question_index + 1)
-                } else {
-                    String::new()
-                }
-                .into(),
-            );
+        child.get_node_as::<Label>("ColorRect/MarginContainer/HBoxContainer/Index").set_text(
+            if question_index < 20 - num_blanks {
+                format!("{}: ", question_index + 1)
+            } else {
+                String::new()
+            }
+            .into(),
+        );
         let question_string = if question_index < 20 - num_blanks {
             active_questions
                 .get(question_index as usize)
                 .unwrap()
                 .1
                 .clone()
-                .unwrap_or("ANONYMOUS".into())
+                .unwrap_or_else(|| "ANONYMOUS".into())
         } else {
             String::new()
         };
@@ -111,11 +89,7 @@ pub fn update(ui_root: &Gd<Control>, items: &Vec<Item>) {
             .set_text(question_string.clone().into());
 
         // Make the right number of answer boxes available
-        manage_items(
-            &mut child,
-            items.len() as i32 + 1,
-            "res://Items/ItemsAnswerBox.tscn",
-        );
+        manage_items(&mut child, items.len() as i32 + 1, "res://Items/ItemsAnswerBox.tscn");
 
         // Colour the answer boxes
         for (item_index, item) in items.iter().enumerate() {
@@ -130,10 +104,7 @@ pub fn update(ui_root: &Gd<Control>, items: &Vec<Item>) {
                 }
             }
 
-            let mut color_rect = child
-                .get_child(item_index as i32 + 1)
-                .unwrap()
-                .cast::<ColorRect>();
+            let mut color_rect = child.get_child(item_index as i32 + 1).unwrap().cast::<ColorRect>();
             let mut star_image = color_rect.get_child(0).unwrap().cast::<Control>();
             if let Some(answer) = answer {
                 color_rect.set_color(answer.to_color());
@@ -151,10 +122,7 @@ fn manage_items(container: &mut Gd<Control>, count: i32, item_scene_path: &str) 
     let children_to_add = count - container.get_child_count();
     if children_to_add > 0 {
         for _ in 0..children_to_add {
-            let item_scene = ResourceLoader::singleton()
-                .load(item_scene_path.into())
-                .unwrap()
-                .cast::<PackedScene>();
+            let item_scene = ResourceLoader::singleton().load(item_scene_path.into()).unwrap().cast::<PackedScene>();
             let new_item = item_scene.instantiate().unwrap();
             container.add_child(new_item);
         }
@@ -164,10 +132,7 @@ fn manage_items(container: &mut Gd<Control>, count: i32, item_scene_path: &str) 
     let children_to_remove = container.get_child_count() - count;
     if children_to_remove > 0 {
         for _ in 0..children_to_remove {
-            container
-                .get_child(container.get_child_count() - 1)
-                .unwrap()
-                .queue_free();
+            container.get_child(container.get_child_count() - 1).unwrap().queue_free();
         }
     }
 }
