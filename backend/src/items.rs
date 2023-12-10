@@ -1,6 +1,7 @@
 use crate::openai::query;
 use crate::{
-    Answer, Item, Question, Server, ServerStorage, ADD_ITEM_EVERY_X_QUESTIONS, SERVER_PORT,
+    Answer, Item, Question, Server, ServerStorage, ADD_ITEM_EVERY_X_QUESTIONS, GUESS_ITEM_COST,
+    SERVER_PORT,
 };
 use async_recursion::async_recursion;
 use axum::extract::ConnectInfo;
@@ -169,5 +170,56 @@ pub fn ask_top_question(server: &mut Server) {
         if server.questions_counter % ADD_ITEM_EVERY_X_QUESTIONS == 0 {
             add_item_to_server(server);
         }
+    }
+}
+
+#[allow(clippy::cast_possible_truncation)]
+pub async fn player_guess_item(
+    Path((server_id, player_name, item_choice_str, guess)): Path<(String, String, String, String)>,
+    Extension(servers): Extension<ServerStorage>,
+) -> impl IntoResponse {
+    println!("Guess item request: {server_id} {player_name} {item_choice_str} {guess}");
+    let mut servers_lock = servers.lock().await;
+
+    let Some(server) = servers_lock.get_mut(&server_id) else {
+        return (StatusCode::NOT_FOUND, "Server not found".to_string());
+    };
+    let Some(player) = server.players.get_mut(&player_name) else {
+        return (
+            StatusCode::NOT_FOUND,
+            "Player not found in server".to_string(),
+        );
+    };
+
+    // Get item with id of item_choice
+    let Ok(item_choice) = item_choice_str.parse::<u32>() else {
+        return (
+            StatusCode::BAD_REQUEST,
+            "Invalid item choice, must be a number".to_string(),
+        );
+    };
+    let Some(item) = server.items.iter().find(|i| i.id == item_choice) else {
+        return (
+            StatusCode::BAD_REQUEST,
+            "Invalid item choice, item not found".to_string(),
+        );
+    };
+
+    // Check if player has enough coins
+    if player.coins < GUESS_ITEM_COST {
+        return (
+            StatusCode::BAD_REQUEST,
+            "Insufficient coins to guess item".to_string(),
+        );
+    }
+    player.coins -= GUESS_ITEM_COST;
+
+    // Match guess with item name
+    if item.name == guess {
+        // Add score to player
+        player.score += 1;
+        (StatusCode::OK, "Correct guess".to_string())
+    } else {
+        (StatusCode::NOT_ACCEPTABLE, "Incorrect guess".to_string())
     }
 }

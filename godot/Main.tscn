@@ -313,9 +313,9 @@ layout_mode = 2
 tooltip_text = "Hide the question from other players, they will see the answers still"
 text = "Anonymous (+5 coins)"
 
-[node name="ConvertPointsButton" type="Button" parent="GameUI/HBoxContainer/VBoxContainer/Management/MarginContainer/VBoxContainer"]
+[node name="ConvertScoreButton" type="Button" parent="GameUI/HBoxContainer/VBoxContainer/Management/MarginContainer/VBoxContainer"]
 layout_mode = 2
-text = "Convert Leaderboard Point To 2 Coins"
+text = "Convert Leaderboard Score To 2 Coins"
 
 [node name="GuessItem" type="HBoxContainer" parent="GameUI/HBoxContainer/VBoxContainer/Management/MarginContainer/VBoxContainer"]
 layout_mode = 2
@@ -334,7 +334,7 @@ layout_mode = 2
 
 [node name="SubmitButton" type="Button" parent="GameUI/HBoxContainer/VBoxContainer/Management/MarginContainer/VBoxContainer/GuessItem"]
 layout_mode = 2
-text = "Submit Guess 2 Coins"
+text = "Submit Guess 3 Coins"
 
 [node name="ManagementInfoLabel" type="Label" parent="GameUI/HBoxContainer/VBoxContainer/Management/MarginContainer/VBoxContainer"]
 layout_mode = 2
@@ -545,7 +545,7 @@ autostart = true
 [connection signal="pressed" from="GameUI/HBoxContainer/VBoxContainer/Leaderboard/LobbyStatus/MarginContainer/HBoxContainer/StartButton" to="." method="on_start_server_pressed"]
 [connection signal="pressed" from="GameUI/HBoxContainer/VBoxContainer/Leaderboard/LobbyStatus/MarginContainer/HBoxContainer/LeaveButton" to="." method="on_leave_server_pressed"]
 [connection signal="pressed" from="GameUI/HBoxContainer/VBoxContainer/Management/MarginContainer/VBoxContainer/QuestionSubmit/SubmitButton" to="." method="on_submit_question_pressed"]
-[connection signal="pressed" from="GameUI/HBoxContainer/VBoxContainer/Management/MarginContainer/VBoxContainer/ConvertPointsButton" to="." method="on_convert_score_pressed"]
+[connection signal="pressed" from="GameUI/HBoxContainer/VBoxContainer/Management/MarginContainer/VBoxContainer/ConvertScoreButton" to="." method="on_convert_score_pressed"]
 [connection signal="pressed" from="GameUI/HBoxContainer/VBoxContainer/Management/MarginContainer/VBoxContainer/GuessItem/SubmitButton" to="." method="on_submit_guess_pressed"]
 [connection signal="pressed" from="ConnectUI/ColorRect/VBoxContainer/HBoxContainer/Connect" to="." method="on_connect_button_pressed"]
 [connection signal="pressed" from="AlertDialog/MarginContainer/VBoxContainer/AlertOk" to="." method="on_error_dialog_ok_pressed"]

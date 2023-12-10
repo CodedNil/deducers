@@ -1,6 +1,6 @@
 use chrono::{DateTime, Utc};
 use godot::{
-    engine::{ColorRect, Control, IControl, Label, LineEdit},
+    engine::{ColorRect, Control, IControl, Label, LineEdit, OptionButton},
     prelude::*,
 };
 use std::{sync::Arc, time::Duration};
@@ -12,6 +12,7 @@ pub enum AsyncResult {
     QuestionSubmitted,
     QuestionSubmitError(String),
     QuestionVoted(u32),
+    GuessItemError(String),
     RefreshGameState(String, i64),
     RefreshGameStateError(String),
     KickPlayer(u32),
@@ -165,7 +166,50 @@ impl DeducersMain {
     }
 
     #[func]
-    fn on_submit_guess_pressed(&mut self) {}
+    fn on_submit_guess_pressed(&mut self) {
+        let mut guess_text_lineedit = self
+            .base
+            .get_node_as::<LineEdit>("GameUI/HBoxContainer/VBoxContainer/Management/MarginContainer/VBoxContainer/GuessItem/GuessText");
+        let guess_text = guess_text_lineedit.get_text().to_string();
+        guess_text_lineedit.set_text("".into());
+        let item_choice_button = self
+            .base
+            .get_node_as::<OptionButton>("GameUI/HBoxContainer/VBoxContainer/Management/MarginContainer/VBoxContainer/GuessItem/ItemChoice");
+        if item_choice_button.get_selected() == -1 {
+            return;
+        }
+        let item_choice = item_choice_button
+            .get_item_text(item_choice_button.get_selected())
+            .to_string();
+
+        // Make post request to guess
+        let url = format!(
+            "http://{server_ip}/server/{room_name}/guessitem/{player_name}/{item_choice}/{guess_text}",
+            server_ip = self.server_ip,
+            room_name = self.room_name,
+            player_name = self.player_name
+        );
+        let http_client_clone = self.http_client.clone();
+        let tx = self.result_sender.clone();
+        self.runtime.spawn(async move {
+            match http_client_clone.post(&url).send().await {
+                Ok(_) => {}
+                Err(error) => {
+                    let error_message = if let Some(status) = error.status() {
+                        format!("Error guessing item {status}")
+                    } else {
+                        format!("Error guessing item {error}")
+                    };
+
+                    tx.lock()
+                        .await
+                        .send(AsyncResult::GuessItemError(error_message))
+                        .await
+                        .unwrap();
+                }
+            }
+        });
+    }
 
     #[func]
     fn on_convert_score_pressed(&mut self) {
@@ -256,7 +300,8 @@ impl IControl for DeducersMain {
                 AsyncResult::QuestionSubmitted => {
                     self.question_submitted();
                 }
-                AsyncResult::QuestionSubmitError(error_message) => {
+                AsyncResult::QuestionSubmitError(error_message)
+                | AsyncResult::GuessItemError(error_message) => {
                     self.show_management_info(error_message, 5000);
                 }
                 AsyncResult::QuestionVoted(button_id) => {

@@ -148,42 +148,41 @@ pub async fn player_vote_question(
     Path((server_id, player_name, question)): Path<(String, String, String)>,
     Extension(servers): Extension<ServerStorage>,
 ) -> impl IntoResponse {
-    let mut servers = servers.lock().await;
+    let mut servers_lock = servers.lock().await;
 
-    if let Some(server) = servers.get_mut(&server_id) {
-        if let Some(player) = server.players.get_mut(&player_name) {
-            // Check if question exists in the queue
-            if let Some(queued_question) = server
-                .questions_queue
-                .iter_mut()
-                .find(|q| q.question == question)
-            {
-                // Check if player has enough coins
-                if player.coins < VOTE_QUESTION_COST {
-                    return (
-                        StatusCode::BAD_REQUEST,
-                        "Insufficient coins to upvote question".to_string(),
-                    );
-                }
+    let Some(server) = servers_lock.get_mut(&server_id) else {
+        return (StatusCode::NOT_FOUND, "Server not found".to_string());
+    };
+    let Some(player) = server.players.get_mut(&player_name) else {
+        return (
+            StatusCode::NOT_FOUND,
+            "Player not found in server".to_string(),
+        );
+    };
 
-                // Deduct coins and increment vote count
-                player.coins -= VOTE_QUESTION_COST;
-                queued_question.votes += 1;
-                (StatusCode::OK, "Question upvoted successfully".to_string())
-            } else {
-                (
-                    StatusCode::BAD_REQUEST,
-                    "Question not found in queue".to_string(),
-                )
-            }
-        } else {
-            (
-                StatusCode::NOT_FOUND,
-                "Player not found in server".to_string(),
-            )
+    // Check if question exists in the queue
+    if let Some(queued_question) = server
+        .questions_queue
+        .iter_mut()
+        .find(|q| q.question == question)
+    {
+        // Check if player has enough coins
+        if player.coins < VOTE_QUESTION_COST {
+            return (
+                StatusCode::BAD_REQUEST,
+                "Insufficient coins to upvote question".to_string(),
+            );
         }
+
+        // Deduct coins and increment vote count
+        player.coins -= VOTE_QUESTION_COST;
+        queued_question.votes += 1;
+        (StatusCode::OK, "Question upvoted successfully".to_string())
     } else {
-        (StatusCode::NOT_FOUND, "Server not found".to_string())
+        (
+            StatusCode::BAD_REQUEST,
+            "Question not found in queue".to_string(),
+        )
     }
 }
 
@@ -191,29 +190,28 @@ pub async fn player_convert_score(
     Path((server_id, player_name)): Path<(String, String)>,
     Extension(servers): Extension<ServerStorage>,
 ) -> impl IntoResponse {
-    let mut servers = servers.lock().await;
+    let mut servers_lock = servers.lock().await;
 
-    if let Some(server) = servers.get_mut(&server_id) {
-        if let Some(player) = server.players.get_mut(&player_name) {
-            // Check if player has enough score
-            if player.score < 1 {
-                return (
-                    StatusCode::BAD_REQUEST,
-                    "Insufficient score to convert".to_string(),
-                );
-            }
+    let Some(server) = servers_lock.get_mut(&server_id) else {
+        return (StatusCode::NOT_FOUND, "Server not found".to_string());
+    };
+    let Some(player) = server.players.get_mut(&player_name) else {
+        return (
+            StatusCode::NOT_FOUND,
+            "Player not found in server".to_string(),
+        );
+    };
 
-            // Deduct score and give coins
-            player.score -= 1;
-            player.coins += SCORE_TO_COINS_RATIO;
-            (StatusCode::OK, "Score converted successfully".to_string())
-        } else {
-            (
-                StatusCode::NOT_FOUND,
-                "Player not found in server".to_string(),
-            )
-        }
-    } else {
-        (StatusCode::NOT_FOUND, "Server not found".to_string())
+    // Check if player has enough score
+    if player.score < 1 {
+        return (
+            StatusCode::BAD_REQUEST,
+            "Insufficient score to convert".to_string(),
+        );
     }
+
+    // Deduct score and give coins
+    player.score -= 1;
+    player.coins += SCORE_TO_COINS_RATIO;
+    (StatusCode::OK, "Score converted successfully".to_string())
 }

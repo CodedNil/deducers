@@ -22,6 +22,7 @@ pub const SUBMIT_QUESTION_EVERY_X_SECONDS: f64 = 10.0;
 pub const SUBMIT_QUESTION_COST: i32 = 2;
 pub const ANONYMOUS_QUESTION_COST: i32 = 5;
 pub const VOTE_QUESTION_COST: i32 = 1;
+pub const GUESS_ITEM_COST: i32 = 3;
 pub const SCORE_TO_COINS_RATIO: i32 = 2;
 pub const ADD_ITEM_EVERY_X_QUESTIONS: u32 = 5;
 
@@ -115,6 +116,10 @@ async fn main() {
         .route(
             "/server/:server_id/votequestion/:player_name/:question",
             post(question_queue::player_vote_question),
+        )
+        .route(
+            "/server/:server_id/guessitem/:player_name/:itemchoice/:guess",
+            post(items::player_guess_item),
         )
         .route(
             "/server/:server_id/convertscore/:player_name",
