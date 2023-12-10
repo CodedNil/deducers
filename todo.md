@@ -1,3 +1,3 @@
 Use AI to answer questions against items
 Ability to guess an item and get score from it
-Key player can kick players
+Items queue outside of servers, keep it topped up with items and written to file ready

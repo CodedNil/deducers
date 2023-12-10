@@ -10,7 +10,7 @@ use godot::{
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-pub const SUBMIT_QUESTION_EVERY_X_SECONDS: i32 = 5;
+pub const SUBMIT_QUESTION_EVERY_X_SECONDS: i32 = 10;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ServerMinimal {

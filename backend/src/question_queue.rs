@@ -1,6 +1,6 @@
 use crate::{
-    openai::query, QueuedQuestion, ServerStorage, ANONYMOUS_QUESTION_COST, SUBMIT_QUESTION_COST,
-    VOTE_QUESTION_COST,
+    openai::query, QueuedQuestion, ServerStorage, ANONYMOUS_QUESTION_COST, SCORE_TO_COINS_RATIO,
+    SUBMIT_QUESTION_COST, VOTE_QUESTION_COST,
 };
 use axum::{extract::Path, http::StatusCode, response::IntoResponse, Extension};
 use serde::{Deserialize, Serialize};
@@ -125,7 +125,7 @@ async fn is_valid_question(question: &str) -> ValidateQuestionResponse {
 
     // Query with OpenAI API
     let response = query(
-        &format!("u:Check '{trimmed}' for suitability in a 20 Questions game, format it, and return a JSON with suitable_reasoning (up to 6 word explanation for suitability, relevance to identifying an item and with clear yes/no/maybe answerability), formatted_question (string, the input question capitalized and with a question mark), is_suitable (bool, if uncertain err on allowing the question unless it clearly fails criteria)"),
+        &format!("u:Check '{trimmed}' for suitability in a 20 Questions game, format it, and return a JSON with suitable_reasoning (up to 6 word explanation for suitability, is it a question with clear yes/no/maybe answerability, is it relevant to identifying an item), formatted_question (string, the input question capitalized and with a question mark), is_suitable (bool, if uncertain err on allowing the question unless it clearly fails criteria)"),
         100,
     ).await;
     println!("Response: {response:?}");
@@ -176,6 +176,37 @@ pub async fn player_vote_question(
                     "Question not found in queue".to_string(),
                 )
             }
+        } else {
+            (
+                StatusCode::NOT_FOUND,
+                "Player not found in server".to_string(),
+            )
+        }
+    } else {
+        (StatusCode::NOT_FOUND, "Server not found".to_string())
+    }
+}
+
+pub async fn player_convert_score(
+    Path((server_id, player_name)): Path<(String, String)>,
+    Extension(servers): Extension<ServerStorage>,
+) -> impl IntoResponse {
+    let mut servers = servers.lock().await;
+
+    if let Some(server) = servers.get_mut(&server_id) {
+        if let Some(player) = server.players.get_mut(&player_name) {
+            // Check if player has enough score
+            if player.score < 1 {
+                return (
+                    StatusCode::BAD_REQUEST,
+                    "Insufficient score to convert".to_string(),
+                );
+            }
+
+            // Deduct score and give coins
+            player.score -= 1;
+            player.coins += SCORE_TO_COINS_RATIO;
+            (StatusCode::OK, "Score converted successfully".to_string())
         } else {
             (
                 StatusCode::NOT_FOUND,

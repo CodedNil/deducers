@@ -18,7 +18,7 @@ mod question_queue;
 pub const SERVER_PORT: u16 = 3013;
 pub const IDLE_KICK_TIME: i64 = 10;
 pub const COINS_EVERY_X_SECONDS: f64 = 3.0;
-pub const SUBMIT_QUESTION_EVERY_X_SECONDS: f64 = 5.0;
+pub const SUBMIT_QUESTION_EVERY_X_SECONDS: f64 = 10.0;
 pub const SUBMIT_QUESTION_COST: i32 = 2;
 pub const ANONYMOUS_QUESTION_COST: i32 = 5;
 pub const VOTE_QUESTION_COST: i32 = 1;
@@ -115,6 +115,10 @@ async fn main() {
         .route(
             "/server/:server_id/votequestion/:player_name/:question",
             post(question_queue::player_vote_question),
+        )
+        .route(
+            "/server/:server_id/convertscore/:player_name",
+            post(question_queue::player_convert_score),
         )
         .route(
             "/server/:server_id/kickplayer/:player_name/:kick_player",

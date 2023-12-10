@@ -168,7 +168,24 @@ impl DeducersMain {
     fn on_submit_guess_pressed(&mut self) {}
 
     #[func]
-    fn on_convert_score_pressed(&mut self) {}
+    fn on_convert_score_pressed(&mut self) {
+        // Make post request to convert
+        let url = format!(
+            "http://{server_ip}/server/{room_name}/convertscore/{player_name}",
+            server_ip = self.server_ip,
+            room_name = self.room_name,
+            player_name = self.player_name
+        );
+        let http_client_clone = self.http_client.clone();
+        self.runtime.spawn(async move {
+            match http_client_clone.post(&url).send().await {
+                Ok(_) => {}
+                Err(error) => {
+                    godot_print!("Error converting score {error}");
+                }
+            }
+        });
+    }
 
     #[func]
     fn on_refresh_game_state(&mut self) {
