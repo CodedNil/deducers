@@ -1,4 +1,20 @@
 Items queue outside of servers, keep it topped up with items and written to file ready
-Popup when someone guesses correctly
+Score given on correct guessed based on how many questions item had against it
+Item category options for host to choose from
+
+<!-- Animation & UI -->
+
+When item is guessed, show a popup declaring "PLAYER guessed item 3 correctly as Bear", and pop out the coins on the display and have them float into the players leaderboard slot
 Better error message display for guessing item and submitting question
-Sounds - background music, item added, question submitted, button click, game start, typing sound, coin given, item guessed correctly and score given to player
+Order leaderboard by score
+
+<!-- Sound -->
+
+Background music
+Item added to server
+Question submitted to items
+Game start
+Button click
+Typing sound
+Coin given to self
+Item guessed correctly and score given to player
