@@ -26,7 +26,7 @@ impl DeducersMain {
         .get_node_as::<CheckBox>("GameUI/HBoxContainer/VBoxContainer/Management/MarginContainer/VBoxContainer/AnonymouseCheckbox").is_pressed();
 
         // Check if question is empty
-        if question.is_empty() {
+        if question.trim().is_empty() {
             self.show_management_info("Question cannot be empty".to_string(), 2000);
             return;
         }
@@ -49,23 +49,34 @@ impl DeducersMain {
         let tx = self.result_sender.clone();
         self.runtime.spawn(async move {
             match http_client_clone.post(&url).send().await {
-                Ok(_) => {
-                    tx.lock()
-                        .await
-                        .send(AsyncResult::QuestionSubmitted)
-                        .await
-                        .unwrap();
-                }
-                Err(error) => {
-                    let error_message = if let Some(status) = error.status() {
-                        format!("Error submitting question {status}")
-                    } else {
-                        format!("Error submitting question {error}")
-                    };
+                Ok(response) => {
+                    if response.error_for_status_ref().is_err() {
+                        // Handle the error case, where the status code indicates a failure.
+                        let error_message = match response.text().await {
+                            Ok(custom_message) => custom_message,
+                            Err(_) => "Error submitting question".to_string(),
+                        };
 
+                        tx.lock()
+                            .await
+                            .send(AsyncResult::QuestionSubmitError(error_message))
+                            .await
+                            .unwrap();
+                    } else {
+                        // Handle the success case.
+                        tx.lock()
+                            .await
+                            .send(AsyncResult::QuestionSubmitted)
+                            .await
+                            .unwrap();
+                    }
+                }
+                Err(_) => {
                     tx.lock()
                         .await
-                        .send(AsyncResult::QuestionSubmitError(error_message))
+                        .send(AsyncResult::QuestionSubmitError(
+                            "Error submitting question".into(),
+                        ))
                         .await
                         .unwrap();
                 }
@@ -84,7 +95,7 @@ impl DeducersMain {
             .set_pressed(false);
     }
 
-    pub fn question_queue_vote_clicked(&mut self, button_id: u32) {
+    pub fn question_queue_vote_pressed(&mut self, button_id: u32) {
         // Find the question text from button_id
         let ui_root = self
             .base

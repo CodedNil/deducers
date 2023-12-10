@@ -14,6 +14,7 @@ pub enum AsyncResult {
     QuestionVoted(u32),
     RefreshGameState(String, i64),
     RefreshGameStateError(String),
+    KickPlayer(u32),
 }
 
 #[derive(GodotClass)]
@@ -167,11 +168,6 @@ impl DeducersMain {
     fn on_submit_guess_pressed(&mut self) {}
 
     #[func]
-    fn on_question_queue_vote_pressed(&mut self, button_id: u32) {
-        self.question_queue_vote_clicked(button_id);
-    }
-
-    #[func]
     fn on_convert_score_pressed(&mut self) {}
 
     #[func]
@@ -244,10 +240,10 @@ impl IControl for DeducersMain {
                     self.question_submitted();
                 }
                 AsyncResult::QuestionSubmitError(error_message) => {
-                    self.show_management_info(error_message, 2000);
+                    self.show_management_info(error_message, 5000);
                 }
                 AsyncResult::QuestionVoted(button_id) => {
-                    self.question_queue_vote_clicked(button_id);
+                    self.question_queue_vote_pressed(button_id);
                 }
                 AsyncResult::RefreshGameState(response, ping) => {
                     self.refresh_game_state_received(&response, ping);
@@ -259,6 +255,9 @@ impl IControl for DeducersMain {
                     self.base.get_node_as::<Control>("ConnectUI").show();
                     self.connected = false;
                     self.show_alert("Lost connection to server".to_string());
+                }
+                AsyncResult::KickPlayer(button_id) => {
+                    self.kick_player_pressed(button_id);
                 }
             }
         }

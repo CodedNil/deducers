@@ -1,5 +1,5 @@
 use crate::{
-    items, leaderboard,
+    items,
     networking::{AsyncResult, DeducersMain},
 };
 use chrono::Utc;
@@ -192,14 +192,7 @@ impl DeducersMain {
 
     #[allow(clippy::cast_possible_truncation)]
     fn process_game_state(&mut self, server: &ServerMinimal) {
-        leaderboard::update(
-            &self
-                .base
-                .get_node_as::<Control>("GameUI/HBoxContainer/VBoxContainer/Leaderboard"),
-            &server.players,
-            &self.player_name,
-            self.is_host,
-        );
+        self.update_leaderboard(&server.players, &self.player_name.clone(), self.is_host);
         items::set_guess_list(
             &self
                 .base
@@ -215,12 +208,17 @@ impl DeducersMain {
 
         self.questions_queue_update(&server.questions_queue);
 
+        // Set start button visibility
+        self.base
+            .get_node_as::<Control>("GameUI/HBoxContainer/VBoxContainer/Leaderboard/LobbyStatus/MarginContainer/HBoxContainer/StartButton")
+            .set_visible(self.is_host && !server.started);
+
         // Set time label
         let elapsed_seconds = server.elapsed_time as i32;
         println!("Elapsed seconds: {}", server.elapsed_time);
         self.base
-        .get_node_as::<Label>("GameUI/HBoxContainer/VBoxContainer/Leaderboard/LobbyStatus/MarginContainer/HBoxContainer/Time")
-        .set_text(format!("Time: {elapsed_seconds}s").into());
+            .get_node_as::<Label>("GameUI/HBoxContainer/VBoxContainer/Leaderboard/LobbyStatus/MarginContainer/HBoxContainer/Time")
+            .set_text(format!("Time: {elapsed_seconds}s").into());
         self.server_started = server.started;
 
         // Countdown until question submitted every x seconds

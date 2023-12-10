@@ -99,7 +99,7 @@ pub async fn query(prompt: &String, max_tokens: usize) -> Result<String> {
         .post("https://api.openai.com/v1/chat/completions")
         .header("Content-Type", "application/json")
         .header("Authorization", &format!("Bearer {api_key}"))
-        .timeout(Duration::from_secs(5))
+        .timeout(Duration::from_secs(10))
         .body(body_str.to_string())
         .send()
         .await

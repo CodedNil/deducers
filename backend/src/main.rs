@@ -117,6 +117,10 @@ async fn main() {
             post(question_queue::player_vote_question),
         )
         .route(
+            "/server/:server_id/kickplayer/:player_name/:kick_player",
+            post(kick_player),
+        )
+        .route(
             "/internal/:server_id/additemqueued/:item_name",
             post(items::add_item_to_server_queue),
         )
@@ -147,11 +151,11 @@ async fn connect_player(
 
         Server {
             id: server_id.clone(),
-            key_player: player_name.clone(),
-            players: HashMap::new(),
             started: false,
             elapsed_time: 0.0,
             last_update: Utc::now(),
+            key_player: player_name.clone(),
+            players: HashMap::new(),
             questions_queue: Vec::new(),
             items: Vec::new(),
             items_history: Vec::new(),
@@ -250,6 +254,35 @@ async fn start_server(
         (
             StatusCode::OK,
             format!("Server '{server_id}' started by key player '{player_name}'"),
+        )
+    } else {
+        (
+            StatusCode::NOT_FOUND,
+            format!("Server '{server_id}' not found"),
+        )
+    }
+}
+
+pub async fn kick_player(
+    Path((server_id, player_name, kick_player)): Path<(String, String, String)>,
+    Extension(servers): Extension<ServerStorage>,
+) -> impl IntoResponse {
+    let mut servers_locked = servers.lock().await;
+
+    if let Some(server) = servers_locked.get_mut(&server_id) {
+        if player_name != server.key_player {
+            return (
+                StatusCode::FORBIDDEN,
+                "Only the key player can kick other players".to_string(),
+            );
+        }
+
+        server.players.remove(&kick_player);
+
+        println!("Server '{server_id}' player '{kick_player}' kicked by key player");
+        (
+            StatusCode::OK,
+            format!("Server '{server_id}' player '{kick_player}' kicked by key player"),
         )
     } else {
         (

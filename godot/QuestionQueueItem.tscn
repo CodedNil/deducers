@@ -74,5 +74,3 @@ tooltip_text = "Vote for this question, 1 coin"
 icon = ExtResource("1_ii3iy")
 icon_alignment = 1
 expand_icon = true
-
-[connection signal="pressed" from="ColorRect3/HBoxContainer/VoteButton" to="." method="_on_vote_button_pressed"]
