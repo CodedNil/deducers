@@ -184,18 +184,18 @@ impl DeducersMain {
         // Read messages
         for message in &server.messages {
             match message {
-                PlayerMessage::ItemAdded => self.play_sound("item_added.mp3"),
-                PlayerMessage::QuestionAsked => self.play_sound("question_added.mp3"),
-                PlayerMessage::GameStart => self.play_sound("game_start.mp3"),
-                PlayerMessage::CoinGiven => self.play_sound("coin_added.mp3"),
-                PlayerMessage::ItemGuessed(item_name, item_id, player_name) => {
+                PlayerMessage::ItemAdded => self.play_sound("item_added.mp3", 0.0),
+                PlayerMessage::QuestionAsked => self.play_sound("question_added.mp3", 0.0),
+                PlayerMessage::GameStart => self.play_sound("game_start.mp3", 0.0),
+                PlayerMessage::CoinGiven => self.play_sound("coin_added.mp3", -5.0),
+                PlayerMessage::ItemGuessed(player_name, item_id, item_name) => {
                     // Show a big popup and play a sound
                     self.base.get_node_as::<Control>("GuessedDialog").show();
                     self.base
                         .get_node_as::<Label>("GuessedDialog/MarginContainer/Label")
                         .set_text(format!("{player_name} guessed item {item_id} correctly as {item_name}!").into());
                     self.guess_dialog_clear_time = Some(Instant::now() + Duration::from_millis(5000));
-                    self.play_sound("guess_correct.mp3");
+                    self.play_sound("guess_correct.mp3", 0.0);
                 }
             }
         }

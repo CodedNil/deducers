@@ -123,7 +123,7 @@ impl DeducersMain {
         self.base.get_node_as::<ColorRect>("AlertDialog").hide();
     }
 
-    pub fn play_sound(&mut self, sound: &str) {
+    pub fn play_sound(&mut self, sound: &str, volume_db: f32) {
         // Load the audio streams
         let sound = ResourceLoader::singleton()
             .load(format!("res://Resources/{sound}").into())
@@ -142,21 +142,22 @@ impl DeducersMain {
         self.base.add_child(audio_stream_player.upcast::<Node>());
 
         // Play the audio stream
+        player_ref.set_volume_db(volume_db);
         player_ref.play();
     }
 
     pub fn play_button_pressed_sound(&mut self) {
-        self.play_sound("button_pressed.mp3");
+        self.play_sound("button_pressed.mp3", 0.0);
     }
 
     #[func]
     fn on_input_typed(&mut self, _: GString) {
-        self.play_sound("typing.mp3");
+        self.play_sound("typing.mp3", -10.0);
     }
 
     #[func]
     fn on_button_pressed(&mut self) {
-        self.play_sound("button_pressed.mp3");
+        self.play_sound("button_pressed.mp3", 0.0);
     }
 
     #[func]
@@ -382,7 +383,7 @@ impl IControl for DeducersMain {
                 }
                 AsyncResult::GuessItemError(error_message) => {
                     self.show_management_info(error_message, 5000);
-                    self.play_sound("guess_incorrect.mp3");
+                    self.play_sound("guess_incorrect.mp3", 0.0);
                 }
                 AsyncResult::RefreshGameState(response, ping) => {
                     self.refresh_game_state_received(&response, ping);
