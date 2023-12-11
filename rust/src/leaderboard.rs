@@ -72,6 +72,8 @@ impl DeducersMain {
     }
 
     pub fn kick_player_pressed(&mut self, button_id: u32) {
+        self.play_button_pressed_sound();
+
         // Find the player name from button_id
         let ui_root = self.base.get_node_as::<Control>("GameUI/HBoxContainer/VBoxContainer/Leaderboard");
         let items_container = ui_root.get_node_as::<Control>("LeaderboardColorRect/MarginContainer/ScrollContainer/VBoxContainer");

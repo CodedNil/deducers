@@ -1,5 +1,5 @@
 use godot::{
-    engine::{Button, CheckBox, ColorRect, Control, IControl, Label, LineEdit, OptionButton},
+    engine::{AudioStream, Button, CheckBox, ColorRect, Control, IControl, Label, LineEdit, OptionButton, ResourceLoader},
     prelude::*,
 };
 use std::{sync::Arc, time::Duration};
@@ -49,6 +49,8 @@ pub struct DeducersMain {
 impl DeducersMain {
     #[func]
     fn on_connect_button_pressed(&mut self) {
+        self.play_button_pressed_sound();
+
         // Get nodes
         let server_ip_text = self
             .base
@@ -116,11 +118,50 @@ impl DeducersMain {
 
     #[func]
     fn on_error_dialog_ok_pressed(&mut self) {
+        self.play_button_pressed_sound();
         self.base.get_node_as::<ColorRect>("AlertDialog").hide();
+    }
+
+    pub fn play_sound(&mut self, sound: &str) {
+        // Load the audio streams
+        let sound = ResourceLoader::singleton()
+            .load(format!("res://Resources/{sound}").into())
+            .unwrap()
+            .cast::<AudioStream>();
+
+        // Create an AudioStreamPlayer node
+        let mut audio_stream_player = AudioStreamPlayer::new_alloc();
+        audio_stream_player.set_stream(sound);
+
+        // Free the audio stream player when it's done playing
+        let player_ref = audio_stream_player.clone();
+        audio_stream_player.connect("finished".into(), Callable::from_object_method(&player_ref, "queue_free"));
+
+        let mut player_ref = audio_stream_player.clone();
+        self.base.add_child(audio_stream_player.upcast::<Node>());
+
+        // Play the audio stream
+        player_ref.play();
+    }
+
+    pub fn play_button_pressed_sound(&mut self) {
+        self.play_sound("button_pressed.mp3");
+    }
+
+    #[func]
+    fn on_input_typed(&mut self, _: GString) {
+        self.play_sound("typing.mp3");
+    }
+
+    #[func]
+    fn on_button_pressed(&mut self) {
+        self.play_sound("button_pressed.mp3");
     }
 
     #[func]
     fn on_start_server_pressed(&mut self) {
+        self.play_button_pressed_sound();
+
         let url = format!(
             "http://{server_ip}/server/{room_name}/start/{player_name}",
             server_ip = self.server_ip,
@@ -141,6 +182,8 @@ impl DeducersMain {
 
     #[func]
     fn on_leave_server_pressed(&mut self) {
+        self.play_button_pressed_sound();
+
         // Make post request to disconnect
         let url = format!(
             "http://{server_ip}/server/{room_name}/disconnect/{player_name}",
@@ -166,11 +209,14 @@ impl DeducersMain {
 
     #[func]
     fn on_submit_question_pressed(&mut self) {
+        self.play_button_pressed_sound();
         self.submit_question();
     }
 
     #[func]
     fn on_anonymous_checkbox_pressed(&mut self) {
+        self.play_button_pressed_sound();
+
         let checkbox = self
             .base
             .get_node_as::<CheckBox>("GameUI/HBoxContainer/VBoxContainer/Management/MarginContainer/VBoxContainer/AnonymousCheckbox");
@@ -182,6 +228,8 @@ impl DeducersMain {
 
     #[func]
     fn on_submit_guess_pressed(&mut self) {
+        self.play_button_pressed_sound();
+
         let mut guess_text_lineedit = self
             .base
             .get_node_as::<LineEdit>("GameUI/HBoxContainer/VBoxContainer/Management/MarginContainer/VBoxContainer/GuessItem/GuessText");
@@ -220,6 +268,8 @@ impl DeducersMain {
 
     #[func]
     fn on_convert_score_pressed(&mut self) {
+        self.play_button_pressed_sound();
+
         // Make post request to convert
         let url = format!(
             "http://{server_ip}/server/{room_name}/convertscore/{player_name}",

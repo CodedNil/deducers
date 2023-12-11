@@ -12,7 +12,5 @@ Background music
 Item added to server
 Question submitted to items
 Game start
-Button click
-Typing sound
 Coin given to self
 Item guessed correctly and score given to player

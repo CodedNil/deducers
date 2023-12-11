@@ -71,6 +71,8 @@ impl DeducersMain {
     }
 
     pub fn question_queue_vote_pressed(&mut self, button_id: u32) {
+        self.play_button_pressed_sound();
+
         // Find the question text from button_id
         let ui_root = self.base.get_node_as::<Control>("GameUI/HBoxContainer/VBoxContainer/QuestionQueue");
         let items_container = ui_root.get_node_as::<VBoxContainer>("MarginContainer/ScrollContainer/VBoxContainer");
