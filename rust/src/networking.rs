@@ -374,11 +374,15 @@ impl IControl for DeducersMain {
                 AsyncResult::ProcessJoinServerError(error_message) => {
                     self.show_alert(error_message);
                 }
-                AsyncResult::QuestionSubmitError(error_message) | AsyncResult::GuessItemError(error_message) => {
+                AsyncResult::QuestionSubmitError(error_message) => {
                     self.show_management_info(error_message, 5000);
                 }
                 AsyncResult::QuestionVoted(button_id) => {
                     self.question_queue_vote_pressed(button_id);
+                }
+                AsyncResult::GuessItemError(error_message) => {
+                    self.show_management_info(error_message, 5000);
+                    self.play_sound("guess_incorrect.mp3");
                 }
                 AsyncResult::RefreshGameState(response, ping) => {
                     self.refresh_game_state_received(&response, ping);
