@@ -307,16 +307,16 @@ clear_button_enabled = true
 
 [node name="SubmitButton" type="Button" parent="GameUI/HBoxContainer/VBoxContainer/Management/MarginContainer/VBoxContainer/QuestionSubmit"]
 layout_mode = 2
-text = "Submit Question 2 Coins"
+text = "Submit Question X Coins"
 
-[node name="AnonymouseCheckbox" type="CheckBox" parent="GameUI/HBoxContainer/VBoxContainer/Management/MarginContainer/VBoxContainer"]
+[node name="AnonymousCheckbox" type="CheckBox" parent="GameUI/HBoxContainer/VBoxContainer/Management/MarginContainer/VBoxContainer"]
 layout_mode = 2
 tooltip_text = "Hide the question from other players, they will see the answers still"
-text = "Anonymous (+5 coins)"
+text = "Anonymous (+X coins)"
 
 [node name="ConvertScoreButton" type="Button" parent="GameUI/HBoxContainer/VBoxContainer/Management/MarginContainer/VBoxContainer"]
 layout_mode = 2
-text = "Convert Leaderboard Score To 2 Coins"
+text = "Convert Leaderboard Score To X Coins"
 
 [node name="GuessItem" type="HBoxContainer" parent="GameUI/HBoxContainer/VBoxContainer/Management/MarginContainer/VBoxContainer"]
 layout_mode = 2
@@ -335,7 +335,7 @@ layout_mode = 2
 
 [node name="SubmitButton" type="Button" parent="GameUI/HBoxContainer/VBoxContainer/Management/MarginContainer/VBoxContainer/GuessItem"]
 layout_mode = 2
-text = "Submit Guess 3 Coins"
+text = "Submit Guess X Coins"
 
 [node name="ManagementInfoLabel" type="Label" parent="GameUI/HBoxContainer/VBoxContainer/Management/MarginContainer/VBoxContainer"]
 custom_minimum_size = Vector2(0, 50)
@@ -372,7 +372,7 @@ size_flags_horizontal = 3
 
 [node name="Label" type="Label" parent="GameUI/HBoxContainer/VBoxContainer/QuestionQueue/MarginContainer/ScrollContainer/VBoxContainer"]
 layout_mode = 2
-text = "Top Question Submitted in 5 Seconds"
+text = "Top Question Submitted in X Seconds"
 horizontal_alignment = 1
 
 [node name="HBoxContainer" type="HBoxContainer" parent="GameUI/HBoxContainer/VBoxContainer/QuestionQueue/MarginContainer/ScrollContainer/VBoxContainer"]
@@ -550,6 +550,7 @@ autostart = true
 [connection signal="pressed" from="GameUI/HBoxContainer/VBoxContainer/Leaderboard/LobbyStatus/MarginContainer/HBoxContainer/StartButton" to="." method="on_start_server_pressed"]
 [connection signal="pressed" from="GameUI/HBoxContainer/VBoxContainer/Leaderboard/LobbyStatus/MarginContainer/HBoxContainer/LeaveButton" to="." method="on_leave_server_pressed"]
 [connection signal="pressed" from="GameUI/HBoxContainer/VBoxContainer/Management/MarginContainer/VBoxContainer/QuestionSubmit/SubmitButton" to="." method="on_submit_question_pressed"]
+[connection signal="pressed" from="GameUI/HBoxContainer/VBoxContainer/Management/MarginContainer/VBoxContainer/AnonymousCheckbox" to="." method="on_anonymous_checkbox_pressed"]
 [connection signal="pressed" from="GameUI/HBoxContainer/VBoxContainer/Management/MarginContainer/VBoxContainer/ConvertScoreButton" to="." method="on_convert_score_pressed"]
 [connection signal="pressed" from="GameUI/HBoxContainer/VBoxContainer/Management/MarginContainer/VBoxContainer/GuessItem/SubmitButton" to="." method="on_submit_guess_pressed"]
 [connection signal="pressed" from="ConnectUI/ColorRect/VBoxContainer/HBoxContainer/Connect" to="." method="on_connect_button_pressed"]

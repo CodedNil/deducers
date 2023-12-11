@@ -20,14 +20,14 @@ pub const IDLE_KICK_TIME: u64 = 10;
 
 pub const COINS_EVERY_X_SECONDS: f64 = 3.0;
 pub const SUBMIT_QUESTION_EVERY_X_SECONDS: f64 = 10.0;
-pub const ADD_ITEM_EVERY_X_QUESTIONS: u32 = 5;
+pub const ADD_ITEM_EVERY_X_QUESTIONS: usize = 5;
 
-pub const SUBMIT_QUESTION_COST: i32 = 2;
-pub const ANONYMOUS_QUESTION_COST: i32 = 5;
-pub const VOTE_QUESTION_COST: i32 = 1;
-pub const GUESS_ITEM_COST: i32 = 3;
+pub const SUBMIT_QUESTION_COST: usize = 2;
+pub const ANONYMOUS_QUESTION_COST: usize = 5;
+pub const VOTE_QUESTION_COST: usize = 1;
+pub const GUESS_ITEM_COST: usize = 3;
 
-pub const SCORE_TO_COINS_RATIO: i32 = 2;
+pub const SCORE_TO_COINS_RATIO: usize = 2;
 
 #[derive(Clone, Debug)]
 pub struct Server {
@@ -42,15 +42,15 @@ pub struct Server {
     items_history: Vec<String>,
     items_queue: Vec<String>,
     last_add_to_queue: Instant,
-    questions_counter: u32,
+    questions_counter: usize,
 }
 
 #[derive(Clone, Debug)]
 struct Player {
     name: String,
     last_contact: Instant,
-    score: i32,
-    coins: i32,
+    score: usize,
+    coins: usize,
 }
 
 #[derive(Clone, Debug)]
@@ -58,20 +58,20 @@ struct QueuedQuestion {
     player: String,
     question: String,
     anonymous: bool,
-    votes: u32,
+    votes: usize,
 }
 
 #[derive(Clone, Debug)]
 struct Item {
     name: String,
-    id: u32,
+    id: usize,
     questions: Vec<Question>,
 }
 
 #[derive(Clone, Debug)]
 struct Question {
     player: String,
-    id: u32,
+    id: usize,
     question: String,
     answer: Answer,
     anonymous: bool,

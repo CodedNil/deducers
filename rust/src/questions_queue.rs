@@ -13,15 +13,18 @@ impl DeducersMain {
         }
 
         // Get question text and options
-        let question = self
+        let mut question_line = self
             .base
-            .get_node_as::<LineEdit>("GameUI/HBoxContainer/VBoxContainer/Management/MarginContainer/VBoxContainer/QuestionSubmit/QuestionTextEdit")
-            .get_text()
-            .to_string();
-        let anonymous = self
+            .get_node_as::<LineEdit>("GameUI/HBoxContainer/VBoxContainer/Management/MarginContainer/VBoxContainer/QuestionSubmit/QuestionTextEdit");
+        let question = question_line.get_text().to_string();
+        let mut anonymous_checkbox = self
             .base
-            .get_node_as::<CheckBox>("GameUI/HBoxContainer/VBoxContainer/Management/MarginContainer/VBoxContainer/AnonymouseCheckbox")
-            .is_pressed();
+            .get_node_as::<CheckBox>("GameUI/HBoxContainer/VBoxContainer/Management/MarginContainer/VBoxContainer/AnonymousCheckbox");
+        let anonymous = anonymous_checkbox.is_pressed();
+
+        // Clear question text and options
+        question_line.set_text("".into());
+        anonymous_checkbox.set_pressed(false);
 
         // Check if question is empty
         if question.trim().is_empty() {
@@ -54,9 +57,6 @@ impl DeducersMain {
                         let error_message = (response.text().await).map_or_else(|_| "Error submitting question".to_string(), |custom_message| custom_message);
 
                         tx.lock().await.send(AsyncResult::QuestionSubmitError(error_message)).await.unwrap();
-                    } else {
-                        // Handle the success case.
-                        tx.lock().await.send(AsyncResult::QuestionSubmitted).await.unwrap();
                     }
                 }
                 Err(_) => {
@@ -68,17 +68,6 @@ impl DeducersMain {
                 }
             }
         });
-    }
-
-    pub fn question_submitted(&mut self) {
-        // Clear question text
-        self.base
-            .get_node_as::<LineEdit>("GameUI/HBoxContainer/VBoxContainer/Management/MarginContainer/VBoxContainer/QuestionSubmit/QuestionTextEdit")
-            .set_text("".into());
-        // Untick anonymous checkbox
-        self.base
-            .get_node_as::<CheckBox>("GameUI/HBoxContainer/VBoxContainer/Management/MarginContainer/VBoxContainer/AnonymouseCheckbox")
-            .set_pressed(false);
     }
 
     pub fn question_queue_vote_pressed(&mut self, button_id: u32) {

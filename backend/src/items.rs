@@ -62,7 +62,6 @@ pub async fn add_item_to_queue(server_id: String, mut items_history: Vec<String>
     }
 }
 
-#[allow(clippy::cast_possible_truncation)]
 pub async fn add_item_to_server_queue(
     Path((server_id, item_name)): Path<(String, String)>,
     Extension(servers): Extension<ServerStorage>,
@@ -86,7 +85,6 @@ pub async fn add_item_to_server_queue(
     StatusCode::FORBIDDEN
 }
 
-#[allow(clippy::cast_possible_truncation)]
 pub fn add_item_to_server(server: &mut Server) {
     if !server.started {
         return;
@@ -99,14 +97,14 @@ pub fn add_item_to_server(server: &mut Server) {
     // Add item to server
     server.items.push(Item {
         name: item_name.clone(),
-        id: server.items_history.len() as u32 + 1,
+        id: server.items_history.len() + 1,
         questions: Vec::new(),
     });
     server.items_history.push(item_name);
 }
 
 // Helper function to validate a question
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Debug)]
 struct AskQuestionResponse {
     answers: Vec<String>,
 }
@@ -207,7 +205,6 @@ pub async fn ask_top_question(servers: ServerStorage, server_id: String) {
     }
 }
 
-#[allow(clippy::cast_possible_truncation)]
 pub async fn player_guess_item(
     Path((server_id, player_name, item_choice_str, guess)): Path<(String, String, String, String)>,
     Extension(servers): Extension<ServerStorage>,
@@ -221,7 +218,7 @@ pub async fn player_guess_item(
     };
 
     // Get item with id of item_choice
-    let Ok(item_choice) = item_choice_str.parse::<u32>() else {
+    let Ok(item_choice) = item_choice_str.parse::<usize>() else {
         return (StatusCode::BAD_REQUEST, "Invalid item choice, must be a number".to_string());
     };
     let Some(item) = server.items.iter().find(|i| i.id == item_choice) else {

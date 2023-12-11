@@ -54,8 +54,12 @@ impl DeducersMain {
             }
         }
 
+        // Sort players by score and name
+        let mut players = players.values().collect::<Vec<&Player>>();
+        players.sort_by(|a, b| if a.score == b.score { a.name.cmp(&b.name) } else { b.score.cmp(&a.score) });
+
         // Update leaderboard items with player scores
-        for (index, player) in players.values().enumerate() {
+        for (index, player) in players.iter().enumerate() {
             let item = items_container.get_child(index as i32 + 1).unwrap();
             item.get_node_as::<Label>("ColorName/PlayerName").set_text(player.name.clone().into());
             item.get_node_as::<Label>("ColorScore/HBoxContainer/PlayerScore")

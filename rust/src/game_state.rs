@@ -1,6 +1,6 @@
 use crate::{
     items,
-    networking::{AsyncResult, DeducersMain},
+    networking::{AsyncResult, DeducersMain, SUBMIT_QUESTION_EVERY_X_SECONDS},
 };
 use godot::{
     engine::{Control, Label},
@@ -9,8 +9,6 @@ use godot::{
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use tokio::time::Instant;
-
-pub const SUBMIT_QUESTION_EVERY_X_SECONDS: i32 = 10;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ServerMinimal {
@@ -26,8 +24,8 @@ pub struct ServerMinimal {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Player {
     pub name: String,
-    pub score: i32,
-    coins: Option<i32>,
+    pub score: usize,
+    coins: Option<usize>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -35,22 +33,22 @@ pub struct QueuedQuestion {
     pub player: String,
     pub question: Option<String>,
     pub anonymous: bool,
-    pub votes: u32,
+    pub votes: usize,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Item {
-    pub id: u32,
+    pub id: usize,
     pub questions: Vec<Question>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Question {
-    player: String,
-    pub id: u32,
+    pub player: String,
+    pub id: usize,
     pub question: Option<String>,
     pub answer: Answer,
-    anonymous: bool,
+    pub anonymous: bool,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -170,7 +168,7 @@ impl DeducersMain {
         }
     }
 
-    #[allow(clippy::cast_possible_truncation)]
+    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
     fn process_game_state(&mut self, server: &ServerMinimal) {
         self.update_leaderboard(&server.players, &self.player_name.clone(), self.is_host);
         items::set_guess_list(
@@ -187,15 +185,15 @@ impl DeducersMain {
             .set_visible(self.is_host && !server.started);
 
         // Set time label
-        let elapsed_seconds = server.elapsed_time as i32;
+        let elapsed_seconds = server.elapsed_time;
         println!("Elapsed seconds: {}", server.elapsed_time);
         self.base
             .get_node_as::<Label>("GameUI/HBoxContainer/VBoxContainer/Leaderboard/LobbyStatus/MarginContainer/HBoxContainer/Time")
-            .set_text(format!("Time: {elapsed_seconds}s").into());
+            .set_text(format!("Time: {}s", elapsed_seconds as usize).into());
         self.server_started = server.started;
 
         // Countdown until question submitted every x seconds
-        let remaining_time = SUBMIT_QUESTION_EVERY_X_SECONDS - (elapsed_seconds % SUBMIT_QUESTION_EVERY_X_SECONDS);
+        let remaining_time = (SUBMIT_QUESTION_EVERY_X_SECONDS - (elapsed_seconds % SUBMIT_QUESTION_EVERY_X_SECONDS)).round() as usize;
         self.base
             .get_node_as::<Label>("GameUI/HBoxContainer/VBoxContainer/QuestionQueue/MarginContainer/ScrollContainer/VBoxContainer/Label")
             .set_text(format!("Top Question Submitted In {remaining_time} Seconds").into());

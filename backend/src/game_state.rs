@@ -18,8 +18,8 @@ pub struct ServerMinimal {
 #[derive(Clone, Debug, Serialize)]
 struct Player {
     name: String,
-    score: i32,
-    coins: Option<i32>,
+    score: usize,
+    coins: Option<usize>,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -27,25 +27,24 @@ struct QueuedQuestion {
     player: String,
     question: Option<String>,
     anonymous: bool,
-    votes: u32,
+    votes: usize,
 }
 
 #[derive(Clone, Debug, Serialize)]
 struct Item {
-    id: u32,
+    id: usize,
     questions: Vec<Question>,
 }
 
 #[derive(Clone, Debug, Serialize)]
 struct Question {
     player: String,
-    pub id: u32,
+    id: usize,
     question: Option<String>,
     answer: Answer,
     anonymous: bool,
 }
 
-#[allow(clippy::large_enum_variant)]
 #[derive(Serialize)]
 pub enum Response {
     ServerState(ServerMinimal),

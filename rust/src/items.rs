@@ -69,20 +69,30 @@ pub fn update(ui_root: &Gd<Control>, items: &Vec<Item>) {
             }
             .into(),
         );
-        let question_string = if question_index < 20 - num_blanks {
-            active_questions
+        let (question_id, question_string) = if question_index < 20 - num_blanks {
+            let question_id = active_questions.get(question_index as usize).unwrap().0;
+
+            // Get player if it exists
+            let mut player_name = String::new();
+            for item in items {
+                for question in &item.questions {
+                    if question.id == question_id {
+                        player_name = question.player.clone();
+                        break;
+                    }
+                }
+            }
+
+            let question_string = active_questions
                 .get(question_index as usize)
                 .unwrap()
                 .1
                 .clone()
-                .unwrap_or_else(|| "ANONYMOUS".into())
+                .unwrap_or(format!("ANONYMOUS - {player_name}"));
+
+            (question_id, question_string)
         } else {
-            String::new()
-        };
-        let question_id = if question_index < 20 - num_blanks {
-            active_questions.get(question_index as usize).unwrap().0
-        } else {
-            0
+            (0, String::new())
         };
         child
             .get_node_as::<Label>("ColorRect/MarginContainer/HBoxContainer/Question")

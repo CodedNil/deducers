@@ -1,5 +1,5 @@
 use godot::{
-    engine::{ColorRect, Control, IControl, Label, LineEdit, OptionButton},
+    engine::{Button, CheckBox, ColorRect, Control, IControl, Label, LineEdit, OptionButton},
     prelude::*,
 };
 use std::{sync::Arc, time::Duration};
@@ -8,10 +8,17 @@ use tokio::{
     time::Instant,
 };
 
+pub const SUBMIT_QUESTION_EVERY_X_SECONDS: f64 = 10.0;
+
+pub const SUBMIT_QUESTION_COST: usize = 2;
+pub const ANONYMOUS_QUESTION_COST: usize = 5;
+pub const GUESS_ITEM_COST: usize = 3;
+
+pub const SCORE_TO_COINS_RATIO: usize = 2;
+
 pub enum AsyncResult {
     ProcessJoinServer(String, String, String, String),
     ProcessJoinServerError(String),
-    QuestionSubmitted,
     QuestionSubmitError(String),
     QuestionVoted(u32),
     GuessItemError(String),
@@ -163,6 +170,17 @@ impl DeducersMain {
     }
 
     #[func]
+    fn on_anonymous_checkbox_pressed(&mut self) {
+        let checkbox = self
+            .base
+            .get_node_as::<CheckBox>("GameUI/HBoxContainer/VBoxContainer/Management/MarginContainer/VBoxContainer/AnonymousCheckbox");
+        let cost = SUBMIT_QUESTION_COST + if checkbox.is_pressed() { ANONYMOUS_QUESTION_COST } else { 0 };
+        self.base
+            .get_node_as::<Button>("GameUI/HBoxContainer/VBoxContainer/Management/MarginContainer/VBoxContainer/QuestionSubmit/SubmitButton")
+            .set_text(format!("Submit Question {cost} Coins").into());
+    }
+
+    #[func]
     fn on_submit_guess_pressed(&mut self) {
         let mut guess_text_lineedit = self
             .base
@@ -252,6 +270,20 @@ impl IControl for DeducersMain {
     fn ready(&mut self) {
         // Show connect ui
         self.base.get_node_as::<Control>("ConnectUI").show();
+
+        // Update costs in the UI
+        self.base
+            .get_node_as::<Button>("GameUI/HBoxContainer/VBoxContainer/Management/MarginContainer/VBoxContainer/QuestionSubmit/SubmitButton")
+            .set_text(format!("Submit Question {SUBMIT_QUESTION_COST} Coins").into());
+        self.base
+            .get_node_as::<CheckBox>("GameUI/HBoxContainer/VBoxContainer/Management/MarginContainer/VBoxContainer/AnonymousCheckbox")
+            .set_text(format!("Anonymous (+{ANONYMOUS_QUESTION_COST} Coins)").into());
+        self.base
+            .get_node_as::<Button>("GameUI/HBoxContainer/VBoxContainer/Management/MarginContainer/VBoxContainer/ConvertScoreButton")
+            .set_text(format!("Convert Leaderboard Score To {SCORE_TO_COINS_RATIO} Coins").into());
+        self.base
+            .get_node_as::<Button>("GameUI/HBoxContainer/VBoxContainer/Management/MarginContainer/VBoxContainer/GuessItem/SubmitButton")
+            .set_text(format!("Submit Guess {GUESS_ITEM_COST} Coins").into());
     }
 
     fn process(&mut self, _: f64) {
@@ -282,9 +314,6 @@ impl IControl for DeducersMain {
                 }
                 AsyncResult::ProcessJoinServerError(error_message) => {
                     self.show_alert(error_message);
-                }
-                AsyncResult::QuestionSubmitted => {
-                    self.question_submitted();
                 }
                 AsyncResult::QuestionSubmitError(error_message) | AsyncResult::GuessItemError(error_message) => {
                     self.show_management_info(error_message, 5000);
