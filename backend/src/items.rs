@@ -33,6 +33,12 @@ pub async fn add_item_to_queue(server_id: String, mut items_history: Vec<String>
         if let Ok(items_response) = serde_json::from_str::<ItemsResponse>(&message) {
             // Iterate and add items that aren't in history
             for item in [items_response.item1, items_response.item2, items_response.item3] {
+                if item.len() < 3 {
+                    continue;
+                }
+                if item.contains(' ') {
+                    continue;
+                }
                 if !items_history.contains(&item) {
                     // Add item to history
                     items_history.push(item.clone());
@@ -42,9 +48,7 @@ pub async fn add_item_to_queue(server_id: String, mut items_history: Vec<String>
                     tokio::spawn(async move {
                         let client = reqwest::Client::new();
                         match client.post(&url).timeout(std::time::Duration::from_secs(5)).send().await {
-                            Ok(_) => {
-                                println!("Added item {item}");
-                            }
+                            Ok(_) => {}
                             Err(error) => {
                                 println!("Errored adding item: {error}");
                             }
@@ -233,8 +237,9 @@ pub async fn player_guess_item(
 
     // Match guess with item name
     if item.name == guess {
-        // Add score to player
-        player.score += 1;
+        // Add score to player based on how many questions the item had remaining
+        let remaining_questions = 20 - item.questions.len();
+        player.score += remaining_questions;
         drop(servers_lock);
         return (StatusCode::OK, "Correct guess".to_string());
     }

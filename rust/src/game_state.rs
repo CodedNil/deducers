@@ -122,13 +122,15 @@ impl DeducersMain {
             .get_node_as::<Label>("GameUI/HBoxContainer/VBoxContainer/Leaderboard/LobbyStatus/MarginContainer/HBoxContainer/Ping")
             .set_text(format!("Ping: {ping}ms").into());
 
-        match serde_json::from_str::<GameStateResponse>(response_str) {
-            Ok(GameStateResponse::ServerState(server)) => {
-                self.process_game_state(&server);
-            }
-            _ => {
-                godot_print!("Failed to parse game state");
-            }
+        if let Ok(GameStateResponse::ServerState(server)) = serde_json::from_str::<GameStateResponse>(response_str) {
+            self.process_game_state(&server);
+        } else {
+            godot_print!("Failed to parse game state");
+
+            // Disconnect
+            self.base.get_node_as::<Control>("ConnectUI").show();
+            self.connected = false;
+            self.show_alert("Lost connection to server".to_string());
         }
     }
 

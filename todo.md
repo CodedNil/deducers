@@ -1,7 +1,5 @@
 Items queue outside of servers, keep it topped up with items and written to file ready
-Score given on correct guessed based on how many questions item had against it
 Item category options for host to choose from
-Kicked player receives "Failed to parse game state" error but doesn't disconnect
 
 <!-- Animation & UI -->
 
