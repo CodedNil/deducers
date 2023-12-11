@@ -135,11 +135,10 @@ pub async fn player_vote_question(
         player.coins -= VOTE_QUESTION_COST;
         queued_question.votes += 1;
         drop(servers_lock);
-        (StatusCode::OK, "Question upvoted successfully".to_string())
-    } else {
-        drop(servers_lock);
-        (StatusCode::BAD_REQUEST, "Question not found in queue".to_string())
+        return (StatusCode::OK, "Question upvoted successfully".to_string());
     }
+    drop(servers_lock);
+    (StatusCode::BAD_REQUEST, "Question not found in queue".to_string())
 }
 
 pub async fn player_convert_score(Path((server_id, player_name)): Path<(String, String)>, Extension(servers): Extension<ServerStorage>) -> impl IntoResponse {

@@ -124,19 +124,22 @@ pub async fn ask_top_question(servers: ServerStorage, server_id: String) {
         return;
     };
 
-    let question_clone = question.question.clone();
+    let question_clone = question.clone();
+    let question_text = question.question.clone();
     let question_id = server.questions_counter;
 
     // Create list of items in string
     let items_str = server.items.iter().map(|item| item.name.as_str()).collect::<Vec<&str>>().join(", ");
+    let items = server.items.clone();
+    drop(servers_lock);
 
     // Query with OpenAI API
     let mut answers = Vec::new();
     let mut attempt_count = 0;
 
-    while attempt_count < 4 && answers.len() != server.items.len() {
+    while attempt_count < 4 && answers.len() != items.len() {
         let response = query(
-            &format!("u:For each item in this list '{items_str}', answer the question '{question_clone}', return compact one line JSON with key answers which is a list of yes, no or maybe, this is a 20 questions game, British English"),
+            &format!("u:For each item in this list '{items_str}', answer the question '{question_text}', return compact one line JSON with key answers which is a list of yes, no or maybe, this is a 20 questions game, British English"),
             100,
             1.0,
         )
@@ -163,6 +166,13 @@ pub async fn ask_top_question(servers: ServerStorage, server_id: String) {
         attempt_count += 1;
     }
 
+    // Create a new lock
+    let mut servers_lock = servers.lock().await;
+    let Some(server) = servers_lock.get_mut(&server_id) else {
+        drop(servers_lock);
+        return;
+    };
+
     // Default to "maybe" if correct response not received after 4 attempts
     if answers.len() != server.items.len() {
         answers = vec![Answer::Maybe; server.items.len()];
@@ -173,11 +183,11 @@ pub async fn ask_top_question(servers: ServerStorage, server_id: String) {
     for (index, item) in &mut server.items.iter_mut().enumerate() {
         let random_answer = answers.get(index).unwrap_or(&Answer::Maybe).clone();
         item.questions.push(Question {
-            player: question.player.clone(),
+            player: question_clone.player.clone(),
             id: question_id,
-            question: question.question.clone(),
+            question: question_clone.question.clone(),
             answer: random_answer,
-            anonymous: question.anonymous,
+            anonymous: question_clone.anonymous,
         });
 
         // If item has 20 questions, remove the item
@@ -188,7 +198,7 @@ pub async fn ask_top_question(servers: ServerStorage, server_id: String) {
     server.items = retain_items;
 
     // Remove question from queue
-    server.questions_queue.retain(|q| q.question != question_clone);
+    server.questions_queue.retain(|q| q.question != question_text);
     server.questions_counter += 1;
 
     // Add new item if x questions have been asked
@@ -229,9 +239,8 @@ pub async fn player_guess_item(
         // Add score to player
         player.score += 1;
         drop(servers_lock);
-        (StatusCode::OK, "Correct guess".to_string())
-    } else {
-        drop(servers_lock);
-        (StatusCode::NOT_ACCEPTABLE, "Incorrect guess".to_string())
+        return (StatusCode::OK, "Correct guess".to_string());
     }
+    drop(servers_lock);
+    (StatusCode::NOT_ACCEPTABLE, "Incorrect guess".to_string())
 }

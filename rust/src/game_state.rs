@@ -2,13 +2,13 @@ use crate::{
     items,
     networking::{AsyncResult, DeducersMain},
 };
-use chrono::Utc;
 use godot::{
     engine::{Control, Label},
     prelude::*,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use tokio::time::Instant;
 
 pub const SUBMIT_QUESTION_EVERY_X_SECONDS: i32 = 10;
 
@@ -77,9 +77,10 @@ enum GameStateResponse {
 }
 
 impl DeducersMain {
+    #[allow(clippy::cast_possible_truncation)]
     pub fn refresh_game_state(&mut self) {
         // Record the current time before sending the request
-        let start_time = Utc::now();
+        let start_time = Instant::now();
 
         // Make get request to get game state
         let url = format!(
@@ -94,7 +95,7 @@ impl DeducersMain {
             match http_client_clone.get(&url).send().await {
                 Ok(response) => {
                     // Calculate the round-trip time (ping)
-                    let ping = (Utc::now() - start_time).num_milliseconds();
+                    let ping = start_time.elapsed().as_millis() as i64;
                     let Ok(response_str) = response.text().await else {
                         tx.lock()
                             .await

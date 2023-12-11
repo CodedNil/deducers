@@ -1,10 +1,12 @@
-use chrono::{DateTime, Utc};
 use godot::{
     engine::{ColorRect, Control, IControl, Label, LineEdit, OptionButton},
     prelude::*,
 };
 use std::{sync::Arc, time::Duration};
-use tokio::sync::{mpsc, Mutex};
+use tokio::{
+    sync::{mpsc, Mutex},
+    time::Instant,
+};
 
 pub enum AsyncResult {
     ProcessJoinServer(String, String, String, String),
@@ -33,7 +35,7 @@ pub struct DeducersMain {
     pub connected: bool,
     pub server_started: bool,
     pub is_host: bool,
-    management_info_text_clear_time: Option<DateTime<Utc>>,
+    management_info_text_clear_time: Option<Instant>,
 }
 
 #[godot_api]
@@ -95,13 +97,14 @@ impl DeducersMain {
         self.base.get_node_as::<ColorRect>("AlertDialog").show();
     }
 
+    #[allow(clippy::cast_sign_loss)]
     pub fn show_management_info(&mut self, message: String, duration: i64) {
         // Set message text, then wait duration and if message text is still the same, clear it
         self.base
             .get_node_as::<Label>("GameUI/HBoxContainer/VBoxContainer/Management/MarginContainer/VBoxContainer/ManagementInfoLabel")
             .set_text(message.into());
-        // Set mana
-        self.management_info_text_clear_time = Some(Utc::now() + chrono::Duration::milliseconds(duration));
+        // Set management info text clear time
+        self.management_info_text_clear_time = Some(Instant::now() + Duration::from_millis(duration as u64));
     }
 
     #[func]
@@ -254,7 +257,7 @@ impl IControl for DeducersMain {
     fn process(&mut self, _: f64) {
         // Clear management info text if it's time
         if let Some(clear_time) = self.management_info_text_clear_time {
-            if clear_time < Utc::now() {
+            if Instant::now() >= clear_time {
                 self.base
                     .get_node_as::<Label>("GameUI/HBoxContainer/VBoxContainer/Management/MarginContainer/VBoxContainer/ManagementInfoLabel")
                     .set_text("".into());
