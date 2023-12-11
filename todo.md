@@ -1,5 +1,6 @@
 Items queue outside of servers, keep it topped up with items and written to file ready
 Item category options for host to choose from
+When question submitted from queue, remove from queue while the ai processes it
 
 <!-- Animation & UI -->
 
@@ -9,8 +10,5 @@ Better error message display for guessing item and submitting question
 <!-- Sound -->
 
 Background music
-Item added to server
-Question submitted to items
-Game start
-Coin given to self
 Item guessed correctly and score given to player
+Guess incorrect

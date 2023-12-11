@@ -1,4 +1,4 @@
-use crate::{Answer, Server, ServerStorage};
+use crate::{Answer, PlayerMessage, Server, ServerStorage};
 use axum::{extract::Path, http::StatusCode, response::IntoResponse, Extension, Json};
 use serde::Serialize;
 use std::collections::HashMap;
@@ -13,6 +13,7 @@ pub struct ServerMinimal {
     players: HashMap<String, Player>,
     questions_queue: Vec<QueuedQuestion>,
     items: Vec<Item>,
+    messages: Vec<PlayerMessage>,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -70,7 +71,7 @@ pub async fn get_state(Path((server_id, player_name)): Path<(String, String)>, E
 }
 
 // Convert server to minimal server
-pub fn convert_to_minimal(server: &Server, player_name: &String) -> ServerMinimal {
+pub fn convert_to_minimal(server: &mut Server, player_name: &String) -> ServerMinimal {
     // Convert questions queue removing questions if anonymous
     let questions_queue = server
         .questions_queue
@@ -135,6 +136,10 @@ pub fn convert_to_minimal(server: &Server, player_name: &String) -> ServerMinima
         })
         .collect();
 
+    // Get messages for player then clear them
+    let messages = server.players.get(player_name).unwrap().messages.clone();
+    server.players.get_mut(player_name).unwrap().messages.clear();
+
     ServerMinimal {
         id: server.id.clone(),
         started: server.started,
@@ -143,5 +148,6 @@ pub fn convert_to_minimal(server: &Server, player_name: &String) -> ServerMinima
         players,
         questions_queue,
         items,
+        messages,
     }
 }

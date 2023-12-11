@@ -45,12 +45,22 @@ pub struct Server {
     questions_counter: usize,
 }
 
+#[derive(Clone, Debug, Serialize)]
+pub enum PlayerMessage {
+    ItemAdded,
+    QuestionAsked,
+    GameStart,
+    CoinGiven,
+    ItemGuessed(String, String),
+}
+
 #[derive(Clone, Debug)]
 struct Player {
     name: String,
     last_contact: Instant,
     score: usize,
     coins: usize,
+    messages: Vec<PlayerMessage>,
 }
 
 #[derive(Clone, Debug)]
@@ -169,6 +179,7 @@ async fn connect_player(Path((server_id, player_name)): Path<(String, String)>, 
         last_contact: Instant::now(),
         score: 0,
         coins: 3,
+        messages: Vec::new(),
     });
 
     // Return the game state

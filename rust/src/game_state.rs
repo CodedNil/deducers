@@ -6,11 +6,20 @@ use godot::{
     engine::{Control, Label},
     prelude::*,
 };
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use std::collections::HashMap;
 use tokio::time::Instant;
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
+pub enum PlayerMessage {
+    ItemAdded,
+    QuestionAsked,
+    GameStart,
+    CoinGiven,
+    ItemGuessed(String, String),
+}
+
+#[derive(Clone, Debug, Deserialize)]
 pub struct ServerMinimal {
     id: String,
     started: bool,
@@ -19,16 +28,17 @@ pub struct ServerMinimal {
     players: HashMap<String, Player>,
     questions_queue: Vec<QueuedQuestion>,
     items: Vec<Item>,
+    messages: Vec<PlayerMessage>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct Player {
     pub name: String,
     pub score: usize,
     coins: Option<usize>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct QueuedQuestion {
     pub player: String,
     pub question: Option<String>,
@@ -36,13 +46,13 @@ pub struct QueuedQuestion {
     pub votes: usize,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct Item {
     pub id: usize,
     pub questions: Vec<Question>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct Question {
     pub player: String,
     pub id: usize,
@@ -51,7 +61,7 @@ pub struct Question {
     pub anonymous: bool,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 pub enum Answer {
     Yes,
     No,
@@ -172,6 +182,20 @@ impl DeducersMain {
 
     #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
     fn process_game_state(&mut self, server: &ServerMinimal) {
+        // Read messages
+        for message in &server.messages {
+            match message {
+                PlayerMessage::ItemAdded => self.play_sound("item_added.mp3"),
+                PlayerMessage::QuestionAsked => self.play_sound("question_added.mp3"),
+                PlayerMessage::GameStart => self.play_sound("game_start.mp3"),
+                PlayerMessage::CoinGiven => self.play_sound("coin_added.mp3"),
+                PlayerMessage::ItemGuessed(item_name, player_name) => {
+                    // Show a big popup and play a sound
+                    godot_print!("Item guessed: {item_name} by {player_name}");
+                }
+            }
+        }
+
         self.update_leaderboard(&server.players, &self.player_name.clone(), self.is_host);
         items::set_guess_list(
             &self.base.get_node_as::<Control>("GameUI/HBoxContainer/VBoxContainer/Management"),

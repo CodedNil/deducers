@@ -1,5 +1,5 @@
 use crate::openai::query;
-use crate::{Answer, Item, Question, Server, ServerStorage, ADD_ITEM_EVERY_X_QUESTIONS, GUESS_ITEM_COST, SERVER_PORT};
+use crate::{Answer, Item, PlayerMessage, Question, Server, ServerStorage, ADD_ITEM_EVERY_X_QUESTIONS, GUESS_ITEM_COST, SERVER_PORT};
 use async_recursion::async_recursion;
 use axum::extract::ConnectInfo;
 use axum::{extract::Path, http::StatusCode, response::IntoResponse, Extension};
@@ -105,6 +105,10 @@ pub fn add_item_to_server(server: &mut Server) {
         questions: Vec::new(),
     });
     server.items_history.push(item_name);
+    // Send message to all players of item added
+    for player in server.players.values_mut() {
+        player.messages.push(PlayerMessage::ItemAdded);
+    }
 }
 
 // Helper function to validate a question
@@ -202,6 +206,11 @@ pub async fn ask_top_question(servers: ServerStorage, server_id: String) {
     // Remove question from queue
     server.questions_queue.retain(|q| q.question != question_text);
     server.questions_counter += 1;
+
+    // Send message to all players of item added
+    for player in server.players.values_mut() {
+        player.messages.push(PlayerMessage::QuestionAsked);
+    }
 
     // Add new item if x questions have been asked
     if server.questions_counter % ADD_ITEM_EVERY_X_QUESTIONS == 0 {
