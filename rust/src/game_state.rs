@@ -7,7 +7,7 @@ use godot::{
     prelude::*,
 };
 use serde::Deserialize;
-use std::collections::HashMap;
+use std::{collections::HashMap, time::Duration};
 use tokio::time::Instant;
 
 #[derive(Clone, Debug, Deserialize)]
@@ -16,12 +16,11 @@ pub enum PlayerMessage {
     QuestionAsked,
     GameStart,
     CoinGiven,
-    ItemGuessed(String, String),
+    ItemGuessed(String, usize, String),
 }
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct ServerMinimal {
-    id: String,
     started: bool,
     elapsed_time: f64,
     key_player: String,
@@ -189,9 +188,14 @@ impl DeducersMain {
                 PlayerMessage::QuestionAsked => self.play_sound("question_added.mp3"),
                 PlayerMessage::GameStart => self.play_sound("game_start.mp3"),
                 PlayerMessage::CoinGiven => self.play_sound("coin_added.mp3"),
-                PlayerMessage::ItemGuessed(item_name, player_name) => {
+                PlayerMessage::ItemGuessed(item_name, item_id, player_name) => {
                     // Show a big popup and play a sound
-                    godot_print!("Item guessed: {item_name} by {player_name}");
+                    self.base.get_node_as::<Control>("GuessedDialog").show();
+                    self.base
+                        .get_node_as::<Label>("GuessedDialog/MarginContainer/Label")
+                        .set_text(format!("{player_name} guessed item {item_id} correctly as {item_name}!").into());
+                    self.guess_dialog_clear_time = Some(Instant::now() + Duration::from_millis(5000));
+                    self.play_sound("guess_correct.mp3");
                 }
             }
         }

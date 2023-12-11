@@ -207,7 +207,7 @@ pub async fn ask_top_question(servers: ServerStorage, server_id: String) {
     server.questions_queue.retain(|q| q.question != question_text);
     server.questions_counter += 1;
 
-    // Send message to all players of item added
+    // Send message to all players of question asked
     for player in server.players.values_mut() {
         player.messages.push(PlayerMessage::QuestionAsked);
     }
@@ -249,6 +249,13 @@ pub async fn player_guess_item(
         // Add score to player based on how many questions the item had remaining
         let remaining_questions = 20 - item.questions.len();
         player.score += remaining_questions;
+        let player_name = player.name.clone();
+        // Send message to all players of item guessed
+        for player_n in server.players.values_mut() {
+            player_n
+                .messages
+                .push(PlayerMessage::ItemGuessed(player_name.clone(), item.id, item.name.clone()));
+        }
         drop(servers_lock);
         return (StatusCode::OK, "Correct guess".to_string());
     }

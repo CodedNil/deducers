@@ -42,7 +42,8 @@ pub struct DeducersMain {
     pub connected: bool,
     pub server_started: bool,
     pub is_host: bool,
-    management_info_text_clear_time: Option<Instant>,
+    pub management_info_text_clear_time: Option<Instant>,
+    pub guess_dialog_clear_time: Option<Instant>,
 }
 
 #[godot_api]
@@ -314,6 +315,7 @@ impl IControl for DeducersMain {
             server_started: false,
             is_host: false,
             management_info_text_clear_time: None,
+            guess_dialog_clear_time: None,
         }
     }
 
@@ -344,6 +346,13 @@ impl IControl for DeducersMain {
                     .get_node_as::<Label>("GameUI/HBoxContainer/VBoxContainer/Management/MarginContainer/VBoxContainer/ManagementInfoLabel")
                     .set_text("".into());
                 self.management_info_text_clear_time = None;
+            }
+        }
+        // Clear guess dialog text if it's time
+        if let Some(clear_time) = self.guess_dialog_clear_time {
+            if Instant::now() >= clear_time {
+                self.base.get_node_as::<Control>("GuessedDialog").hide();
+                self.guess_dialog_clear_time = None;
             }
         }
 

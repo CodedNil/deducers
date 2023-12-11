@@ -6,7 +6,6 @@ use tokio::time::Instant;
 
 #[derive(Clone, Debug, Serialize)]
 pub struct ServerMinimal {
-    id: String,
     started: bool,
     elapsed_time: f64,
     key_player: String,
@@ -141,7 +140,6 @@ pub fn convert_to_minimal(server: &mut Server, player_name: &String) -> ServerMi
     server.players.get_mut(player_name).unwrap().messages.clear();
 
     ServerMinimal {
-        id: server.id.clone(),
         started: server.started,
         elapsed_time: server.elapsed_time,
         key_player: server.key_player.clone(),

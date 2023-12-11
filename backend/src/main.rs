@@ -51,7 +51,7 @@ pub enum PlayerMessage {
     QuestionAsked,
     GameStart,
     CoinGiven,
-    ItemGuessed(String, String),
+    ItemGuessed(String, usize, String),
 }
 
 #[derive(Clone, Debug)]
@@ -223,6 +223,11 @@ async fn start_server(Path((server_id, player_name)): Path<(String, String)>, Ex
     server.started = true;
     server.last_update = Instant::now();
 
+    // Send message to all players of game started
+    for player in server.players.values_mut() {
+        player.messages.push(PlayerMessage::GameStart);
+    }
+
     // Add 2 items to the server
     items::add_item_to_server(server);
     items::add_item_to_server(server);
@@ -285,6 +290,7 @@ async fn server_loop(servers: ServerStorage) {
                     if current_coin_multiple.trunc() > previous_coin_multiple.trunc() {
                         for player in server.players.values_mut() {
                             player.coins += 1;
+                            player.messages.push(PlayerMessage::CoinGiven);
                         }
                     }
 
