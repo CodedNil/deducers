@@ -1,10 +1,10 @@
 use crate::{Answer, Server, ServerStorage};
 use axum::{extract::Path, http::StatusCode, response::IntoResponse, Extension, Json};
-use chrono::Utc;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use std::collections::HashMap;
+use tokio::time::Instant;
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize)]
 pub struct ServerMinimal {
     id: String,
     started: bool,
@@ -15,14 +15,14 @@ pub struct ServerMinimal {
     items: Vec<Item>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize)]
 struct Player {
     name: String,
     score: i32,
     coins: Option<i32>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize)]
 struct QueuedQuestion {
     player: String,
     question: Option<String>,
@@ -30,13 +30,13 @@ struct QueuedQuestion {
     votes: u32,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize)]
 struct Item {
     id: u32,
     questions: Vec<Question>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize)]
 struct Question {
     player: String,
     pub id: u32,
@@ -62,7 +62,7 @@ pub async fn get_state(Path((server_id, player_name)): Path<(String, String)>, E
     };
 
     // Update last contact time for the player and convert to minimal server
-    player.last_contact = Utc::now();
+    player.last_contact = Instant::now();
     let minimal_server = convert_to_minimal(server, &player_name);
     drop(servers_lock);
 

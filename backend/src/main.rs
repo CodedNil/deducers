@@ -5,10 +5,9 @@ use axum::{
     routing::{get, post},
     Extension, Json, Router,
 };
-use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use std::{collections::HashMap, net::SocketAddr, sync::Arc, time::Duration};
-use tokio::{net::TcpListener, sync::Mutex};
+use tokio::{net::TcpListener, sync::Mutex, time::Instant};
 
 mod game_state;
 mod items;
@@ -17,7 +16,7 @@ mod question_queue;
 
 pub const SERVER_PORT: u16 = 3013;
 
-pub const IDLE_KICK_TIME: i64 = 10;
+pub const IDLE_KICK_TIME: u64 = 10;
 
 pub const COINS_EVERY_X_SECONDS: f64 = 3.0;
 pub const SUBMIT_QUESTION_EVERY_X_SECONDS: f64 = 10.0;
@@ -30,31 +29,31 @@ pub const GUESS_ITEM_COST: i32 = 3;
 
 pub const SCORE_TO_COINS_RATIO: i32 = 2;
 
-#[derive(Clone, Debug, Serialize, Deserialize, Default)]
+#[derive(Clone, Debug)]
 pub struct Server {
     id: String,
     started: bool,
     elapsed_time: f64,
-    last_update: DateTime<Utc>,
+    last_update: Instant,
     key_player: String,
     players: HashMap<String, Player>,
     questions_queue: Vec<QueuedQuestion>,
     items: Vec<Item>,
     items_history: Vec<String>,
     items_queue: Vec<String>,
-    last_add_to_queue: DateTime<Utc>,
+    last_add_to_queue: Instant,
     questions_counter: u32,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug)]
 struct Player {
     name: String,
-    last_contact: DateTime<Utc>,
+    last_contact: Instant,
     score: i32,
     coins: i32,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug)]
 struct QueuedQuestion {
     player: String,
     question: String,
@@ -62,14 +61,14 @@ struct QueuedQuestion {
     votes: u32,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug)]
 struct Item {
     name: String,
     id: u32,
     questions: Vec<Question>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug)]
 struct Question {
     player: String,
     id: u32,
@@ -78,7 +77,7 @@ struct Question {
     anonymous: bool,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize)]
 enum Answer {
     Yes,
     No,
@@ -140,10 +139,17 @@ async fn connect_player(Path((server_id, player_name)): Path<(String, String)>, 
 
         Server {
             id: server_id.clone(),
-            last_update: Utc::now(),
+            started: false,
+            elapsed_time: 0.0,
+            last_update: Instant::now(),
             key_player: player_name.clone(),
-            last_add_to_queue: Utc::now(),
-            ..Default::default()
+            players: HashMap::new(),
+            questions_queue: Vec::new(),
+            items: Vec::new(),
+            items_history: Vec::new(),
+            items_queue: Vec::new(),
+            last_add_to_queue: Instant::now(),
+            questions_counter: 0,
         }
     });
 
@@ -160,7 +166,7 @@ async fn connect_player(Path((server_id, player_name)): Path<(String, String)>, 
     // Add the player to the server
     server.players.entry(player_name.clone()).or_insert(Player {
         name: player_name.clone(),
-        last_contact: Utc::now(),
+        last_contact: Instant::now(),
         score: 0,
         coins: 3,
     });
@@ -204,7 +210,7 @@ async fn start_server(Path((server_id, player_name)): Path<(String, String)>, Ex
         return (StatusCode::BAD_REQUEST, "No items in queue".to_string());
     }
     server.started = true;
-    server.last_update = Utc::now();
+    server.last_update = Instant::now();
 
     // Add 2 items to the server
     items::add_item_to_server(server);
@@ -235,7 +241,6 @@ pub async fn kick_player(
     (StatusCode::OK, format!("Server '{server_id}' player '{kick_player_name}' kicked by key player"))
 }
 
-#[allow(clippy::cast_precision_loss)]
 async fn server_loop(servers: ServerStorage) {
     loop {
         let mut servers_locked = servers.lock().await;
@@ -244,7 +249,7 @@ async fn server_loop(servers: ServerStorage) {
         servers_locked.retain(|id, server| {
             // Remove inactive players and check if key player is active
             server.players.retain(|player_id, player| {
-                if Utc::now().signed_duration_since(player.last_contact).num_seconds() > IDLE_KICK_TIME {
+                if player.last_contact.elapsed().as_secs() > IDLE_KICK_TIME {
                     // Log player kicking due to inactivity
                     println!("Kicking player '{player_id}' due to idle");
                     false
@@ -261,11 +266,7 @@ async fn server_loop(servers: ServerStorage) {
             } else {
                 // Update server state if server is started
                 if server.started {
-                    let elapsed_time_update = Utc::now().signed_duration_since(server.last_update).num_milliseconds() as f64 / 1000.0;
-
-                    // Update the elapsed time and last update time for the server
-                    server.elapsed_time += elapsed_time_update;
-                    server.last_update = Utc::now();
+                    let elapsed_time_update = server.last_update.elapsed().as_secs_f64();
 
                     // Distribute coins if the elapsed time has crossed a multiple of COINS_EVERY_X_SECONDS
                     let previous_coin_multiple = server.elapsed_time / COINS_EVERY_X_SECONDS;
@@ -288,14 +289,18 @@ async fn server_loop(servers: ServerStorage) {
                     }
 
                     // Add more items to the server's item queue if it's low
-                    let time_since_last_add_to_queue = Utc::now().signed_duration_since(server.last_add_to_queue).num_seconds();
+                    let time_since_last_add_to_queue = server.last_add_to_queue.elapsed().as_secs();
                     if server.items_queue.len() < 3 && time_since_last_add_to_queue > 5 {
-                        server.last_add_to_queue = Utc::now();
+                        server.last_add_to_queue = Instant::now();
                         let server_id_clone = server.id.clone();
                         tokio::spawn(async move {
                             items::add_item_to_queue(server_id_clone, vec![], 0).await;
                         });
                     }
+
+                    // Update the elapsed time and last update time for the server
+                    server.elapsed_time += elapsed_time_update;
+                    server.last_update = Instant::now();
                 }
                 true
             }
