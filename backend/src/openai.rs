@@ -1,8 +1,6 @@
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
-use std::io::Write;
-use std::time::Duration;
-use std::{env, fs::OpenOptions};
+use std::{env, fs::OpenOptions, io::Write, time::Duration};
 
 const GPT_MODEL: &str = "gpt-4-1106-preview";
 

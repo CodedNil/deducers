@@ -1,8 +1,11 @@
 use crate::openai::query;
 use crate::{Answer, Item, PlayerMessage, Question, Server, ServerStorage, ADD_ITEM_EVERY_X_QUESTIONS, GUESS_ITEM_COST, SERVER_PORT};
-use async_recursion::async_recursion;
-use axum::extract::ConnectInfo;
-use axum::{extract::Path, http::StatusCode, response::IntoResponse, Extension};
+use axum::{
+    extract::{ConnectInfo, Path},
+    http::StatusCode,
+    response::IntoResponse,
+    Extension,
+};
 use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
 
@@ -15,7 +18,7 @@ struct ItemsResponse {
     item3: String,
 }
 
-#[async_recursion]
+#[async_recursion::async_recursion]
 pub async fn add_item_to_queue(server_id: String, mut items_history: Vec<String>, recursions: u32) {
     // Check if maximum recursion depth has been reached
     if recursions >= MAX_RECURSIONS {
@@ -160,11 +163,8 @@ pub async fn ask_top_question(servers: ServerStorage, server_id: String) {
         )
         .await;
 
-        println!("Attempt {attempt_count}, Response: {response:?}");
-
         if let Ok(message) = response {
             if let Ok(validate_response) = serde_json::from_str::<AskQuestionResponse>(&message) {
-                println!("Attempt {attempt_count}, Answers: {validate_response:?}");
                 answers.clear();
                 for answer in validate_response.answers {
                     let answer = match answer.to_lowercase().trim() {

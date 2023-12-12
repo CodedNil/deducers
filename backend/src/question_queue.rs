@@ -42,11 +42,8 @@ pub async fn player_submit_question(
     // Validate the question
     drop(servers_lock);
     let validate_response = is_valid_question(&question).await;
-    if !validate_response.is_suitable {
-        return (
-            StatusCode::BAD_REQUEST,
-            format!("Question is not suitable: {}", validate_response.suitable_reasoning),
-        );
+    if !validate_response.suitable {
+        return (StatusCode::BAD_REQUEST, format!("Question is not suitable: {}", validate_response.reasoning));
     }
 
     // Reacquire lock and add question to queue
@@ -65,7 +62,7 @@ pub async fn player_submit_question(
     player.coins -= total_cost;
     server.questions_queue.push(QueuedQuestion {
         player: player_name.clone(),
-        question: validate_response.formatted_question,
+        question: validate_response.formatted,
         votes: 0,
         anonymous: question_options.anonymous,
     });
@@ -76,28 +73,27 @@ pub async fn player_submit_question(
 // Helper function to validate a question
 #[derive(Deserialize, Serialize, Debug)]
 struct ValidateQuestionResponse {
-    is_suitable: bool,
-    formatted_question: String,
-    suitable_reasoning: String,
+    suitable: bool,
+    formatted: String,
+    reasoning: String,
 }
 
 async fn is_valid_question(question: &str) -> ValidateQuestionResponse {
     let trimmed = question.trim();
     if trimmed.is_empty() {
         return ValidateQuestionResponse {
-            is_suitable: false,
-            formatted_question: question.to_string(),
-            suitable_reasoning: "Question is empty".to_string(),
+            suitable: false,
+            formatted: question.to_string(),
+            reasoning: "Question is empty".to_string(),
         };
     }
     println!("Question to validate: {question}");
 
     // Query with OpenAI API
     let response = query(
-        &format!("u:Check '{trimmed}' for suitability in a 20 Questions game, format it, and return a compact one line JSON with suitable_reasoning (up to 6 word explanation for suitability, is it a question with clear yes/no/maybe answerability, is it relevant to identifying an item), formatted_question (string, the input question capitalized and with a question mark), is_suitable (bool, if uncertain err on allowing the question unless it clearly fails criteria), British English"),
+        &format!("u:Check '{trimmed}' for suitability in a 20 Questions game, format it, and return a compact one line JSON with reasoning (concise up to 4 word explanation for suitability, is it a question with clear yes/no/maybe answerability, is it relevant to identifying an item), formatted (the input question capitalized and with a question mark), suitable (bool, if uncertain err on allowing the question unless it clearly fails criteria), British English"),
         100, 1.0
     ).await;
-    println!("Response: {response:?}");
     if let Ok(message) = response {
         // Parse response
         if let Ok(validate_response) = serde_json::from_str::<ValidateQuestionResponse>(&message) {
@@ -106,9 +102,9 @@ async fn is_valid_question(question: &str) -> ValidateQuestionResponse {
     }
 
     ValidateQuestionResponse {
-        is_suitable: false,
-        formatted_question: question.to_string(),
-        suitable_reasoning: "Failed to validate question".to_string(),
+        suitable: false,
+        formatted: question.to_string(),
+        reasoning: "Failed to validate question".to_string(),
     }
 }
 

@@ -18,16 +18,16 @@ pub const SERVER_PORT: u16 = 3013;
 
 pub const IDLE_KICK_TIME: u64 = 10;
 
-pub const COINS_EVERY_X_SECONDS: f64 = 3.0;
+pub const COINS_EVERY_X_SECONDS: f64 = 4.0;
 pub const SUBMIT_QUESTION_EVERY_X_SECONDS: f64 = 10.0;
 pub const ADD_ITEM_EVERY_X_QUESTIONS: usize = 5;
 
-pub const SUBMIT_QUESTION_COST: usize = 2;
-pub const ANONYMOUS_QUESTION_COST: usize = 5;
+pub const SUBMIT_QUESTION_COST: usize = 4;
+pub const ANONYMOUS_QUESTION_COST: usize = 8;
 pub const VOTE_QUESTION_COST: usize = 1;
 pub const GUESS_ITEM_COST: usize = 3;
 
-pub const SCORE_TO_COINS_RATIO: usize = 2;
+pub const SCORE_TO_COINS_RATIO: usize = 3;
 
 #[derive(Clone, Debug)]
 pub struct Server {
