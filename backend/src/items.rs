@@ -137,6 +137,15 @@ pub async fn ask_top_question(servers: ServerStorage, server_id: String) {
     // Create list of items in string
     let items_str = server.items.iter().map(|item| item.name.as_str()).collect::<Vec<&str>>().join(", ");
     let items = server.items.clone();
+
+    // Remove question from queue
+    server.questions_queue.retain(|q| q.question != question_text);
+    server.questions_counter += 1;
+
+    // Add new item if x questions have been asked
+    if server.questions_counter % ADD_ITEM_EVERY_X_QUESTIONS == 0 {
+        add_item_to_server(server);
+    }
     drop(servers_lock);
 
     // Query with OpenAI API
@@ -203,18 +212,9 @@ pub async fn ask_top_question(servers: ServerStorage, server_id: String) {
     }
     server.items = retain_items;
 
-    // Remove question from queue
-    server.questions_queue.retain(|q| q.question != question_text);
-    server.questions_counter += 1;
-
     // Send message to all players of question asked
     for player in server.players.values_mut() {
         player.messages.push(PlayerMessage::QuestionAsked);
-    }
-
-    // Add new item if x questions have been asked
-    if server.questions_counter % ADD_ITEM_EVERY_X_QUESTIONS == 0 {
-        add_item_to_server(server);
     }
 }
 
@@ -250,11 +250,17 @@ pub async fn player_guess_item(
         let remaining_questions = 20 - item.questions.len();
         player.score += remaining_questions;
         let player_name = player.name.clone();
+
+        // Remove item
+        let item_id = item.id;
+        let item_name = item.name.clone();
+        server.items.retain(|i| i.id != item_id);
+
         // Send message to all players of item guessed
         for player_n in server.players.values_mut() {
             player_n
                 .messages
-                .push(PlayerMessage::ItemGuessed(player_name.clone(), item.id, item.name.clone()));
+                .push(PlayerMessage::ItemGuessed(player_name.clone(), item_id, item_name.clone()));
         }
         drop(servers_lock);
         return (StatusCode::OK, "Correct guess".to_string());
