@@ -102,6 +102,7 @@ pub fn add_item_to_server(server: &mut Server) {
     };
 
     // Add item to server
+    println!("Adding item to server: {item_name}");
     server.items.push(Item {
         name: item_name.clone(),
         id: server.items_history.len() + 1,
@@ -145,10 +146,6 @@ pub async fn ask_top_question(servers: ServerStorage, server_id: String) {
     server.questions_queue.retain(|q| q.question != question_text);
     server.questions_counter += 1;
 
-    // Add new item if x questions have been asked
-    if server.questions_counter % ADD_ITEM_EVERY_X_QUESTIONS == 0 {
-        add_item_to_server(server);
-    }
     drop(servers_lock);
 
     // Query with OpenAI API
@@ -175,6 +172,8 @@ pub async fn ask_top_question(servers: ServerStorage, server_id: String) {
                     };
                     answers.push(answer);
                 }
+            } else {
+                println!("Failed to parse answer response {message}");
             }
         }
 
@@ -190,6 +189,7 @@ pub async fn ask_top_question(servers: ServerStorage, server_id: String) {
 
     // Default to "maybe" if correct response not received after 4 attempts
     if answers.len() != server.items.len() {
+        println!("Failed to get answers for question: {question_text}");
         answers = vec![Answer::Maybe; server.items.len()];
     }
 
@@ -211,6 +211,11 @@ pub async fn ask_top_question(servers: ServerStorage, server_id: String) {
         }
     }
     server.items = retain_items;
+
+    // Add new item if x questions have been asked
+    if server.questions_counter % ADD_ITEM_EVERY_X_QUESTIONS == 0 {
+        add_item_to_server(server);
+    }
 
     // Send message to all players of question asked
     for player in server.players.values_mut() {
