@@ -62,7 +62,7 @@ pub async fn player_submit_question(
     player.coins -= total_cost;
     server.questions_queue.push(QueuedQuestion {
         player: player_name.clone(),
-        question: validate_response.formatted,
+        question: validate_response.formatted_question,
         votes: 0,
         anonymous: question_options.anonymous,
     });
@@ -74,7 +74,7 @@ pub async fn player_submit_question(
 #[derive(Deserialize, Serialize, Debug)]
 struct ValidateQuestionResponse {
     suitable: bool,
-    formatted: String,
+    formatted_question: String,
     reasoning: String,
 }
 
@@ -83,15 +83,14 @@ async fn is_valid_question(question: &str) -> ValidateQuestionResponse {
     if trimmed.is_empty() {
         return ValidateQuestionResponse {
             suitable: false,
-            formatted: question.to_string(),
+            formatted_question: question.to_string(),
             reasoning: "Question is empty".to_string(),
         };
     }
-    println!("Question to validate: {question}");
 
     // Query with OpenAI API
     let response = query(
-        &format!("u:Check '{trimmed}' for suitability in a 20 Questions game, format it, and return a compact one line JSON with reasoning (concise up to 4 word explanation for suitability, is it a question with clear yes/no/maybe answerability, is it relevant to identifying an item), formatted (the input question capitalized and with a question mark), suitable (bool, if uncertain err on allowing the question unless it clearly fails criteria), British English"),
+        &format!("u:Check '{trimmed}' for suitability in a 20 Questions game, format it, and return a compact one line JSON with reasoning (concise up to 4 word explanation for suitability, is it a question with clear yes/no/maybe answerability, is it relevant to identifying an item), formatted_question (the input question with first letter capitalized and with a question mark), suitable (bool, if uncertain err on allowing the question unless it clearly fails criteria), British English"),
         100, 1.0
     ).await;
     if let Ok(message) = response {
@@ -103,7 +102,7 @@ async fn is_valid_question(question: &str) -> ValidateQuestionResponse {
 
     ValidateQuestionResponse {
         suitable: false,
-        formatted: question.to_string(),
+        formatted_question: question.to_string(),
         reasoning: "Failed to validate question".to_string(),
     }
 }
