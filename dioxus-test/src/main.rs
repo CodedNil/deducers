@@ -42,6 +42,7 @@ async fn main() {
         <!DOCTYPE html>
         <html>
             <head> <title>Deducers</title>  </head>
+            <meta name="darkreader-lock">
             <body> <div id="main"></div> </body>
             {glue}
         </html>

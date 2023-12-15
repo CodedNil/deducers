@@ -5,6 +5,7 @@ use tokio::time::Instant;
 
 use crate::{Player, Server, SERVERS};
 
+#[allow(clippy::too_many_lines)]
 pub fn app(cx: Scope) -> Element {
     let player_name = use_state(cx, String::new);
     let server_id = use_state(cx, String::new);
@@ -18,6 +19,15 @@ pub fn app(cx: Scope) -> Element {
             let server_id = server_id.clone();
             let is_connected = is_connected.clone();
             let error_message = error_message.clone();
+
+            if player_name.get() == "" {
+                error_message.set(Some("Player name cannot be empty".into()));
+                return;
+            }
+            if server_id.get() == "" {
+                error_message.set(Some("Server ID cannot be empty".into()));
+                return;
+            }
 
             cx.spawn(async move {
                 match connect_player(server_id.get().to_string(), player_name.get().to_string())
@@ -57,9 +67,34 @@ pub fn app(cx: Scope) -> Element {
                 || rsx! { div {} },
                 |msg| {
                     rsx! {
-                        div { class: "error-dialog",
+                        div {
+                            position: "fixed",
+                            top: "50%",
+                            left: "50%",
+                            transform: "translate(-50%, -50%)",
+                            background_color: "darkred",
+                            padding: "20px",
+                            border_radius: "10px",
+                            color: "white",
+                            font_family: "sans-serif",
+                            font_weight: "bold",
+                            display: "flex",
+                            flex_direction: "column",
+                            align_items: "center",
+                            gap: "10px",
                             "{msg}"
-                            button { onclick: move |_| error_message.set(None), "OK" }
+                            button {
+                                width: "fit-content",
+                                background_color: "#313131",
+                                border: "none",
+                                border_radius: "5px",
+                                padding: "5px 10px",
+                                color: "white",
+                                font_family: "sans-serif",
+                                font_weight: "bold",
+                                onclick: move |_| error_message.set(None),
+                                "OK"
+                            }
                         }
                     }
                 },
@@ -70,8 +105,16 @@ pub fn app(cx: Scope) -> Element {
     if *is_connected.get() {
         cx.render(rsx! {
             div {
-                "Server Id: {server_id}"
-                button { onclick: disconnect, "Disconnect" }
+                position: "absolute",
+                top: "0px",
+                left: "0px",
+                bottom: "0px",
+                right: "0px",
+
+                div {
+                    "Server Id: {server_id}"
+                    button { onclick: disconnect, "Disconnect" }
+                }
             }
 
             render_error_dialog()
@@ -79,25 +122,61 @@ pub fn app(cx: Scope) -> Element {
     } else {
         cx.render(rsx! {
             div {
-                "Player Name: "
-                input {
-                    r#type: "text",
-                    value: "{player_name}",
-                    oninput: move |e| player_name.set(e.value.clone())
+                position: "absolute",
+                top: "0px",
+                left: "0px",
+                bottom: "0px",
+                right: "0px",
+                background_color: "rgb(30, 30, 30)",
+
+                div {
+                    position: "fixed",
+                    top: "50%",
+                    left: "50%",
+                    transform: "translate(-50%, -50%)",
+                    background_color: "#2c5e93",
+                    padding: "20px",
+                    border_radius: "10px",
+                    display: "flex",
+                    flex_direction: "column",
+                    align_items: "center",
+                    gap: "10px",
+
+                    div {
+                        input {
+                            r#type: "text",
+                            value: "{player_name}",
+                            placeholder: "Player Name",
+                            font_family: "sans-serif",
+                            font_weight: "bold",
+                            oninput: move |e| player_name.set(e.value.clone())
+                        }
+                    }
+
+                    div {
+                        input {
+                            r#type: "text",
+                            value: "{server_id}",
+                            placeholder: "Lobby Id",
+                            font_family: "sans-serif",
+                            font_weight: "bold",
+                            oninput: move |e| server_id.set(e.value.clone())
+                        }
+                    }
+
+                    button {
+                        width: "fit-content",
+                        background_color: "#313131",
+                        border: "none",
+                        border_radius: "5px",
+                        padding: "5px 10px",
+                        color: "white",
+                        font_family: "sans-serif",
+                        font_weight: "bold",
+                        onclick: connect,
+                        "Connect"
+                    }
                 }
-
-                br {}
-
-                "Server ID: "
-                input {
-                    r#type: "text",
-                    value: "{server_id}",
-                    oninput: move |e| server_id.set(e.value.clone())
-                }
-
-                br {}
-
-                button { onclick: connect, "Connect to Server" }
             }
 
             render_error_dialog()
