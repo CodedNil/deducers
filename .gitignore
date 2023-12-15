@@ -1,6 +1,8 @@
 .godot/
 frontend/target/
 backend/target/
+dioxus-test/target/
+dioxus-test/dist/
 gpt_log.txt
 Deducers.console.exe
 deducers.dll

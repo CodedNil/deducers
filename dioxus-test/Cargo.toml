@@ -1,0 +1,11 @@
+[package]
+name = "dioxus-test"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+axum = { version = "0.6.1", features = ["ws"] }
+dioxus = "0.4.3"
+dioxus-liveview = { version = "0.4.3", features = ["axum"] }
+tokio = { version = "1.35.0", features = ["full"] }
+anyhow = "1.0.75"
