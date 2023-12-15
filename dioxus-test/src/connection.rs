@@ -1,249 +1,247 @@
 use anyhow::{anyhow, Result};
 use dioxus::prelude::*;
-use std::collections::HashMap;
-use tokio::time::Instant;
+use std::{collections::HashMap, time::Duration};
 
-use crate::{Player, Server, SERVERS};
+use crate::{gameview::game_view, get_current_time, Lobby, Player, LOBBYS};
 
 #[allow(clippy::too_many_lines)]
 pub fn app(cx: Scope) -> Element {
-    let player_name = use_state(cx, String::new);
-    let server_id = use_state(cx, String::new);
-    let is_connected = use_state(cx, || false);
+    let player_name: &UseState<String> = use_state(cx, || String::from("dan"));
+    let lobby_id: &UseState<String> = use_state(cx, || String::from("test"));
+    let is_connected: &UseState<bool> = use_state(cx, || false);
 
-    let error_message = use_state(cx, || None::<String>);
+    let lobby_state: &UseState<Option<Lobby>> = use_state(cx, || None::<Lobby>);
+
+    let error_message: &UseState<Option<String>> = use_state(cx, || None::<String>);
+
+    // Get lobby state every x seconds if connected
+    if *is_connected.get() {
+        use_effect(cx, (), |()| {
+            let lobby_state = lobby_state.clone();
+            let player_name = player_name.clone();
+            let lobby_id = lobby_id.clone();
+            let error_message = error_message.clone();
+            let is_connected = is_connected.clone();
+            async move {
+                while *is_connected.get() {
+                    match get_state(lobby_id.get().to_string(), player_name.get().to_string()).await
+                    {
+                        Ok(state_json) => match serde_json::from_str::<Lobby>(&state_json) {
+                            Ok(lobby) => {
+                                lobby_state.set(Some(lobby));
+                            }
+                            Err(error) => {
+                                error_message
+                                    .set(Some(format!("Disconnected from lobby: {error}")));
+                                is_connected.set(false);
+                                break;
+                            }
+                        },
+                        Err(error) => {
+                            error_message.set(Some(format!("Disconnected from lobby: {error}")));
+                            is_connected.set(false);
+                            break;
+                        }
+                    }
+
+                    tokio::time::sleep(Duration::from_millis(500)).await;
+                }
+            }
+        });
+    }
 
     let connect = {
-        move |_| {
+        move || {
             let player_name = player_name.clone();
-            let server_id = server_id.clone();
+            let lobby_id = lobby_id.clone();
             let is_connected = is_connected.clone();
             let error_message = error_message.clone();
 
-            if player_name.get() == "" {
-                error_message.set(Some("Player name cannot be empty".into()));
-                return;
-            }
-            if server_id.get() == "" {
-                error_message.set(Some("Server ID cannot be empty".into()));
-                return;
-            }
-
             cx.spawn(async move {
-                match connect_player(server_id.get().to_string(), player_name.get().to_string())
+                match connect_player(lobby_id.get().to_string(), player_name.get().to_string())
                     .await
                 {
                     Ok(_) => {
                         is_connected.set(true);
                     }
                     Err(error) => {
-                        error_message.set(Some(format!("Failed to connect to server: {error}")));
+                        error_message.set(Some(format!("Failed to connect to lobby: {error}")));
                     }
                 };
             });
         }
     };
 
-    let disconnect = {
-        move |_| {
-            let player_name = player_name.clone();
-            let server_id = server_id.clone();
-            player_name.set(String::new());
-            server_id.set(String::new());
-            is_connected.set(false);
+    let disconnect = Box::new(move || {
+        let player_name = player_name.clone();
+        let lobby_id = lobby_id.clone();
+        is_connected.set(false);
 
-            cx.spawn(async move {
-                let _ =
-                    disconnect_player(server_id.get().to_string(), player_name.get().to_string())
-                        .await;
-            });
-        }
-    };
+        cx.spawn(async move {
+            let _ =
+                disconnect_player(lobby_id.get().to_string(), player_name.get().to_string()).await;
+        });
+    });
 
     // Error dialog rendering
-    let render_error_dialog = {
-        move || {
-            error_message.get().clone().map_or_else(
-                || rsx! { div {} },
-                |msg| {
-                    rsx! {
-                        div {
-                            position: "fixed",
-                            top: "50%",
-                            left: "50%",
-                            transform: "translate(-50%, -50%)",
-                            background_color: "darkred",
-                            padding: "20px",
-                            border_radius: "10px",
-                            color: "white",
-                            font_weight: "bold",
-                            display: "flex",
-                            flex_direction: "column",
-                            align_items: "center",
-                            gap: "10px",
-                            "{msg}"
-                            button {
-                                width: "fit-content",
-                                background_color: "#313131",
-                                border: "none",
-                                border_radius: "5px",
-                                padding: "5px 10px",
-                                color: "white",
-                                font_weight: "bold",
-                                onclick: move |_| error_message.set(None),
-                                "OK"
-                            }
-                        }
-                    }
-                },
-            )
+    let show_dialog = error_message.get().is_some();
+    let error_msg = error_message.get().clone().unwrap_or_default();
+    let render_error_dialog = rsx! {
+        div { class: "error-dialog", top: if show_dialog { "50%" } else { "-100%" },
+            "{error_msg}"
+            button { onclick: move |_| error_message.set(None), "OK" }
         }
     };
 
     if *is_connected.get() {
-        cx.render(rsx! {
-            div {
-                    "Server Id: {server_id}"
-                    button { onclick: disconnect, "Disconnect" }
-            }
-
-            render_error_dialog()
-        })
+        cx.render(
+            rsx! {game_view(cx, disconnect, player_name, lobby_id, lobby_state), {}, render_error_dialog},
+        )
     } else {
         cx.render(rsx! {
-                div {
-                    position: "fixed",
-                    top: "50%",
-                    left: "50%",
-                    transform: "translate(-50%, -50%)",
-                    background_color: "#2c5e93",
-                    padding: "20px",
-                    border_radius: "10px",
-                    display: "flex",
-                    flex_direction: "column",
-                    align_items: "center",
-                    gap: "10px",
+            form {
+                class: "login-dialog",
 
-                    div {
-                        input {
-                            r#type: "text",
-                            value: "{player_name}",
-                            placeholder: "Player Name",
-                            font_weight: "bold",
-                            oninput: move |e| player_name.set(e.value.clone())
-                        }
-                    }
+                onsubmit: move |_| {
+                    connect();
+                },
 
-                    div {
-                        input {
-                            r#type: "text",
-                            value: "{server_id}",
-                            placeholder: "Lobby Id",
-                            font_weight: "bold",
-                            oninput: move |e| server_id.set(e.value.clone())
-                        }
+                input {
+                    r#type: "text",
+                    value: "{player_name}",
+                    placeholder: "Player Name",
+                    font_weight: "bold",
+                    oninput: move |e| {
+                        let input = e.value.clone();
+                        let filtered_input: String = input
+                            .chars()
+                            .filter(|c| c.is_alphanumeric())
+                            .take(20)
+                            .collect();
+                        player_name.set(filtered_input);
                     }
+                }
 
-                    button {
-                        width: "fit-content",
-                        background_color: "#313131",
-                        border: "none",
-                        border_radius: "5px",
-                        padding: "5px 10px",
-                        color: "white",
-                        font_weight: "bold",
-                        onclick: connect,
-                        "Connect"
+                input {
+                    r#type: "text",
+                    value: "{lobby_id}",
+                    placeholder: "Lobby Id",
+                    font_weight: "bold",
+                    oninput: move |e| {
+                        let input = e.value.clone();
+                        let filtered_input: String = input
+                            .chars()
+                            .filter(|c| c.is_alphanumeric())
+                            .take(20)
+                            .collect();
+                        lobby_id.set(filtered_input);
                     }
+                }
+
+                button { r#type: "submit", "Connect" }
             }
 
-            render_error_dialog()
+            render_error_dialog
         })
     }
 }
 
-async fn connect_player(server_id: String, player_name: String) -> Result<String> {
-    let servers = SERVERS
+async fn connect_player(lobby_id: String, player_name: String) -> Result<String> {
+    // if lobby_id.trim() == "" {
+    //     return Err(anyhow!("Lobby ID cannot be empty"));
+    // }
+    // if player_name.trim() == "" {
+    //     return Err(anyhow!("Player name cannot be empty"));
+    // }
+    // if lobby_id.len() < 3 {
+    //     return Err(anyhow!("Lobby ID must be at least 3 characters long"));
+    // }
+    // if player_name.len() < 3 {
+    //     return Err(anyhow!("Player name must be at least 3 characters long"));
+    // }
+
+    let lobbys = LOBBYS
         .get()
-        .ok_or_else(|| anyhow::anyhow!("SERVERS not initialized"))?;
-    let mut servers_lock = servers.lock().await;
+        .ok_or_else(|| anyhow::anyhow!("LOBBYS not initialized"))?;
+    let mut lobbys_lock = lobbys.lock().await;
 
-    // Get the server or create a new one
-    let server = servers_lock.entry(server_id.clone()).or_insert_with(|| {
-        println!("Creating new server '{server_id}'");
+    // Get the lobby or create a new one
+    let lobby = lobbys_lock.entry(lobby_id.clone()).or_insert_with(|| {
+        println!("Creating new lobby '{lobby_id}'");
 
-        Server {
-            id: server_id.clone(),
+        Lobby {
+            id: lobby_id.clone(),
             started: false,
             elapsed_time: 0.0,
-            last_update: Instant::now(),
+            last_update: get_current_time(),
             key_player: player_name.clone(),
             players: HashMap::new(),
         }
     });
 
     // Check if player with the same name is already connected
-    if server.players.contains_key(&player_name) {
+    if lobby.players.contains_key(&player_name) {
+        drop(lobbys_lock);
         return Err(anyhow!(
-            "Player '{player_name}' is already connected to server '{server_id}'"
+            "Player '{player_name}' is already connected to lobby '{lobby_id}'"
         ));
     }
 
-    // Add the player to the server
-    server.players.entry(player_name.clone()).or_insert(Player {
+    // Add the player to the lobby
+    lobby.players.entry(player_name.clone()).or_insert(Player {
         name: player_name.clone(),
-        last_contact: Instant::now(),
+        last_contact: get_current_time(),
         score: 0,
         coins: 3,
     });
 
     // Return the game state
-    println!("Player '{player_name}' connected to server '{server_id}'");
-    drop(servers_lock);
+    println!("Player '{player_name}' connected to lobby '{lobby_id}'");
     Ok(format!(
-        "Player '{player_name}' connected to server '{server_id}'"
+        "Player '{player_name}' connected to lobby '{lobby_id}'"
     ))
 }
 
-async fn disconnect_player(server_id: String, player_name: String) -> Result<String> {
-    let servers = SERVERS
+async fn disconnect_player(lobby_id: String, player_name: String) -> Result<String> {
+    let lobbys = LOBBYS
         .get()
-        .ok_or_else(|| anyhow::anyhow!("SERVERS not initialized"))?;
-    let mut servers_lock = servers.lock().await;
-    let Some(server) = servers_lock.get_mut(&server_id) else {
-        return Err(anyhow!("Server '{server_id}' not found"));
+        .ok_or_else(|| anyhow::anyhow!("LOBBYS not initialized"))?;
+    let mut lobbys_lock = lobbys.lock().await;
+    let Some(lobby) = lobbys_lock.get_mut(&lobby_id) else {
+        drop(lobbys_lock);
+        return Err(anyhow!("Lobby '{lobby_id}' not found"));
     };
 
-    server.players.remove(&player_name);
-    println!("Player '{player_name}' disconnected from server '{server_id}'");
-    if player_name == server.key_player {
-        servers_lock.remove(&server_id);
-        drop(servers_lock);
-        println!("Key player left, server '{server_id}' closed");
-        return Ok(format!("Key player left, server '{server_id}' closed",));
+    lobby.players.remove(&player_name);
+    println!("Player '{player_name}' disconnected from lobby '{lobby_id}'");
+    if player_name == lobby.key_player {
+        lobbys_lock.remove(&lobby_id);
+        drop(lobbys_lock);
+        println!("Key player left, lobby '{lobby_id}' closed");
+        return Ok(format!("Key player left, lobby '{lobby_id}' closed",));
     }
-    drop(servers_lock);
     Ok(format!(
-        "Player '{player_name}' disconnected from server '{server_id}'"
+        "Player '{player_name}' disconnected from lobby '{lobby_id}'"
     ))
 }
 
-async fn get_state(server_id: String, player_name: String) -> Result<String> {
-    let servers = SERVERS
+async fn get_state(lobby_id: String, player_name: String) -> Result<String> {
+    let lobbys = LOBBYS
         .get()
-        .ok_or_else(|| anyhow::anyhow!("SERVERS not initialized"))?;
-    let mut servers_lock = servers.lock().await;
-    let Some(server) = servers_lock.get_mut(&server_id) else {
-        return Err(anyhow!("Server '{server_id}' not found"));
+        .ok_or_else(|| anyhow::anyhow!("LOBBYS not initialized"))?;
+    let mut lobbys_lock = lobbys.lock().await;
+    let Some(lobby) = lobbys_lock.get_mut(&lobby_id) else {
+        drop(lobbys_lock);
+        return Err(anyhow!("Lobby '{lobby_id}' not found"));
     };
-    let Some(player) = server.players.get_mut(&player_name) else {
+    let Some(player) = lobby.players.get_mut(&player_name) else {
+        drop(lobbys_lock);
         return Err(anyhow!("Player '{player_name}' not found"));
     };
 
-    // Update last contact time for the player and convert to minimal server
-    player.last_contact = Instant::now();
-    drop(servers_lock);
+    // Update last contact time for the player and convert to minimal lobby
+    player.last_contact = get_current_time();
 
-    // Return the entire state of the server
-    Ok("Success".into())
+    // Return the entire state of the lobby
+    Ok(serde_json::to_string(&lobby)?)
 }

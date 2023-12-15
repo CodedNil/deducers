@@ -1,0 +1,99 @@
+$background_color: rgb(40, 40, 60);
+$secondary_color: rgb(25, 25, 40);
+$shadowColor: rgba(black, 0.12);
+
+body {
+    background-color: rgb(70, 70, 100);
+    color: white;
+    font-family: "Roboto", sans-serif;
+    margin: 20px;
+}
+
+button {
+    background-color: $secondary_color;
+    font-weight: bold;
+    border: none;
+    color: white;
+    border-radius: 4px;
+    padding: 5px 10px;
+    transition: 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    transition-property: color, background-color, letter-spacing;
+
+    &:hover,
+    &:focus {
+        outline: none;
+        background-color: white;
+        color: black;
+        letter-spacing: 0.5px;
+        box-shadow: inset 0 0 1px white, 0 1px 3px $shadowColor, 0 1px 2px rgba($shadowColor, 0.24);
+    }
+    &:active {
+        box-shadow: inset 0 1px 3px $shadowColor, inset 0 1px 2px rgba($shadowColor, 0.24);
+    }
+}
+
+input {
+    background-color: $secondary_color;
+    font-weight: bold;
+    border: none;
+    color: white;
+    border-radius: 4px;
+    padding: 5px 10px;
+    transition: 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    transition-property: color, background-color, letter-spacing;
+
+    &:hover,
+    &:focus {
+        outline: none;
+        background-color: white;
+        color: black;
+        letter-spacing: 0.5px;
+        box-shadow: inset 0 0 1px white, 0 1px 3px $shadowColor, 0 1px 2px rgba($shadowColor, 0.24);
+    }
+    &:active {
+        box-shadow: inset 0 1px 3px $shadowColor, inset 0 1px 2px rgba($shadowColor, 0.24);
+    }
+}
+
+.login-dialog {
+    background-color: $background_color;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    padding: 20px;
+    border-radius: 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    box-shadow: 0 1px 2px rgba($shadowColor, 0.24);
+}
+
+.error-dialog {
+    background-color: rgb(100, 20, 20);
+    position: fixed;
+    top: -100%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    padding: 20px;
+    border-radius: 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    box-shadow: 0 1px 2px rgba($shadowColor, 0.24);
+    transition: top 0.5s;
+}
+
+.background-box {
+    background-color: $background_color;
+    box-shadow: 0 1px 2px rgba($shadowColor, 0.24);
+    border-radius: 10px;
+    padding: 10px;
+}
+
+p {
+    margin-top: 0;
+    margin-bottom: 0;
+}
