@@ -76,7 +76,6 @@ pub fn app(cx: Scope) -> Element {
                             padding: "20px",
                             border_radius: "10px",
                             color: "white",
-                            font_family: "sans-serif",
                             font_weight: "bold",
                             display: "flex",
                             flex_direction: "column",
@@ -90,7 +89,6 @@ pub fn app(cx: Scope) -> Element {
                                 border_radius: "5px",
                                 padding: "5px 10px",
                                 color: "white",
-                                font_family: "sans-serif",
                                 font_weight: "bold",
                                 onclick: move |_| error_message.set(None),
                                 "OK"
@@ -105,30 +103,14 @@ pub fn app(cx: Scope) -> Element {
     if *is_connected.get() {
         cx.render(rsx! {
             div {
-                position: "absolute",
-                top: "0px",
-                left: "0px",
-                bottom: "0px",
-                right: "0px",
-
-                div {
                     "Server Id: {server_id}"
                     button { onclick: disconnect, "Disconnect" }
-                }
             }
 
             render_error_dialog()
         })
     } else {
         cx.render(rsx! {
-            div {
-                position: "absolute",
-                top: "0px",
-                left: "0px",
-                bottom: "0px",
-                right: "0px",
-                background_color: "rgb(30, 30, 30)",
-
                 div {
                     position: "fixed",
                     top: "50%",
@@ -147,7 +129,6 @@ pub fn app(cx: Scope) -> Element {
                             r#type: "text",
                             value: "{player_name}",
                             placeholder: "Player Name",
-                            font_family: "sans-serif",
                             font_weight: "bold",
                             oninput: move |e| player_name.set(e.value.clone())
                         }
@@ -158,7 +139,6 @@ pub fn app(cx: Scope) -> Element {
                             r#type: "text",
                             value: "{server_id}",
                             placeholder: "Lobby Id",
-                            font_family: "sans-serif",
                             font_weight: "bold",
                             oninput: move |e| server_id.set(e.value.clone())
                         }
@@ -171,12 +151,10 @@ pub fn app(cx: Scope) -> Element {
                         border_radius: "5px",
                         padding: "5px 10px",
                         color: "white",
-                        font_family: "sans-serif",
                         font_weight: "bold",
                         onclick: connect,
                         "Connect"
                     }
-                }
             }
 
             render_error_dialog()

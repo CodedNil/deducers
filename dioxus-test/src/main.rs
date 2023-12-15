@@ -41,8 +41,16 @@ async fn main() {
             r#"
         <!DOCTYPE html>
         <html>
-            <head> <title>Deducers</title>  </head>
-            <meta name="darkreader-lock">
+            <head>
+                <title>Deducers</title>
+                <meta name="darkreader-lock">
+                <style>
+                    body {{
+                        background-color: rgb(30, 30, 30);
+                        font-family: sans-serif;
+                    }}
+                </style>
+            </head>
             <body> <div id="main"></div> </body>
             {glue}
         </html>
