@@ -1,6 +1,6 @@
 use dioxus::prelude::*;
 
-use crate::Lobby;
+use crate::{ui::leaderboard::leaderboard, Lobby};
 
 pub fn game_view<'a>(
     cx: Scope<'a>,
@@ -17,18 +17,17 @@ pub fn game_view<'a>(
         },
         |lobby| {
             let time = lobby.elapsed_time.round();
-            let ping = 0.0;
             cx.render(rsx! {
-                div { display: "flex", height: "calc(100vh - 40px)", gap: "1rem",
+                div { display: "flex", height: "calc(100vh - 40px)", gap: "20px",
                     div { class: "background-box", flex: "1.5" }
-                    div { flex: "1", display: "flex", flex_direction: "column", gap: "1rem",
-                        div { flex: "1", display: "flex", flex_direction: "column", gap: "0.5rem",
+                    div { flex: "1", display: "flex", flex_direction: "column", gap: "20px",
+                        div { display: "flex", flex_direction: "column", gap: "5px",
 
                             div {
                                 // Lobby info
                                 class: "background-box",
                                 display: "flex",
-                                gap: "1rem",
+                                gap: "20px",
                                 justify_content: "space-between",
                                 align_items: "center",
 
@@ -40,24 +39,22 @@ pub fn game_view<'a>(
                                     "Time "
                                     span { font_weight: "normal", "{time}s" }
                                 }
-                                p { font_weight: "bold",
-                                    "Ping "
-                                    span { font_weight: "normal", "{ping}ms" }
-                                }
                                 button { onclick: move |_| (disconnect)(), "Disconnect" }
                             }
 
                             div {
                                 // Leaderboard
                                 class: "background-box",
-                                flex_grow: "1",
                                 display: "flex",
                                 flex_direction: "column",
-                                gap: "1rem",
-                                justify_content: "space-between"
+                                gap: "5px",
+                                max_height: "300px",
+                                overflow_y: "scroll",
+
+                                leaderboard(cx, player_name, lobby_state)
                             }
                         }
-                        div { class: "background-box", flex: "1.5" }
+                        div { class: "background-box", flex: "1.5", "5🪙 Available"}
                         div { class: "background-box", flex: "1" }
                     }
                 }

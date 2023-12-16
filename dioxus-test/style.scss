@@ -1,5 +1,6 @@
 $background_color: rgb(40, 40, 60);
 $secondary_color: rgb(25, 25, 40);
+$tertiary_color: rgb(60, 60, 80);
 $shadowColor: rgba(black, 0.12);
 
 body {
@@ -96,4 +97,37 @@ input {
 p {
     margin-top: 0;
     margin-bottom: 0;
+}
+
+.table-row {
+    display: flex;
+    gap: 5px;
+}
+
+.table-header-box {
+    background-color: $secondary_color;
+    padding: 5px;
+    flex: 1;
+    border-radius: 4px;
+}
+
+.table-body-box {
+    background-color: $tertiary_color;
+    padding: 5px;
+    flex: 1;
+    border-radius: 4px;
+}
+
+.table-body-box-self {
+    background-color: rgb(60, 80, 80);
+    padding: 5px;
+    flex: 1;
+    border-radius: 4px;
+}
+
+.table-body-box-winner {
+    background-color: rgb(80, 80, 60);
+    padding: 5px;
+    flex: 1;
+    border-radius: 4px;
 }

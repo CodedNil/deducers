@@ -8,7 +8,7 @@ use std::{
 use tokio::sync::Mutex;
 
 mod connection;
-mod gameview;
+mod ui;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Lobby {

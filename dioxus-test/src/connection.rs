@@ -2,7 +2,7 @@ use anyhow::{anyhow, Result};
 use dioxus::prelude::*;
 use std::{collections::HashMap, time::Duration};
 
-use crate::{gameview::game_view, get_current_time, Lobby, Player, LOBBYS};
+use crate::{get_current_time, ui::gameview::game_view, Lobby, Player, LOBBYS};
 
 #[allow(clippy::too_many_lines)]
 pub fn app(cx: Scope) -> Element {
