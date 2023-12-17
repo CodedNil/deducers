@@ -55,6 +55,19 @@ pub async fn player_submit_question(
         return Err(anyhow::anyhow!("{}", validate_response.reasoning));
     }
 
+    // Add question mark if missing, and capitalise first letter
+    let question = {
+        let mut question = question.trim().to_string();
+        if !question.ends_with('?') {
+            question.push('?');
+        }
+        let mut chars = question.chars();
+        if let Some(first_char) = chars.next() {
+            question = first_char.to_uppercase().to_string() + chars.as_str();
+        }
+        question
+    };
+
     // Reacquire lock and add question to queue
     let mut lobbys_lock = lobbys.lock().await;
 
@@ -73,7 +86,7 @@ pub async fn player_submit_question(
     player.coins -= total_cost;
     lobby.questions_queue.push(QueuedQuestion {
         player: player_name.clone(),
-        question: validate_response.formatted_question,
+        question,
         votes: 0,
         anonymous,
     });
@@ -85,7 +98,6 @@ pub async fn player_submit_question(
 #[derive(Deserialize, Serialize, Debug)]
 struct ValidateQuestionResponse {
     suitable: bool,
-    formatted_question: String,
     reasoning: String,
 }
 
@@ -102,14 +114,13 @@ async fn is_valid_question(question: &str) -> ValidateQuestionResponse {
     if !suitable {
         return ValidateQuestionResponse {
             suitable,
-            formatted_question: question.to_string(),
             reasoning: reasoning.to_string(),
         };
     }
 
     // Query with OpenAI API
     let response = query_ai(
-        &format!("u:Check '{trimmed}' for suitability in a 20 Questions game, format it, and return a compact one line JSON with reasoning (concise up to 4 word explanation for suitability, is it a question with clear yes/no/maybe answerability, is it relevant to identifying an item), formatted_question (the input question with first letter capitalized and with a question mark), suitable (bool, if uncertain err on allowing the question unless it clearly fails criteria), British English"),
+        &format!("u:Check '{trimmed}' for suitability in a 20 Questions game, return a compact one line JSON with two keys reasoning and suitable, reasoning (concise up to 4 word explanation for suitability, is it a question with clear yes/no/maybe answerability, is it relevant to identifying an item), suitable (bool, if uncertain err on allowing the question unless it clearly fails criteria), British English"),
         100, 1.0
     ).await;
     if let Ok(message) = response {
@@ -121,7 +132,6 @@ async fn is_valid_question(question: &str) -> ValidateQuestionResponse {
 
     ValidateQuestionResponse {
         suitable: false,
-        formatted_question: question.to_string(),
         reasoning: "Failed to validate question".to_string(),
     }
 }

@@ -101,7 +101,7 @@ pub fn game_view<'a>(
                     display: "flex",
                     flex_direction: "column",
                     gap: "5px",
-                    question_queue_display::render(cx, player_name, lobby)
+                    question_queue_display::render(cx, player_name, lobby_id, lobby)
                 }
             }
         }

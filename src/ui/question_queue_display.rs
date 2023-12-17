@@ -1,7 +1,15 @@
-use crate::{Lobby, QueuedQuestion, SUBMIT_QUESTION_EVERY_X_SECONDS};
+use crate::{
+    backend::question_queue::player_vote_question, Lobby, QueuedQuestion,
+    SUBMIT_QUESTION_EVERY_X_SECONDS,
+};
 use dioxus::prelude::*;
 
-pub fn render<'a>(cx: Scope<'a>, player_name: &String, lobby: &Lobby) -> Element<'a> {
+pub fn render<'a>(
+    cx: Scope<'a>,
+    player_name: &'a String,
+    lobby_id: &'a String,
+    lobby: &Lobby,
+) -> Element<'a> {
     let questions = lobby
         .questions_queue
         .iter()
@@ -20,6 +28,17 @@ pub fn render<'a>(cx: Scope<'a>, player_name: &String, lobby: &Lobby) -> Element
         - (lobby.elapsed_time % SUBMIT_QUESTION_EVERY_X_SECONDS))
         .round();
 
+    let vote_question = {
+        move |question| {
+            let lobby_id = lobby_id.to_string();
+            let player_name = player_name.clone();
+
+            cx.spawn(async move {
+                let _result = player_vote_question(lobby_id, player_name, question).await;
+            });
+        }
+    };
+
     cx.render(rsx! {
         div { align_self: "center", "Top Question Submitted in {next_question_remaining_time} Seconds" }
 
@@ -36,6 +55,7 @@ pub fn render<'a>(cx: Scope<'a>, player_name: &String, lobby: &Lobby) -> Element
             } else {
                 "table-body-box"
             };
+            let question_string = question.question.clone();
             rsx! {
                 div { class: "table-row",
                     div { class: row_class, flex: "1", "{question.player}" }
@@ -45,7 +65,13 @@ pub fn render<'a>(cx: Scope<'a>, player_name: &String, lobby: &Lobby) -> Element
                         flex: "1",
                         gap: "5px",
                         "{question.votes}",
-                        button { padding: "2px", "🪙" }
+                        button {
+                            onclick: move |_| {
+                                vote_question(question_string.clone());
+                            },
+                            padding: "2px",
+                            "🪙"
+                        }
                     }
                 }
             }

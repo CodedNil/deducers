@@ -5,6 +5,5 @@ When item is removed due to using up all questions, reveal it
 Start sound isnt great
 
 Kick player
-Vote on question queue
 Reimplement sounds
 Successful guess popup
