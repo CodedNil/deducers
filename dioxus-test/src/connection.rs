@@ -2,7 +2,10 @@ use anyhow::{anyhow, Result};
 use dioxus::prelude::*;
 use std::{collections::HashMap, time::Duration};
 
-use crate::{get_current_time, ui::gameview::game_view, Lobby, Player, LOBBYS};
+use crate::{
+    get_current_time, ui::gameview::game_view, Answer, Item, Lobby, Player, Question,
+    QueuedQuestion, LOBBYS,
+};
 
 #[allow(clippy::too_many_lines)]
 pub fn app(cx: Scope) -> Element {
@@ -94,9 +97,11 @@ pub fn app(cx: Scope) -> Element {
     };
 
     if *is_connected.get() {
-        cx.render(
-            rsx! {game_view(cx, disconnect, player_name, lobby_id, lobby_state), {}, render_error_dialog},
-        )
+        if let Some(lobby) = lobby_state.get() {
+            cx.render(rsx! { game_view(cx, disconnect, player_name, lobby_id, lobby), {}, render_error_dialog })
+        } else {
+            cx.render(rsx! { div { "Loading..." } })
+        }
     } else {
         cx.render(rsx! {
             form {
@@ -110,7 +115,6 @@ pub fn app(cx: Scope) -> Element {
                     r#type: "text",
                     value: "{player_name}",
                     placeholder: "Player Name",
-                    font_weight: "bold",
                     oninput: move |e| {
                         let input = e.value.clone();
                         let filtered_input: String = input
@@ -126,7 +130,6 @@ pub fn app(cx: Scope) -> Element {
                     r#type: "text",
                     value: "{lobby_id}",
                     placeholder: "Lobby Id",
-                    font_weight: "bold",
                     oninput: move |e| {
                         let input = e.value.clone();
                         let filtered_input: String = input
@@ -147,18 +150,18 @@ pub fn app(cx: Scope) -> Element {
 }
 
 async fn connect_player(lobby_id: String, player_name: String) -> Result<String> {
-    // if lobby_id.trim() == "" {
-    //     return Err(anyhow!("Lobby ID cannot be empty"));
-    // }
-    // if player_name.trim() == "" {
-    //     return Err(anyhow!("Player name cannot be empty"));
-    // }
-    // if lobby_id.len() < 3 {
-    //     return Err(anyhow!("Lobby ID must be at least 3 characters long"));
-    // }
-    // if player_name.len() < 3 {
-    //     return Err(anyhow!("Player name must be at least 3 characters long"));
-    // }
+    if lobby_id.trim() == "" {
+        return Err(anyhow!("Lobby ID cannot be empty"));
+    }
+    if player_name.trim() == "" {
+        return Err(anyhow!("Player name cannot be empty"));
+    }
+    if lobby_id.len() < 3 {
+        return Err(anyhow!("Lobby ID must be at least 3 characters long"));
+    }
+    if player_name.len() < 3 {
+        return Err(anyhow!("Player name must be at least 3 characters long"));
+    }
 
     let lobbys = LOBBYS
         .get()
@@ -175,10 +178,39 @@ async fn connect_player(lobby_id: String, player_name: String) -> Result<String>
             last_update: get_current_time(),
             key_player: player_name.clone(),
             players: HashMap::new(),
-            questions_queue: Vec::new(),
-            items: Vec::new(),
+            questions_queue: vec![
+                QueuedQuestion {
+                    player: "Dan".to_string(),
+                    question: "Is it alive?".to_string(),
+                    anonymous: false,
+                    votes: 2,
+                },
+                QueuedQuestion {
+                    player: "Dan".to_string(),
+                    question: "Is it smaller than a breadbox?".to_string(),
+                    anonymous: false,
+                    votes: 1,
+                },
+            ],
+            items: vec![Item {
+                name: "Axe".to_string(),
+                id: 1,
+                questions: vec![Question {
+                    id: 1,
+                    player: "Dan".to_string(),
+                    question: "Is it metallic?".to_string(),
+                    anonymous: false,
+                    answer: Answer::Yes,
+                }],
+            }],
             items_history: Vec::new(),
-            items_queue: Vec::new(),
+            items_queue: vec![
+                "Axe".to_string(),
+                "Banana".to_string(),
+                "Car".to_string(),
+                "Dog".to_string(),
+                "Egg".to_string(),
+            ],
             last_add_to_queue: 0,
             questions_counter: 0,
         }

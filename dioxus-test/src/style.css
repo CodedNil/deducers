@@ -7,7 +7,6 @@ body {
 
 button {
   background-color: rgb(25, 25, 40);
-  font-weight: bold;
   border: none;
   color: white;
   border-radius: 4px;
@@ -27,9 +26,8 @@ button:active {
 }
 
 input {
-  background-color: rgb(25, 25, 40);
-  font-weight: bold;
-  border: none;
+  background-color: rgb(60, 60, 80);
+  border: 2px solid rgb(25, 25, 40);
   color: white;
   border-radius: 4px;
   padding: 5px 10px;
@@ -44,6 +42,26 @@ input:hover, input:focus {
   box-shadow: inset 0 0 1px white, 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24);
 }
 input:active {
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.12), inset 0 1px 2px rgba(0, 0, 0, 0.24);
+}
+
+select {
+  background-color: rgb(25, 25, 40);
+  border: none;
+  color: white;
+  border-radius: 4px;
+  padding: 5px 10px;
+  transition: 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+  transition-property: color, background-color, letter-spacing;
+}
+select:hover, select:focus {
+  outline: none;
+  background-color: white;
+  color: black;
+  letter-spacing: 0.5px;
+  box-shadow: inset 0 0 1px white, 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24);
+}
+select:active {
   box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.12), inset 0 1px 2px rgba(0, 0, 0, 0.24);
 }
 
@@ -98,27 +116,38 @@ p {
 .table-header-box {
   background-color: rgb(25, 25, 40);
   padding: 5px;
-  flex: 1;
   border-radius: 4px;
+  text-transform: uppercase;
+  font-weight: bold;
+  text-align: center;
 }
 
 .table-body-box {
   background-color: rgb(60, 60, 80);
   padding: 5px;
-  flex: 1;
   border-radius: 4px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
 }
 
-.table-body-box-self {
+.table-body-box.self {
   background-color: rgb(60, 80, 80);
-  padding: 5px;
-  flex: 1;
-  border-radius: 4px;
 }
 
-.table-body-box-winner {
+.table-body-box.winner {
   background-color: rgb(80, 80, 60);
-  padding: 5px;
-  flex: 1;
-  border-radius: 4px;
+}
+
+.table-body-box.yes {
+  background-color: rgb(60, 130, 50);
+}
+
+.table-body-box.no {
+  background-color: rgb(130, 50, 50);
+}
+
+.table-body-box.maybe {
+  background-color: rgb(140, 80, 0);
 }
