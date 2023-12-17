@@ -1,7 +1,7 @@
 use crate::{
     backend::items, filter_input, get_current_time, get_time_diff, ui::gameview::game_view, Lobby,
-    Player, PlayerMessage, COINS_EVERY_X_SECONDS, IDLE_KICK_TIME, LOBBYS, STARTING_COINS,
-    SUBMIT_QUESTION_EVERY_X_SECONDS,
+    Player, PlayerMessage, COINS_EVERY_X_SECONDS, IDLE_KICK_TIME, LOBBYS, QUESTION_MIN_VOTES,
+    STARTING_COINS, SUBMIT_QUESTION_EVERY_X_SECONDS,
 };
 use anyhow::{anyhow, Result};
 use dioxus::prelude::*;
@@ -177,6 +177,8 @@ async fn connect_player(lobby_id: String, player_name: String) -> Result<()> {
             key_player: player_name.clone(),
             players: HashMap::new(),
             questions_queue: Vec::new(),
+            questions_queue_waiting: true,
+            questions_queue_countdown: SUBMIT_QUESTION_EVERY_X_SECONDS,
             items: Vec::new(),
             items_history: Vec::new(),
             items_queue: Vec::new(),
@@ -345,16 +347,24 @@ pub async fn lobby_loop() {
                     }
                 }
 
-                // Submit a question to the queue if the elapsed time has crossed a multiple of SUBMIT_QUESTION_EVERY_X_SECONDS
-                let previous_question_multiple =
-                    lobby.elapsed_time / SUBMIT_QUESTION_EVERY_X_SECONDS;
-                let current_question_multiple =
-                    (lobby.elapsed_time + elapsed_time_update) / SUBMIT_QUESTION_EVERY_X_SECONDS;
-                if current_question_multiple.trunc() > previous_question_multiple.trunc() {
-                    let lobby_id_clone = lobby_id.clone();
-                    tokio::spawn(async move {
-                        let _result = items::ask_top_question(lobby_id_clone).await;
-                    });
+                // If lobby has a queued question with at least QUESTION_MIN_VOTES votes, tick it down, else reset
+                if lobby
+                    .questions_queue
+                    .iter()
+                    .any(|q| q.votes >= QUESTION_MIN_VOTES)
+                {
+                    lobby.questions_queue_waiting = false;
+                    lobby.questions_queue_countdown -= elapsed_time_update;
+                    if lobby.questions_queue_countdown <= 0.0 {
+                        lobby.questions_queue_countdown += SUBMIT_QUESTION_EVERY_X_SECONDS;
+                        let lobby_id_clone = lobby_id.clone();
+                        tokio::spawn(async move {
+                            let _result = items::ask_top_question(lobby_id_clone).await;
+                        });
+                    }
+                } else {
+                    lobby.questions_queue_waiting = true;
+                    lobby.questions_queue_countdown = SUBMIT_QUESTION_EVERY_X_SECONDS;
                 }
 
                 // Add more items to the lobby's item queue if it's low

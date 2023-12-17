@@ -1,5 +1,5 @@
 use crate::{
-    backend::question_queue::player_vote_question, Lobby, QueuedQuestion,
+    backend::question_queue::player_vote_question, Lobby, QueuedQuestion, QUESTION_MIN_VOTES,
     SUBMIT_QUESTION_EVERY_X_SECONDS,
 };
 use dioxus::prelude::*;
@@ -24,10 +24,6 @@ pub fn render<'a>(
         }
     });
 
-    let next_question_remaining_time = (SUBMIT_QUESTION_EVERY_X_SECONDS
-        - (lobby.elapsed_time % SUBMIT_QUESTION_EVERY_X_SECONDS))
-        .round();
-
     let vote_question = {
         move |question| {
             let lobby_id = lobby_id.to_string();
@@ -39,8 +35,17 @@ pub fn render<'a>(
         }
     };
 
+    let top_text = if lobby.questions_queue_waiting {
+        format!("Top Question Submitted After {QUESTION_MIN_VOTES} Votes")
+    } else {
+        format!(
+            "Top Question Submitted in {} Seconds",
+            lobby.questions_queue_countdown.round()
+        )
+    };
+
     cx.render(rsx! {
-        div { align_self: "center", "Top Question Submitted in {next_question_remaining_time} Seconds" }
+        div { align_self: "center", top_text }
 
         div { class: "table-row",
             rsx! {

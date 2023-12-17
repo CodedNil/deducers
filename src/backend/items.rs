@@ -1,6 +1,6 @@
 use crate::{
     backend::openai::query_ai, Answer, Item, Lobby, PlayerMessage, Question,
-    ADD_ITEM_EVERY_X_QUESTIONS, GUESS_ITEM_COST, LOBBYS,
+    ADD_ITEM_EVERY_X_QUESTIONS, GUESS_ITEM_COST, LOBBYS, QUESTION_MIN_VOTES,
 };
 use anyhow::Result;
 use serde::Deserialize;
@@ -124,6 +124,14 @@ pub async fn ask_top_question(lobby_id: String) -> Result<()> {
         drop(lobbys_lock);
         return Err(anyhow::anyhow!("No questions in queue"));
     };
+
+    // Question needs at least X votes
+    if question.votes < QUESTION_MIN_VOTES {
+        drop(lobbys_lock);
+        return Err(anyhow::anyhow!(
+            "Question needs at least {QUESTION_MIN_VOTES} votes"
+        ));
+    }
 
     let question_clone = question.clone();
     let question_text = question.question.clone();

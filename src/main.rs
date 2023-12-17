@@ -22,6 +22,7 @@ pub const ADD_ITEM_EVERY_X_QUESTIONS: usize = 5;
 pub const SUBMIT_QUESTION_COST: usize = 4;
 pub const ANONYMOUS_QUESTION_COST: usize = 8;
 pub const GUESS_ITEM_COST: usize = 3;
+pub const QUESTION_MIN_VOTES: usize = 2;
 
 pub const SCORE_TO_COINS_RATIO: usize = 3;
 
@@ -35,6 +36,8 @@ pub struct Lobby {
     key_player: String,
     players: HashMap<String, Player>,
     questions_queue: Vec<QueuedQuestion>,
+    questions_queue_waiting: bool,
+    questions_queue_countdown: f64,
     items: Vec<Item>,
     items_history: Vec<String>,
     items_queue: Vec<String>,
