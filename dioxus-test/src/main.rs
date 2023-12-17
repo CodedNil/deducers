@@ -1,9 +1,7 @@
 use axum::{extract::ws::WebSocketUpgrade, response::Html, routing::get, Router};
-use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
     sync::{Arc, OnceLock},
-    time::Duration,
 };
 use tokio::sync::Mutex;
 
@@ -25,27 +23,22 @@ pub const GUESS_ITEM_COST: usize = 3;
 
 pub const SCORE_TO_COINS_RATIO: usize = 3;
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug)]
 pub struct Lobby {
     started: bool,
     elapsed_time: f64,
-    #[serde(skip_serializing, default)]
     last_update: u128,
     key_player: String,
     players: HashMap<String, Player>,
     questions_queue: Vec<QueuedQuestion>,
     items: Vec<Item>,
-    #[serde(skip_serializing, default)]
     items_history: Vec<String>,
-    #[serde(skip_serializing, default)]
     items_queue: Vec<String>,
-    #[serde(skip_serializing, default)]
     last_add_to_queue: u128,
-    #[serde(skip_serializing, default)]
     questions_counter: usize,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug)]
 pub enum PlayerMessage {
     ItemAdded,
     QuestionAsked,
@@ -54,18 +47,16 @@ pub enum PlayerMessage {
     ItemGuessed(String, usize, String),
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug)]
 struct Player {
     name: String,
-    #[serde(skip_serializing, default)]
     last_contact: u128,
     score: usize,
     coins: usize,
-    #[serde(skip_serializing, default)]
     messages: Vec<PlayerMessage>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug)]
 struct QueuedQuestion {
     player: String,
     question: String,
@@ -73,15 +64,14 @@ struct QueuedQuestion {
     votes: usize,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug)]
 struct Item {
-    #[serde(skip_serializing, default)]
     name: String,
     id: usize,
     questions: Vec<Question>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug)]
 struct Question {
     player: String,
     id: usize,
@@ -90,7 +80,7 @@ struct Question {
     anonymous: bool,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug)]
 enum Answer {
     Yes,
     No,
@@ -158,7 +148,7 @@ async fn main() {
     println!("Listening on http://{addr}");
 
     tokio::spawn(async move {
-        server_loop().await;
+        connection::server_loop().await;
     });
 
     axum::Server::bind(&addr.to_string().parse().unwrap())
@@ -173,22 +163,4 @@ pub fn get_current_time() -> u128 {
     now.duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
         .as_millis()
-}
-
-#[allow(clippy::significant_drop_in_scrutinee, clippy::cast_precision_loss)]
-async fn server_loop() {
-    loop {
-        let lobbys = LOBBYS.get().unwrap();
-        let mut lobbys_lock = lobbys.lock().await;
-
-        // Increment elapsed time for each lobby
-        for lobby in lobbys_lock.values_mut() {
-            lobby.elapsed_time += (get_current_time() - lobby.last_update) as f64 / 1000.0;
-            lobby.last_update = get_current_time();
-        }
-
-        drop(lobbys_lock);
-
-        tokio::time::sleep(Duration::from_millis(500)).await;
-    }
 }

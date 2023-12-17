@@ -29,17 +29,9 @@ pub fn app(cx: Scope) -> Element {
                 while *is_connected.get() {
                     match get_state(lobby_id.get().to_string(), player_name.get().to_string()).await
                     {
-                        Ok(state_json) => match serde_json::from_str::<Lobby>(&state_json) {
-                            Ok(lobby) => {
-                                lobby_state.set(Some(lobby));
-                            }
-                            Err(error) => {
-                                error_message
-                                    .set(Some(format!("Disconnected from lobby: {error}")));
-                                is_connected.set(false);
-                                break;
-                            }
-                        },
+                        Ok(lobby) => {
+                            lobby_state.set(Some(lobby));
+                        }
                         Err(error) => {
                             error_message.set(Some(format!("Disconnected from lobby: {error}")));
                             is_connected.set(false);
@@ -263,7 +255,7 @@ async fn disconnect_player(lobby_id: String, player_name: String) -> Result<Stri
     ))
 }
 
-async fn get_state(lobby_id: String, player_name: String) -> Result<String> {
+async fn get_state(lobby_id: String, player_name: String) -> Result<Lobby> {
     let lobbys = LOBBYS
         .get()
         .ok_or_else(|| anyhow::anyhow!("LOBBYS not initialized"))?;
@@ -281,5 +273,23 @@ async fn get_state(lobby_id: String, player_name: String) -> Result<String> {
     player.last_contact = get_current_time();
 
     // Return the entire state of the lobby
-    Ok(serde_json::to_string(&lobby)?)
+    Ok(lobby.clone())
+}
+
+#[allow(clippy::significant_drop_in_scrutinee, clippy::cast_precision_loss)]
+pub async fn server_loop() {
+    loop {
+        let lobbys = LOBBYS.get().unwrap();
+        let mut lobbys_lock = lobbys.lock().await;
+
+        // Increment elapsed time for each lobby
+        for lobby in lobbys_lock.values_mut() {
+            lobby.elapsed_time += (get_current_time() - lobby.last_update) as f64 / 1000.0;
+            lobby.last_update = get_current_time();
+        }
+
+        drop(lobbys_lock);
+
+        tokio::time::sleep(Duration::from_millis(500)).await;
+    }
 }

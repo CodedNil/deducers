@@ -501,8 +501,6 @@ dependencies = [
  "dioxus",
  "dioxus-liveview",
  "rsass",
- "serde",
- "serde_json",
  "tokio",
 ]
 

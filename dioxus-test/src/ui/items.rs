@@ -55,14 +55,12 @@ pub fn render<'a>(cx: Scope<'a>, player_name: &String, lobby: &Lobby) -> Element
         }
         (0..20usize).map(|question_index| {
             let num_blanks = 20 - active_questions.len();
-        
             let (question_id, question_string) = if question_index < 20 - num_blanks {
                 let question = active_questions.get(question_index).unwrap();
                 (question.id, question.question.clone())
             } else {
                 (question_index + 1, String::new())
             };
-        
             rsx! {
                 div { class: "table-row", flex: "1",
                     div {
@@ -74,7 +72,6 @@ pub fn render<'a>(cx: Scope<'a>, player_name: &String, lobby: &Lobby) -> Element
                         div { font_weight: "bold", width: "20px", "{question_id}" },
                         div { "{question_string}" }
                     }
-        
                     lobby.items.iter().map(|item| {
                         let answer_type = if question_index < 20 - num_blanks {
                             item.questions.iter()
@@ -85,7 +82,6 @@ pub fn render<'a>(cx: Scope<'a>, player_name: &String, lobby: &Lobby) -> Element
                         };
                         let class_name = format!("table-body-box {answer_type}").trim().to_string();
                         let box_fill = if answer_type.is_empty() { "⭐" } else { "" };                        
-        
                         rsx! {
                             div { class: "{class_name}", width: "20px", flex: "unset", text_align: "center", "{box_fill}" }
                         }
