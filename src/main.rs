@@ -2,23 +2,25 @@ use axum::{extract::ws::WebSocketUpgrade, response::Html, routing::get, Router};
 use std::{
     collections::HashMap,
     sync::{Arc, OnceLock},
+    time::Duration,
 };
 use tokio::sync::Mutex;
 
+mod backend;
 mod connection;
 mod ui;
 
 pub const SERVER_PORT: u16 = 3013;
 
-pub const IDLE_KICK_TIME: u64 = 10;
+pub const IDLE_KICK_TIME: f64 = 10.0;
 
+pub const STARTING_COINS: usize = 3;
 pub const COINS_EVERY_X_SECONDS: f64 = 4.0;
 pub const SUBMIT_QUESTION_EVERY_X_SECONDS: f64 = 10.0;
 pub const ADD_ITEM_EVERY_X_QUESTIONS: usize = 5;
 
 pub const SUBMIT_QUESTION_COST: usize = 4;
 pub const ANONYMOUS_QUESTION_COST: usize = 8;
-pub const VOTE_QUESTION_COST: usize = 1;
 pub const GUESS_ITEM_COST: usize = 3;
 
 pub const SCORE_TO_COINS_RATIO: usize = 3;
@@ -148,7 +150,10 @@ async fn main() {
     println!("Listening on http://{addr}");
 
     tokio::spawn(async move {
-        connection::server_loop().await;
+        loop {
+            connection::lobby_loop().await;
+            tokio::time::sleep(Duration::from_millis(500)).await;
+        }
     });
 
     axum::Server::bind(&addr.to_string().parse().unwrap())
@@ -163,4 +168,9 @@ pub fn get_current_time() -> u128 {
     now.duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
         .as_millis()
+}
+
+pub fn get_time_diff(start: u128) -> f64 {
+    let now = get_current_time();
+    (now - start) as f64 / 1000.0
 }

@@ -1,5 +1,5 @@
 use crate::{
-    ui::{items, leaderboard, management, question_queue},
+    ui::{items_display, leaderboard_display, management_display, question_queue_display},
     Lobby,
 };
 use dioxus::prelude::*;
@@ -23,7 +23,7 @@ pub fn game_view<'a>(
                 flex_direction: "column",
                 gap: "5px",
                 overflow_y: "auto",
-                items::render(cx, player_name, lobby)
+                items_display::render(cx, player_name, lobby)
             }
             div { flex: "1", display: "flex", flex_direction: "column", gap: "20px",
                 div { display: "flex", flex_direction: "column", gap: "5px",
@@ -58,7 +58,7 @@ pub fn game_view<'a>(
                         display: "flex",
                         flex_direction: "column",
                         gap: "5px",
-                        leaderboard::render(cx, player_name, lobby)
+                        leaderboard_display::render(cx, player_name, lobby)
                     }
                 }
                 div {
@@ -68,7 +68,7 @@ pub fn game_view<'a>(
                     display: "flex",
                     flex_direction: "column",
                     gap: "5px",
-                    management::render(cx, player_name, lobby)
+                    management_display::render(cx, player_name, lobby)
                 }
                 div {
                     // Item Queue
@@ -77,7 +77,7 @@ pub fn game_view<'a>(
                     display: "flex",
                     flex_direction: "column",
                     gap: "5px",
-                    question_queue::render(cx, player_name, lobby)
+                    question_queue_display::render(cx, player_name, lobby)
                 }
             }
         }
