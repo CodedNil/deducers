@@ -54,7 +54,19 @@ pub fn game_view<'a>(
                                 leaderboard(cx, player_name, lobby_state)
                             }
                         }
-                        div { class: "background-box", flex: "1.5", "5🪙 Available"}
+                        div {
+                            // Management
+                            class: "background-box",
+                            flex: "1.5",
+                            display: "flex",
+                            flex_direction: "column",
+                            gap: "5px",
+                            div { "5🪙 Available" }
+                            div {
+                                input { value: "{player_name}", placeholder: "Question To Ask" }
+                                button { "Submit Question X🪙" }
+                            }
+                        }
                         div { class: "background-box", flex: "1" }
                     }
                 }

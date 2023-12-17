@@ -12,23 +12,74 @@ mod ui;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Lobby {
-    #[serde(skip_serializing, default)]
-    id: String,
     started: bool,
     elapsed_time: f64,
     #[serde(skip_serializing, default)]
     last_update: u128,
     key_player: String,
     players: HashMap<String, Player>,
+    questions_queue: Vec<QueuedQuestion>,
+    items: Vec<Item>,
+    #[serde(skip_serializing, default)]
+    items_history: Vec<String>,
+    #[serde(skip_serializing, default)]
+    items_queue: Vec<String>,
+    #[serde(skip_serializing, default)]
+    last_add_to_queue: u128,
+    #[serde(skip_serializing, default)]
+    questions_counter: usize,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct Player {
+pub enum PlayerMessage {
+    ItemAdded,
+    QuestionAsked,
+    GameStart,
+    CoinGiven,
+    ItemGuessed(String, usize, String),
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+struct Player {
     name: String,
     #[serde(skip_serializing, default)]
     last_contact: u128,
     score: usize,
     coins: usize,
+    #[serde(skip_serializing, default)]
+    messages: Vec<PlayerMessage>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+struct QueuedQuestion {
+    player: String,
+    question: String,
+    anonymous: bool,
+    votes: usize,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+struct Item {
+    #[serde(skip_serializing, default)]
+    name: String,
+    id: usize,
+    questions: Vec<Question>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+struct Question {
+    player: String,
+    id: usize,
+    question: String,
+    answer: Answer,
+    anonymous: bool,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+enum Answer {
+    Yes,
+    No,
+    Maybe,
 }
 
 type LobbyStorage = Arc<Mutex<HashMap<String, Lobby>>>;

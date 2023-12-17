@@ -170,12 +170,17 @@ async fn connect_player(lobby_id: String, player_name: String) -> Result<String>
         println!("Creating new lobby '{lobby_id}'");
 
         Lobby {
-            id: lobby_id.clone(),
             started: false,
             elapsed_time: 0.0,
             last_update: get_current_time(),
             key_player: player_name.clone(),
             players: HashMap::new(),
+            questions_queue: Vec::new(),
+            items: Vec::new(),
+            items_history: Vec::new(),
+            items_queue: Vec::new(),
+            last_add_to_queue: 0,
+            questions_counter: 0,
         }
     });
 
@@ -193,6 +198,7 @@ async fn connect_player(lobby_id: String, player_name: String) -> Result<String>
         last_contact: get_current_time(),
         score: 0,
         coins: 3,
+        messages: Vec::new(),
     });
 
     // Return the game state

@@ -31,7 +31,6 @@ pub const SCORE_TO_COINS_RATIO: usize = 3;
 
 #[derive(Clone, Debug)]
 pub struct Server {
-    id: String,
     started: bool,
     elapsed_time: f64,
     last_update: Instant,
@@ -148,7 +147,6 @@ async fn connect_player(Path((server_id, player_name)): Path<(String, String)>, 
         });
 
         Server {
-            id: server_id.clone(),
             started: false,
             elapsed_time: 0.0,
             last_update: Instant::now(),
@@ -262,7 +260,7 @@ async fn server_loop(servers: ServerStorage) {
         let mut servers_locked = servers.lock().await;
 
         // Iterate through servers to update or remove
-        servers_locked.retain(|id, server| {
+        servers_locked.retain(|server_id, server| {
             // Remove inactive players and check if key player is active
             server.players.retain(|player_id, player| {
                 if player.last_contact.elapsed().as_secs() > IDLE_KICK_TIME {
@@ -277,7 +275,7 @@ async fn server_loop(servers: ServerStorage) {
 
             // Remove server if key player is inactive or no players are left
             if !key_player_active || server.players.is_empty() {
-                println!("Removing server '{id}' due to no key player or no players");
+                println!("Removing server '{server_id}' due to no key player or no players");
                 false
             } else {
                 // Update server state if server is started
@@ -298,7 +296,7 @@ async fn server_loop(servers: ServerStorage) {
                     let previous_question_multiple = server.elapsed_time / SUBMIT_QUESTION_EVERY_X_SECONDS;
                     let current_question_multiple = (server.elapsed_time + elapsed_time_update) / SUBMIT_QUESTION_EVERY_X_SECONDS;
                     if current_question_multiple.trunc() > previous_question_multiple.trunc() {
-                        let server_id_clone = server.id.clone();
+                        let server_id_clone = server_id.clone();
                         let servers_clone = servers.clone();
                         tokio::spawn(async move {
                             items::ask_top_question(servers_clone, server_id_clone).await;
@@ -309,7 +307,7 @@ async fn server_loop(servers: ServerStorage) {
                     let time_since_last_add_to_queue = server.last_add_to_queue.elapsed().as_secs();
                     if server.items_queue.len() < 3 && time_since_last_add_to_queue > 5 {
                         server.last_add_to_queue = Instant::now();
-                        let server_id_clone = server.id.clone();
+                        let server_id_clone = server_id.clone();
                         tokio::spawn(async move {
                             items::add_item_to_queue(server_id_clone, vec![], 0).await;
                         });
