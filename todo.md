@@ -4,6 +4,5 @@ Background music
 When item is removed due to using up all questions, reveal it
 Start sound isnt great
 
-Kick player
-Reimplement sounds
+Reimplement sounds for coin_added game_start guess_correct guess_incorrect item_added question_added
 Successful guess popup

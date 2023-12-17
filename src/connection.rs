@@ -17,6 +17,50 @@ pub fn app(cx: Scope) -> Element {
 
     let error_message: &UseState<Option<String>> = use_state(cx, || None::<String>);
 
+    let item_reveal_message: &UseState<Option<(f64, bool, String)>> =
+        use_state(cx, || None::<(f64, bool, String)>);
+    let sound_to_play: &UseState<Option<String>> = use_state(cx, || None);
+
+    // Process players messages
+    // if let Some(lobby) = lobby_state.get() {
+    //     if let Some(player) = lobby.players.get(player_name.get()) {
+    //         for message in &player.messages {
+    //             match message {
+    //                 PlayerMessage::ItemAdded => {
+    //                     sound_to_play.set(Some(String::from("item_added")));
+    //                 }
+    //                 PlayerMessage::QuestionAsked => {
+    //                     sound_to_play.set(Some(String::from("question_added")));
+    //                 }
+    //                 PlayerMessage::GameStart => {
+    //                     sound_to_play.set(Some(String::from("game_start")));
+    //                 }
+    //                 PlayerMessage::CoinGiven => {
+    //                     sound_to_play.set(Some(String::from("coin_added")));
+    //                 }
+    //                 PlayerMessage::ItemGuessed(player_name, item_id, item_name) => {
+    //                     item_reveal_message.set(Some((
+    //                         get_current_time(),
+    //                         true,
+    //                         format!(
+    //                             "{player_name} guessed item {item_id} correctly as {item_name}!"
+    //                         ),
+    //                     )));
+    //                 }
+    //                 PlayerMessage::ItemRemoved(item_id, item_name) => {
+    //                     item_reveal_message.set(Some((
+    //                         get_current_time(),
+    //                         false,
+    //                         format!(
+    //                             "Item {item_id} was removed from the game, it was {item_name}!"
+    //                         ),
+    //                     )));
+    //                 }
+    //             }
+    //         }
+    //     }
+    // }
+
     // Get lobby state every x seconds if connected
     if *is_connected.get() {
         use_effect(cx, (), |()| {
@@ -102,7 +146,10 @@ pub fn app(cx: Scope) -> Element {
 
     if *is_connected.get() {
         if let Some(lobby) = lobby_state.get() {
-            cx.render(rsx! {game_view(cx, player_name, lobby_id, lobby, disconnect, start), {}, render_error_dialog})
+            cx.render(rsx! {
+                game_view(cx, player_name, lobby_id, lobby, disconnect, start),
+                render_error_dialog
+            })
         } else {
             cx.render(rsx! { div { "Loading..." } })
         }

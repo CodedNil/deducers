@@ -53,6 +53,7 @@ pub enum PlayerMessage {
     GameStart,
     CoinGiven,
     ItemGuessed(String, usize, String),
+    ItemRemoved(usize, String),
 }
 
 #[derive(Clone, Debug)]

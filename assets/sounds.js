@@ -28,6 +28,21 @@ function playTypingSound() {
     soundTyping.play();
 }
 
+function playSound(sound) {
+    console.log(sound);
+    // Initialise audio if it doesnt exist
+    if (!document.getElementById(sound + "-sound")) {
+        const audio = document.createElement("audio");
+        audio.id = sound + "-sound";
+        audio.src = `assets/sounds/${sound}.mp3`;
+        document.body.appendChild(audio);
+    }
+    // Play audio
+    const audio = document.getElementById(sound + "-sound");
+    audio.currentTime = 0;
+    audio.play();
+}
+
 // Initialize the audio elements
 initializeAudioElements();
 

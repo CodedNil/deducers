@@ -106,6 +106,7 @@ struct AskQuestionResponse {
     answers: Vec<String>,
 }
 
+#[allow(clippy::too_many_lines)]
 pub async fn ask_top_question(lobby_id: String) -> Result<()> {
     let lobbys = LOBBYS
         .get()
@@ -198,21 +199,28 @@ pub async fn ask_top_question(lobby_id: String) -> Result<()> {
         answers = vec![Answer::Maybe; lobby.items.len()];
     }
 
-    // Ask question against each item (give random answer temporarily)
+    // Ask question against each item
     let mut retain_items = Vec::new();
     for (index, item) in &mut lobby.items.iter_mut().enumerate() {
-        let random_answer = answers.get(index).unwrap_or(&Answer::Maybe).clone();
+        let answer = answers.get(index).unwrap_or(&Answer::Maybe).clone();
         item.questions.push(Question {
             player: question_clone.player.clone(),
             id: question_id,
             question: question_clone.question.clone(),
-            answer: random_answer,
+            answer,
             anonymous: question_clone.anonymous,
         });
 
         // If item has 20 questions, remove the item
         if item.questions.len() < 20 {
             retain_items.push(item.clone());
+        } else {
+            // Send message to all players of item removed
+            for player_n in lobby.players.values_mut() {
+                player_n
+                    .messages
+                    .push(PlayerMessage::ItemRemoved(item.id, item.name.clone()));
+            }
         }
     }
     lobby.items = retain_items;
