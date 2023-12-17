@@ -34,13 +34,23 @@ pub fn render<'a>(
         move || {
             let lobby_id = lobby_id.to_string();
             let player_name = player_name.clone();
-            let question = question_submission.get().clone();
-            let anonymous = *question_anonymous.get();
+            let question_submission = question_submission.clone();
+            let question_anonymous = question_anonymous.clone();
             let alert_popup = alert_popup.clone();
 
             cx.spawn(async move {
-                match player_submit_question(lobby_id, player_name, question, anonymous).await {
-                    Ok(()) => {}
+                match player_submit_question(
+                    lobby_id,
+                    player_name,
+                    question_submission.get().clone(),
+                    *question_anonymous.get(),
+                )
+                .await
+                {
+                    Ok(()) => {
+                        question_submission.set(String::new());
+                        question_anonymous.set(false);
+                    }
                     Err(error) => {
                         alert_popup.set(Some((get_current_time() + 5.0, format!("{error}"))));
                     }
@@ -56,6 +66,7 @@ pub fn render<'a>(
             let item_choice = *guess_item_key.get();
             let item_guess = guess_item_submission.get().clone();
             let alert_popup = alert_popup.clone();
+            guess_item_submission.set(String::new());
 
             cx.spawn(async move {
                 match player_guess_item(lobby_id, player_name, item_choice, item_guess).await {

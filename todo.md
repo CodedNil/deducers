@@ -5,10 +5,6 @@ When item is removed due to using up all questions, reveal it
 Start sound isnt great
 
 Kick player
-Ask question
-Convert leaderboard score
-Guess Item
 Vote on question queue
 Reimplement sounds
-Clear submit question when clicked button, laggy input also
 Successful guess popup
