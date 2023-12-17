@@ -66,9 +66,11 @@ pub fn render<'a>(cx: Scope<'a>, player_name: &String, lobby: &Lobby) -> Element
                 }
             }
             select {
-                option { "Item 1" }
-                option { "Item 2" }
-                option { "Item 3" }
+                lobby.items.iter().map(|item| {
+                    rsx! {
+                        option { "{item.id}" }
+                    }
+                })
             }
             button { "Submit Guess {GUESS_ITEM_COST}🪙" }
         }

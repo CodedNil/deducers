@@ -172,13 +172,13 @@ async fn connect_player(lobby_id: String, player_name: String) -> Result<String>
             players: HashMap::new(),
             questions_queue: vec![
                 QueuedQuestion {
-                    player: "Dan".to_string(),
+                    player: "dan".to_string(),
                     question: "Is it alive?".to_string(),
                     anonymous: false,
                     votes: 2,
                 },
                 QueuedQuestion {
-                    player: "Dan".to_string(),
+                    player: "dan".to_string(),
                     question: "Is it smaller than a breadbox?".to_string(),
                     anonymous: false,
                     votes: 1,
@@ -189,7 +189,7 @@ async fn connect_player(lobby_id: String, player_name: String) -> Result<String>
                 id: 1,
                 questions: vec![Question {
                     id: 1,
-                    player: "Dan".to_string(),
+                    player: "dan".to_string(),
                     question: "Is it metallic?".to_string(),
                     anonymous: false,
                     answer: Answer::Yes,
