@@ -1,20 +1,15 @@
 use crate::{
     backend::openai::query_ai, QueuedQuestion, ANONYMOUS_QUESTION_COST, LOBBYS,
-    SCORE_TO_COINS_RATIO, SUBMIT_QUESTION_COST,
+    MAX_QUESTION_LENGTH, SCORE_TO_COINS_RATIO, SUBMIT_QUESTION_COST,
 };
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-
-#[derive(Deserialize)]
-pub struct QuestionOptions {
-    anonymous: bool,
-}
 
 pub async fn player_submit_question(
     lobby_id: String,
     player_name: String,
     question: String,
-    question_options: QuestionOptions,
+    anonymous: bool,
 ) -> Result<()> {
     let lobbys = LOBBYS
         .get()
@@ -29,8 +24,13 @@ pub async fn player_submit_question(
         .get_mut(&player_name)
         .ok_or_else(|| anyhow::anyhow!("Player '{player_name}' not found"))?;
 
+    // Lobby must be started
+    if !lobby.started {
+        return Err(anyhow::anyhow!("Lobby not started"));
+    }
+
     // Calculate submission cost and check if player has enough coins
-    let total_cost = if question_options.anonymous {
+    let total_cost = if anonymous {
         SUBMIT_QUESTION_COST + ANONYMOUS_QUESTION_COST
     } else {
         SUBMIT_QUESTION_COST
@@ -52,10 +52,7 @@ pub async fn player_submit_question(
     drop(lobbys_lock);
     let validate_response = is_valid_question(&question).await;
     if !validate_response.suitable {
-        return Err(anyhow::anyhow!(
-            "Question is not suitable: {}",
-            validate_response.reasoning
-        ));
+        return Err(anyhow::anyhow!("{}", validate_response.reasoning));
     }
 
     // Reacquire lock and add question to queue
@@ -78,7 +75,7 @@ pub async fn player_submit_question(
         player: player_name.clone(),
         question: validate_response.formatted_question,
         votes: 0,
-        anonymous: question_options.anonymous,
+        anonymous,
     });
     drop(lobbys_lock);
     Ok(())
@@ -94,11 +91,19 @@ struct ValidateQuestionResponse {
 
 async fn is_valid_question(question: &str) -> ValidateQuestionResponse {
     let trimmed = question.trim();
-    if trimmed.is_empty() {
+    let length = trimmed.len();
+
+    let (suitable, reasoning) = match length {
+        0 => (false, "Question is empty"),
+        1..=4 => (false, "Question is too short"),
+        MAX_QUESTION_LENGTH.. => (false, "Question is too long"),
+        _ => (true, ""),
+    };
+    if !suitable {
         return ValidateQuestionResponse {
-            suitable: false,
+            suitable,
             formatted_question: question.to_string(),
-            reasoning: "Question is empty".to_string(),
+            reasoning: reasoning.to_string(),
         };
     }
 
@@ -139,6 +144,11 @@ pub async fn player_vote_question(
         .get_mut(&player_name)
         .ok_or_else(|| anyhow::anyhow!("Player '{player_name}' not found"))?;
 
+    // Lobby must be started
+    if !lobby.started {
+        return Err(anyhow::anyhow!("Lobby not started"));
+    }
+
     // Check if question exists in the queue
     if let Some(queued_question) = lobby
         .questions_queue
@@ -173,6 +183,11 @@ pub async fn player_convert_score(lobby_id: String, player_name: String) -> Resu
         .players
         .get_mut(&player_name)
         .ok_or_else(|| anyhow::anyhow!("Player '{player_name}' not found"))?;
+
+    // Lobby must be started
+    if !lobby.started {
+        return Err(anyhow::anyhow!("Lobby not started"));
+    }
 
     // Check if player has enough score
     if player.score < 1 {

@@ -88,7 +88,7 @@ pub fn add_item_to_lobby(lobby: &mut Lobby) {
     };
 
     // Add item to lobby
-    println!("Adding item to lobby: {item_name}");
+    println!("Adding item '{item_name}' to lobby");
     lobby.items.push(Item {
         name: item_name.clone(),
         id: lobby.items_history.len() + 1,
@@ -241,6 +241,11 @@ pub async fn player_guess_item(
         .get_mut(&player_name)
         .ok_or_else(|| anyhow::anyhow!("Player '{player_name}' not found"))?;
 
+    // Lobby must be started
+    if !lobby.started {
+        return Err(anyhow::anyhow!("Lobby not started"));
+    }
+
     // Get item with id of item_choice
     let Some(item) = lobby.items.iter().find(|i| i.id == item_choice) else {
         return Err(anyhow::anyhow!("Item not found"));
@@ -253,7 +258,7 @@ pub async fn player_guess_item(
     player.coins -= GUESS_ITEM_COST;
 
     // Match guess with item name
-    if item.name != guess {
+    if item.name.to_lowercase() != guess.to_lowercase() {
         drop(lobbys_lock);
         return Err(anyhow::anyhow!("Incorrect guess"));
     }

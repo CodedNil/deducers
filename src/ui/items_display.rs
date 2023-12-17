@@ -69,7 +69,7 @@ pub fn render<'a>(cx: Scope<'a>, player_name: &String, lobby: &Lobby) -> Element
                         display: "flex",
                         justify_content: "start",
                         gap: "5px",
-                        div { font_weight: "bold", width: "20px", "{question_id}" },
+                        div { font_weight: "bold", width: "20px", "{question_index + 1}" },
                         div { "{question_string}" }
                     }
                     lobby.items.iter().map(|item| {

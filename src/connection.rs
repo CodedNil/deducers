@@ -1,6 +1,6 @@
 use crate::{
-    backend::items, get_current_time, get_time_diff, ui::gameview::game_view, Lobby, Player,
-    PlayerMessage, COINS_EVERY_X_SECONDS, IDLE_KICK_TIME, LOBBYS, STARTING_COINS,
+    backend::items, filter_input, get_current_time, get_time_diff, ui::gameview::game_view, Lobby,
+    Player, PlayerMessage, COINS_EVERY_X_SECONDS, IDLE_KICK_TIME, LOBBYS, STARTING_COINS,
     SUBMIT_QUESTION_EVERY_X_SECONDS,
 };
 use anyhow::{anyhow, Result};
@@ -51,12 +51,13 @@ pub fn app(cx: Scope) -> Element {
             let lobby_id = lobby_id.clone();
             let is_connected = is_connected.clone();
             let error_message = error_message.clone();
+            lobby_state.set(None);
 
             cx.spawn(async move {
                 match connect_player(lobby_id.get().to_string(), player_name.get().to_string())
                     .await
                 {
-                    Ok(_) => {
+                    Ok(()) => {
                         is_connected.set(true);
                     }
                     Err(error) => {
@@ -71,10 +72,21 @@ pub fn app(cx: Scope) -> Element {
         let player_name = player_name.clone();
         let lobby_id = lobby_id.clone();
         is_connected.set(false);
+        lobby_state.set(None);
 
         cx.spawn(async move {
-            let _ =
+            let _result =
                 disconnect_player(lobby_id.get().to_string(), player_name.get().to_string()).await;
+        });
+    });
+
+    let start = Box::new(move || {
+        let player_name = player_name.clone();
+        let lobby_id = lobby_id.clone();
+
+        cx.spawn(async move {
+            let _result =
+                start_lobby(lobby_id.get().to_string(), player_name.get().to_string()).await;
         });
     });
 
@@ -90,7 +102,7 @@ pub fn app(cx: Scope) -> Element {
 
     if *is_connected.get() {
         if let Some(lobby) = lobby_state.get() {
-            cx.render(rsx! { game_view(cx, disconnect, player_name, lobby_id, lobby), {}, render_error_dialog })
+            cx.render(rsx! {game_view(cx, player_name, lobby_id, lobby, disconnect, start), {}, render_error_dialog})
         } else {
             cx.render(rsx! { div { "Loading..." } })
         }
@@ -108,13 +120,7 @@ pub fn app(cx: Scope) -> Element {
                     value: "{player_name}",
                     placeholder: "Player Name",
                     oninput: move |e| {
-                        let input = e.value.clone();
-                        let filtered_input: String = input
-                            .chars()
-                            .filter(|c| c.is_alphanumeric())
-                            .take(20)
-                            .collect();
-                        player_name.set(filtered_input);
+                        player_name.set(filter_input(&e.value, 30, true));
                     }
                 }
 
@@ -123,13 +129,7 @@ pub fn app(cx: Scope) -> Element {
                     value: "{lobby_id}",
                     placeholder: "Lobby Id",
                     oninput: move |e| {
-                        let input = e.value.clone();
-                        let filtered_input: String = input
-                            .chars()
-                            .filter(|c| c.is_alphanumeric())
-                            .take(20)
-                            .collect();
-                        lobby_id.set(filtered_input);
+                        lobby_id.set(filter_input(&e.value, 20, false));
                     }
                 }
 
@@ -141,7 +141,7 @@ pub fn app(cx: Scope) -> Element {
     }
 }
 
-async fn connect_player(lobby_id: String, player_name: String) -> Result<String> {
+async fn connect_player(lobby_id: String, player_name: String) -> Result<()> {
     if lobby_id.trim() == "" {
         return Err(anyhow!("Lobby ID cannot be empty"));
     }
@@ -180,7 +180,7 @@ async fn connect_player(lobby_id: String, player_name: String) -> Result<String>
             items: Vec::new(),
             items_history: Vec::new(),
             items_queue: Vec::new(),
-            last_add_to_queue: 0,
+            last_add_to_queue: 0.0,
             questions_counter: 0,
         }
     });
@@ -202,11 +202,8 @@ async fn connect_player(lobby_id: String, player_name: String) -> Result<String>
         messages: Vec::new(),
     });
 
-    // Return the game state
     println!("Player '{player_name}' connected to lobby '{lobby_id}'");
-    Ok(format!(
-        "Player '{player_name}' connected to lobby '{lobby_id}'"
-    ))
+    Ok(())
 }
 
 async fn disconnect_player(lobby_id: String, player_name: String) -> Result<()> {
@@ -335,7 +332,7 @@ pub async fn lobby_loop() {
         } else {
             // Update lobby state if lobby is started
             if lobby.started {
-                let elapsed_time_update = (get_current_time() - lobby.last_update) as f64 / 1000.0;
+                let elapsed_time_update = get_time_diff(lobby.last_update);
 
                 // Distribute coins if the elapsed time has crossed a multiple of COINS_EVERY_X_SECONDS
                 let previous_coin_multiple = lobby.elapsed_time / COINS_EVERY_X_SECONDS;

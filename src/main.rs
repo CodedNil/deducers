@@ -14,7 +14,7 @@ pub const SERVER_PORT: u16 = 3013;
 
 pub const IDLE_KICK_TIME: f64 = 10.0;
 
-pub const STARTING_COINS: usize = 3;
+pub const STARTING_COINS: usize = 4;
 pub const COINS_EVERY_X_SECONDS: f64 = 4.0;
 pub const SUBMIT_QUESTION_EVERY_X_SECONDS: f64 = 10.0;
 pub const ADD_ITEM_EVERY_X_QUESTIONS: usize = 5;
@@ -25,18 +25,20 @@ pub const GUESS_ITEM_COST: usize = 3;
 
 pub const SCORE_TO_COINS_RATIO: usize = 3;
 
+pub const MAX_QUESTION_LENGTH: usize = 100;
+
 #[derive(Clone, Debug)]
 pub struct Lobby {
     started: bool,
     elapsed_time: f64,
-    last_update: u128,
+    last_update: f64,
     key_player: String,
     players: HashMap<String, Player>,
     questions_queue: Vec<QueuedQuestion>,
     items: Vec<Item>,
     items_history: Vec<String>,
     items_queue: Vec<String>,
-    last_add_to_queue: u128,
+    last_add_to_queue: f64,
     questions_counter: usize,
 }
 
@@ -52,7 +54,7 @@ pub enum PlayerMessage {
 #[derive(Clone, Debug)]
 struct Player {
     name: String,
-    last_contact: u128,
+    last_contact: f64,
     score: usize,
     coins: usize,
     messages: Vec<PlayerMessage>,
@@ -163,14 +165,23 @@ async fn main() {
 }
 
 #[must_use]
-pub fn get_current_time() -> u128 {
+pub fn get_current_time() -> f64 {
     let now = std::time::SystemTime::now();
     now.duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
-        .as_millis()
+        .as_secs_f64()
 }
 
-pub fn get_time_diff(start: u128) -> f64 {
-    let now = get_current_time();
-    (now - start) as f64 / 1000.0
+#[must_use]
+pub fn get_time_diff(start: f64) -> f64 {
+    get_current_time() - start
+}
+
+#[must_use]
+pub fn filter_input(input: &str, max_length: usize, allow_spaces: bool) -> String {
+    input
+        .chars()
+        .filter(|c| c.is_alphanumeric() || (allow_spaces && *c == ' '))
+        .take(max_length)
+        .collect()
 }
