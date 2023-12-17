@@ -1,0 +1,19 @@
+[application]
+name = "deducers"
+default_platform = "desktop"
+out_dir = "dist"
+asset_dir = "public"
+
+[web.app]
+title = "Deducers"
+
+[web.watcher]
+reload_html = true
+watch_path = ["src", "assets"]
+
+[web.resource]
+style = []
+script = []
+
+[web.resource.dev]
+script = []

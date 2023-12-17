@@ -5,6 +5,7 @@ use std::{
     time::Duration,
 };
 use tokio::sync::Mutex;
+use tower_http::services::ServeDir;
 
 mod backend;
 mod connection;
@@ -104,11 +105,8 @@ async fn main() {
 
     let addr: std::net::SocketAddr = ([127, 0, 0, 1], SERVER_PORT).into();
 
-    // Load style from style.scss
-    let style = include_str!("style.css");
-
     let view = dioxus_liveview::LiveViewPool::new();
-    let index_page_with_glue = |glue: &str, style: &str| {
+    let index_page_with_glue = |glue: &str| {
         Html(format!(
             r#"
         <!DOCTYPE html>
@@ -116,41 +114,46 @@ async fn main() {
             <head>
                 <title>Deducers</title>
                 <meta name="darkreader-lock">
-                <style>{style}</style>
+                <link rel="stylesheet" type="text/css" href="assets/style.css">
             </head>
-            <body> <div id="main"></div> </body>
+            <body>
+                <audio id="button-click-sound" src="assets/sounds/button_pressed.mp3"></audio>
+                <div id="main"></div>
+            </body>
             {glue}
+            <script src="assets/sounds.js"></script>
         </html>
         "#,
         ))
     };
 
-    let app = Router::new()
-        .route(
-            "/",
-            get(move || async move {
-                index_page_with_glue(
-                    &dioxus_liveview::interpreter_glue(&format!("ws://{addr}/ws")),
-                    style,
-                )
-            }),
-        )
-        .route(
-            "/as-path",
-            get(move || async move {
-                index_page_with_glue(&dioxus_liveview::interpreter_glue("/ws"), style)
-            }),
-        )
-        .route(
-            "/ws",
-            get(move |ws: WebSocketUpgrade| async move {
-                ws.on_upgrade(move |socket| async move {
-                    _ = view
-                        .launch(dioxus_liveview::axum_socket(socket), connection::app)
-                        .await;
-                })
-            }),
-        );
+    let app =
+        Router::new()
+            .route(
+                "/",
+                get(move || async move {
+                    index_page_with_glue(&dioxus_liveview::interpreter_glue(&format!(
+                        "ws://{addr}/ws"
+                    )))
+                }),
+            )
+            .route(
+                "/as-path",
+                get(move || async move {
+                    index_page_with_glue(&dioxus_liveview::interpreter_glue("/ws"))
+                }),
+            )
+            .route(
+                "/ws",
+                get(move |ws: WebSocketUpgrade| async move {
+                    ws.on_upgrade(move |socket| async move {
+                        _ = view
+                            .launch(dioxus_liveview::axum_socket(socket), connection::app)
+                            .await;
+                    })
+                }),
+            )
+            .nest_service("/assets/", ServeDir::new("assets"));
 
     println!("Listening on http://{addr}");
 

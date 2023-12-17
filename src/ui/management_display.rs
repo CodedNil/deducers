@@ -19,7 +19,7 @@ pub fn render<'a>(
     let question_submission: &UseState<String> = use_state(cx, String::new);
     let question_anonymous: &UseState<bool> = use_state(cx, || false);
     let guess_item_submission: &UseState<String> = use_state(cx, String::new);
-    let guess_item_key: &UseState<usize> = use_state(cx, || 0);
+    let guess_item_key: &UseState<usize> = use_state(cx, || 1);
 
     let submit_cost = SUBMIT_QUESTION_COST
         + if *question_anonymous.get() {
