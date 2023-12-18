@@ -81,7 +81,7 @@ pub fn render<'a>(cx: Scope<'a>, player_name: &String, lobby: &Lobby) -> Element
                             String::new()
                         };
                         let class_name = format!("table-body-box {answer_type}").trim().to_string();
-                        let box_fill = if answer_type.is_empty() { "⭐" } else { "" };                        
+                        let box_fill = if answer_type.is_empty() { "⭐" } else { "" };
                         rsx! {
                             div { class: "{class_name}", width: "20px", flex: "unset", text_align: "center", "{box_fill}" }
                         }

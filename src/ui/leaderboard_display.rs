@@ -1,22 +1,11 @@
 use crate::{connection::kick_player, Lobby, Player};
 use dioxus::prelude::*;
 
-pub fn render<'a>(
-    cx: Scope<'a>,
-    player_name: &String,
-    lobby_id: &'a String,
-    lobby: &Lobby,
-) -> Element<'a> {
+pub fn render<'a>(cx: Scope<'a>, player_name: &String, lobby_id: &'a String, lobby: &Lobby) -> Element<'a> {
     let players = lobby.players.values().collect::<Vec<&Player>>();
     // Sorting the players by score and name
     let mut sorted_players = players.clone();
-    sorted_players.sort_by(|a, b| {
-        if a.score == b.score {
-            a.name.cmp(&b.name)
-        } else {
-            b.score.cmp(&a.score)
-        }
-    });
+    sorted_players.sort_by(|a, b| if a.score == b.score { a.name.cmp(&b.name) } else { b.score.cmp(&a.score) });
 
     let kick_player = {
         move |row_player: String| {

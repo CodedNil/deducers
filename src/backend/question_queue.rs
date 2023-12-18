@@ -1,16 +1,11 @@
 use crate::{
-    backend::openai::query_ai, with_lobby_mut, with_player, with_player_mut, QueuedQuestion,
-    ANONYMOUS_QUESTION_COST, MAX_QUESTION_LENGTH, SCORE_TO_COINS_RATIO, SUBMIT_QUESTION_COST,
+    backend::openai::query_ai, with_lobby_mut, with_player, with_player_mut, QueuedQuestion, ANONYMOUS_QUESTION_COST, MAX_QUESTION_LENGTH,
+    SCORE_TO_COINS_RATIO, SUBMIT_QUESTION_COST,
 };
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
-pub async fn player_submit_question(
-    lobby_id: String,
-    player_name: String,
-    question: String,
-    anonymous: bool,
-) -> Result<()> {
+pub async fn player_submit_question(lobby_id: String, player_name: String, question: String, anonymous: bool) -> Result<()> {
     let total_cost = if anonymous {
         SUBMIT_QUESTION_COST + ANONYMOUS_QUESTION_COST
     } else {
@@ -26,11 +21,7 @@ pub async fn player_submit_question(
         }
 
         // Check if question already exists in the queue
-        if lobby
-            .questions_queue
-            .iter()
-            .any(|queued_question| queued_question.question == question)
-        {
+        if lobby.questions_queue.iter().any(|queued_question| queued_question.question == question) {
             return Err(anyhow::anyhow!("Question already exists in queue"));
         }
         Ok(())
@@ -121,11 +112,7 @@ async fn is_valid_question(question: &str) -> ValidateQuestionResponse {
     }
 }
 
-pub async fn player_vote_question(
-    lobby_id: String,
-    player_name: String,
-    question: String,
-) -> Result<()> {
+pub async fn player_vote_question(lobby_id: String, player_name: String, question: String) -> Result<()> {
     with_lobby_mut(&lobby_id, |lobby| {
         let player = lobby
             .players
@@ -137,11 +124,7 @@ pub async fn player_vote_question(
         }
 
         // Check if question exists in the queue
-        if let Some(queued_question) = lobby
-            .questions_queue
-            .iter_mut()
-            .find(|q| q.question == question)
-        {
+        if let Some(queued_question) = lobby.questions_queue.iter_mut().find(|q| q.question == question) {
             // Check if player has enough coins
             if player.coins < 1 {
                 return Err(anyhow::anyhow!("Insufficient coins to vote"));

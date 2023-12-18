@@ -5,7 +5,6 @@ use crate::{
 };
 use dioxus::prelude::*;
 
-#[allow(clippy::too_many_lines)]
 pub fn game_view<'a>(
     cx: Scope<'a>,
     player_name: &'a String,

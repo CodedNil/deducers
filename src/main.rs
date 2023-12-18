@@ -134,33 +134,24 @@ async fn main() {
         ))
     };
 
-    let app =
-        Router::new()
-            .route(
-                "/",
-                get(move || async move {
-                    index_page_with_glue(&dioxus_liveview::interpreter_glue(&format!(
-                        "ws://{server_address}/ws"
-                    )))
-                }),
-            )
-            .route(
-                "/as-path",
-                get(move || async move {
-                    index_page_with_glue(&dioxus_liveview::interpreter_glue("/ws"))
-                }),
-            )
-            .route(
-                "/ws",
-                get(move |ws: WebSocketUpgrade| async move {
-                    ws.on_upgrade(move |socket| async move {
-                        _ = view
-                            .launch(dioxus_liveview::axum_socket(socket), connection::app)
-                            .await;
-                    })
-                }),
-            )
-            .nest_service("/assets/", ServeDir::new("assets"));
+    let app = Router::new()
+        .route(
+            "/",
+            get(move || async move { index_page_with_glue(&dioxus_liveview::interpreter_glue(&format!("ws://{server_address}/ws"))) }),
+        )
+        .route(
+            "/as-path",
+            get(move || async move { index_page_with_glue(&dioxus_liveview::interpreter_glue("/ws")) }),
+        )
+        .route(
+            "/ws",
+            get(move |ws: WebSocketUpgrade| async move {
+                ws.on_upgrade(move |socket| async move {
+                    _ = view.launch(dioxus_liveview::axum_socket(socket), connection::app).await;
+                })
+            }),
+        )
+        .nest_service("/assets/", ServeDir::new("assets"));
 
     println!("Listening on http://{addr}");
 
@@ -182,14 +173,10 @@ where
     F: FnOnce(&mut Lobby) -> Result<T> + Send,
     T: Send,
 {
-    let lobbys = LOBBYS
-        .get()
-        .ok_or_else(|| anyhow::anyhow!("LOBBYS not initialized"))?;
+    let lobbys = LOBBYS.get().ok_or_else(|| anyhow::anyhow!("LOBBYS not initialized"))?;
     let mut lobbys_lock = lobbys.lock().await;
 
-    let lobby = lobbys_lock
-        .get_mut(lobby_id)
-        .ok_or_else(|| anyhow::anyhow!("Lobby '{lobby_id}' not found"))?;
+    let lobby = lobbys_lock.get_mut(lobby_id).ok_or_else(|| anyhow::anyhow!("Lobby '{lobby_id}' not found"))?;
 
     let result = f(lobby);
     drop(lobbys_lock);
@@ -201,14 +188,10 @@ where
     F: FnOnce(Lobby, Player) -> Result<T> + Send,
     T: Send,
 {
-    let lobbys = LOBBYS
-        .get()
-        .ok_or_else(|| anyhow::anyhow!("LOBBYS not initialized"))?;
+    let lobbys = LOBBYS.get().ok_or_else(|| anyhow::anyhow!("LOBBYS not initialized"))?;
     let lobbys_lock = lobbys.lock().await;
 
-    let lobby = lobbys_lock
-        .get(lobby_id)
-        .ok_or_else(|| anyhow::anyhow!("Lobby '{lobby_id}' not found"))?;
+    let lobby = lobbys_lock.get(lobby_id).ok_or_else(|| anyhow::anyhow!("Lobby '{lobby_id}' not found"))?;
     let lobby_state = lobby.clone();
     let player = lobby
         .players
@@ -225,14 +208,10 @@ where
     F: FnOnce(Lobby, &mut Player) -> Result<T> + Send,
     T: Send,
 {
-    let lobbys = LOBBYS
-        .get()
-        .ok_or_else(|| anyhow::anyhow!("LOBBYS not initialized"))?;
+    let lobbys = LOBBYS.get().ok_or_else(|| anyhow::anyhow!("LOBBYS not initialized"))?;
     let mut lobbys_lock = lobbys.lock().await;
 
-    let lobby = lobbys_lock
-        .get_mut(lobby_id)
-        .ok_or_else(|| anyhow::anyhow!("Lobby '{lobby_id}' not found"))?;
+    let lobby = lobbys_lock.get_mut(lobby_id).ok_or_else(|| anyhow::anyhow!("Lobby '{lobby_id}' not found"))?;
     let lobby_state = lobby.clone();
     let player = lobby
         .players
@@ -247,9 +226,7 @@ where
 #[must_use]
 pub fn get_current_time() -> f64 {
     let now = std::time::SystemTime::now();
-    now.duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_secs_f64()
+    now.duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs_f64()
 }
 
 #[must_use]

@@ -3,30 +3,18 @@ use crate::{
         items::player_guess_item,
         question_queue::{player_convert_score, player_submit_question},
     },
-    filter_input, get_current_time, Lobby, ANONYMOUS_QUESTION_COST, GUESS_ITEM_COST,
-    MAX_QUESTION_LENGTH, SCORE_TO_COINS_RATIO, SUBMIT_QUESTION_COST,
+    filter_input, get_current_time, Lobby, ANONYMOUS_QUESTION_COST, GUESS_ITEM_COST, MAX_QUESTION_LENGTH, SCORE_TO_COINS_RATIO, SUBMIT_QUESTION_COST,
 };
 use dioxus::prelude::*;
 
 #[allow(clippy::too_many_lines)]
-pub fn render<'a>(
-    cx: Scope<'a>,
-    player_name: &'a String,
-    lobby_id: &'a str,
-    lobby: &Lobby,
-    alert_popup: &'a UseState<Option<(f64, String)>>,
-) -> Element<'a> {
+pub fn render<'a>(cx: Scope<'a>, player_name: &'a String, lobby_id: &'a str, lobby: &Lobby, alert_popup: &'a UseState<Option<(f64, String)>>) -> Element<'a> {
     let question_submission: &UseState<String> = use_state(cx, String::new);
     let question_anonymous: &UseState<bool> = use_state(cx, || false);
     let guess_item_submission: &UseState<String> = use_state(cx, String::new);
     let guess_item_key: &UseState<usize> = use_state(cx, || 1);
 
-    let submit_cost = SUBMIT_QUESTION_COST
-        + if *question_anonymous.get() {
-            ANONYMOUS_QUESTION_COST
-        } else {
-            0
-        };
+    let submit_cost = SUBMIT_QUESTION_COST + if *question_anonymous.get() { ANONYMOUS_QUESTION_COST } else { 0 };
 
     let players_coins = lobby.players.get(player_name).unwrap().coins;
 
@@ -39,14 +27,7 @@ pub fn render<'a>(
             let alert_popup = alert_popup.clone();
 
             cx.spawn(async move {
-                match player_submit_question(
-                    lobby_id,
-                    player_name,
-                    question_submission.get().clone(),
-                    *question_anonymous.get(),
-                )
-                .await
-                {
+                match player_submit_question(lobby_id, player_name, question_submission.get().clone(), *question_anonymous.get()).await {
                     Ok(()) => {
                         question_submission.set(String::new());
                         question_anonymous.set(false);

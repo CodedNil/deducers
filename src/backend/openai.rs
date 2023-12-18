@@ -107,8 +107,7 @@ pub async fn query_ai(prompt: &String, max_tokens: usize, temperature: f32) -> R
         .context("Failed to convert the response into a string")?;
 
     // Deserialize the response into our ApiResponse struct.
-    let response = serde_json::from_str::<ApiResponse>(&raw_response)
-        .context("Failed to parse response into JSON")?;
+    let response = serde_json::from_str::<ApiResponse>(&raw_response).context("Failed to parse response into JSON")?;
 
     // Check if there's a choice in the response and extract the assistant's reply.
     if let Some(choice) = response.choices.first() {
@@ -117,17 +116,13 @@ pub async fn query_ai(prompt: &String, max_tokens: usize, temperature: f32) -> R
 
         return Ok(choice.message.content.clone());
     }
-    Err(anyhow::anyhow!(
-        "Failed to extract message content from the response"
-    ))
+    Err(anyhow::anyhow!("Failed to extract message content from the response"))
 }
 
 #[allow(clippy::cast_precision_loss, clippy::suboptimal_flops)]
 fn log_details(prompt: &String, result: &MessageResponse, tokens: &Usage) -> Result<()> {
     // Pricing is input $0.0015 / 1K tokens output $0.002 / 1K tokens
-    let price = ((tokens.prompt_tokens as f32 * 0.0015)
-        + (tokens.completion_tokens as f32 * 0.002))
-        / 1000.0;
+    let price = ((tokens.prompt_tokens as f32 * 0.0015) + (tokens.completion_tokens as f32 * 0.002)) / 1000.0;
 
     // Format the log entry.
     let result = format!("{result:?}");
@@ -149,8 +144,7 @@ fn log_details(prompt: &String, result: &MessageResponse, tokens: &Usage) -> Res
         .context("Failed to open log file")?;
 
     // Write the log entry to the file.
-    file.write_all(log_entry.as_bytes())
-        .context("Failed to write to log file")?;
+    file.write_all(log_entry.as_bytes()).context("Failed to write to log file")?;
 
     Ok(())
 }

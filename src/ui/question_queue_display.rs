@@ -1,18 +1,8 @@
-use crate::{
-    backend::question_queue::player_vote_question, Lobby, QueuedQuestion, QUESTION_MIN_VOTES,
-};
+use crate::{backend::question_queue::player_vote_question, Lobby, QueuedQuestion, QUESTION_MIN_VOTES};
 use dioxus::prelude::*;
 
-pub fn render<'a>(
-    cx: Scope<'a>,
-    player_name: &'a String,
-    lobby_id: &'a String,
-    lobby: &Lobby,
-) -> Element<'a> {
-    let questions = lobby
-        .questions_queue
-        .iter()
-        .collect::<Vec<&QueuedQuestion>>();
+pub fn render<'a>(cx: Scope<'a>, player_name: &'a String, lobby_id: &'a String, lobby: &Lobby) -> Element<'a> {
+    let questions = lobby.questions_queue.iter().collect::<Vec<&QueuedQuestion>>();
     // Sorting the questions by score and name
     let mut sorted_questions = questions.clone();
     sorted_questions.sort_by(|a, b| {
@@ -37,10 +27,7 @@ pub fn render<'a>(
     let top_text = if lobby.questions_queue_waiting {
         format!("Top Question Submitted After {QUESTION_MIN_VOTES} Votes")
     } else {
-        format!(
-            "Top Question Submitted in {} Seconds",
-            lobby.questions_queue_countdown.round()
-        )
+        format!("Top Question Submitted in {} Seconds", lobby.questions_queue_countdown.round())
     };
 
     cx.render(rsx! {

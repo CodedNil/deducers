@@ -1,7 +1,6 @@
 use crate::{
-    backend::openai::query_ai, with_lobby_mut, with_player_mut, Answer, Item, Lobby, PlayerMessage,
-    Question, ADD_ITEM_EVERY_X_QUESTIONS, GUESS_ITEM_COST, QUESTION_MIN_VOTES,
-    SUBMIT_QUESTION_EVERY_X_SECONDS,
+    backend::openai::query_ai, with_lobby_mut, with_player_mut, Answer, Item, Lobby, PlayerMessage, Question, ADD_ITEM_EVERY_X_QUESTIONS, GUESS_ITEM_COST,
+    QUESTION_MIN_VOTES, SUBMIT_QUESTION_EVERY_X_SECONDS,
 };
 use anyhow::Result;
 use serde::Deserialize;
@@ -32,11 +31,7 @@ pub async fn add_item_to_queue(lobby_id: String, mut items_history: Vec<String>,
         // Parse response
         if let Ok(items_response) = serde_json::from_str::<ItemsResponse>(&message) {
             // Iterate and add items that aren't in history
-            for item in [
-                items_response.item1,
-                items_response.item2,
-                items_response.item3,
-            ] {
+            for item in [items_response.item1, items_response.item2, items_response.item3] {
                 if item.len() < 3 {
                     continue;
                 }
@@ -100,10 +95,8 @@ struct AskQuestionResponse {
     answers: Vec<String>,
 }
 
-#[allow(clippy::too_many_lines)]
 pub async fn ask_top_question(lobby_id: String) -> Result<()> {
-    let (mut question_text, mut question_player, mut question_anonymous) =
-        (String::new(), String::new(), false);
+    let (mut question_text, mut question_player, mut question_anonymous) = (String::new(), String::new(), false);
     let mut question_id = 0;
     let mut items = Vec::new();
 
@@ -115,9 +108,7 @@ pub async fn ask_top_question(lobby_id: String) -> Result<()> {
             .ok_or_else(|| anyhow::anyhow!("No questions in queue"))?;
 
         if question.votes < QUESTION_MIN_VOTES {
-            return Err(anyhow::anyhow!(
-                "Question needs at least {QUESTION_MIN_VOTES} votes"
-            ));
+            return Err(anyhow::anyhow!("Question needs at least {QUESTION_MIN_VOTES} votes"));
         }
 
         question_text = question.question.clone();
@@ -127,17 +118,11 @@ pub async fn ask_top_question(lobby_id: String) -> Result<()> {
 
         // Remove question from queue
         question_id = lobby.questions_counter;
-        lobby
-            .questions_queue
-            .retain(|q| q.question != question_text);
+        lobby.questions_queue.retain(|q| q.question != question_text);
         lobby.questions_counter += 1;
 
         // Reset queue waiting if needed
-        if !lobby
-            .questions_queue
-            .iter()
-            .any(|q| q.votes >= QUESTION_MIN_VOTES)
-        {
+        if !lobby.questions_queue.iter().any(|q| q.votes >= QUESTION_MIN_VOTES) {
             lobby.questions_queue_waiting = true;
             lobby.questions_queue_countdown = SUBMIT_QUESTION_EVERY_X_SECONDS;
         }
@@ -146,11 +131,7 @@ pub async fn ask_top_question(lobby_id: String) -> Result<()> {
     })
     .await?;
 
-    let items_str = items
-        .iter()
-        .map(|item| item.name.as_str())
-        .collect::<Vec<&str>>()
-        .join(", ");
+    let items_str = items.iter().map(|item| item.name.as_str()).collect::<Vec<&str>>().join(", ");
 
     // Query with OpenAI API
     let mut answers = Vec::new();
@@ -185,9 +166,7 @@ pub async fn ask_top_question(lobby_id: String) -> Result<()> {
 
     with_lobby_mut(&lobby_id, |lobby| {
         if answers.len() != lobby.items.len() {
-            return Err(anyhow::anyhow!(
-                "Failed to get answers for question '{question_text}'"
-            ));
+            return Err(anyhow::anyhow!("Failed to get answers for question '{question_text}'"));
         }
 
         // Ask question against each item
@@ -206,9 +185,7 @@ pub async fn ask_top_question(lobby_id: String) -> Result<()> {
             if item.questions.len() >= 20 {
                 remove_items.push(item.clone());
                 for player_n in lobby.players.values_mut() {
-                    player_n
-                        .messages
-                        .push(PlayerMessage::ItemRemoved(item.id, item.name.clone()));
+                    player_n.messages.push(PlayerMessage::ItemRemoved(item.id, item.name.clone()));
                 }
             }
         }
@@ -228,12 +205,7 @@ pub async fn ask_top_question(lobby_id: String) -> Result<()> {
     .await
 }
 
-pub async fn player_guess_item(
-    lobby_id: String,
-    player_name: String,
-    item_choice: usize,
-    guess: String,
-) -> Result<()> {
+pub async fn player_guess_item(lobby_id: String, player_name: String, item_choice: usize, guess: String) -> Result<()> {
     let mut found_item = None;
     with_player_mut(&lobby_id, &player_name, |lobby, player| {
         if !lobby.started {
@@ -271,11 +243,9 @@ pub async fn player_guess_item(
 
             // Send message to all players of item guessed
             for player_n in lobby.players.values_mut() {
-                player_n.messages.push(PlayerMessage::ItemGuessed(
-                    player_name.clone(),
-                    item_id,
-                    item_name.clone(),
-                ));
+                player_n
+                    .messages
+                    .push(PlayerMessage::ItemGuessed(player_name.clone(), item_id, item_name.clone()));
             }
             Ok(())
         })
