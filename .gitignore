@@ -1,6 +1,4 @@
 .godot/
-frontend/target/
-backend/target/
 target/
 dist/
 gpt_log.txt

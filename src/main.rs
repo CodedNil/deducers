@@ -29,7 +29,14 @@ pub const QUESTION_MIN_VOTES: usize = 2;
 
 pub const SCORE_TO_COINS_RATIO: usize = 3;
 
-pub const MAX_QUESTION_LENGTH: usize = 100;
+pub const MAX_QUESTION_LENGTH: usize = 70;
+pub const QUESTION_PATTERN: &str = "^[a-zA-Z0-9 ?]+$"; // Alphanumeric and spaces and question mark only
+pub const MAX_GUESS_ITEM_LENGTH: usize = 20;
+pub const GUESS_ITEM_PATTERN: &str = "^[a-zA-Z0-9 ]+$"; // Alphanumeric and spaces only
+pub const MAX_LOBBY_ID_LENGTH: usize = 20;
+pub const LOBBY_ID_PATTERN: &str = "^[a-zA-Z0-9]+$"; // Alphanumeric only
+pub const MAX_PLAYER_NAME_LENGTH: usize = 20;
+pub const PLAYER_NAME_PATTERN: &str = "^[a-zA-Z0-9 ]+$"; // Alphanumeric and spaces only
 
 #[derive(Clone, Debug)]
 pub struct Lobby {
@@ -99,17 +106,14 @@ enum Answer {
     Maybe,
 }
 
-type LobbyStorage = Arc<Mutex<HashMap<String, Lobby>>>;
-pub static LOBBYS: OnceLock<LobbyStorage> = OnceLock::new();
+pub static LOBBYS: OnceLock<Arc<Mutex<HashMap<String, Lobby>>>> = OnceLock::new();
 
 #[tokio::main]
 async fn main() {
-    // Initialize the LOBBYS global variable
     LOBBYS.get_or_init(|| Arc::new(Mutex::new(HashMap::new())));
 
-    let addr: std::net::SocketAddr = ([0, 0, 0, 0], SERVER_PORT).into();
-
     // Get the server IP from an environment variable or default to localhost
+    let addr: std::net::SocketAddr = ([0, 0, 0, 0], SERVER_PORT).into();
     let server_ip = env::var("SERVER_IP").unwrap_or_else(|_| "127.0.0.1".to_string());
     let server_address = format!("{server_ip}:{SERVER_PORT}");
 
@@ -168,30 +172,34 @@ async fn main() {
         .unwrap();
 }
 
+#[allow(clippy::missing_errors_doc, clippy::future_not_send)]
 pub async fn with_lobby_mut<F, T>(lobby_id: &str, f: F) -> Result<T>
 where
-    F: FnOnce(&mut Lobby) -> Result<T> + Send,
-    T: Send,
+    F: FnOnce(&mut Lobby) -> Result<T>,
 {
     let lobbys = LOBBYS.get().ok_or_else(|| anyhow::anyhow!("LOBBYS not initialized"))?;
     let mut lobbys_lock = lobbys.lock().await;
 
-    let lobby = lobbys_lock.get_mut(lobby_id).ok_or_else(|| anyhow::anyhow!("Lobby '{lobby_id}' not found"))?;
+    let lobby = lobbys_lock
+        .get_mut(lobby_id)
+        .ok_or_else(|| anyhow::anyhow!("Lobby '{lobby_id}' not found"))?;
 
     let result = f(lobby);
     drop(lobbys_lock);
     result
 }
 
+#[allow(clippy::missing_errors_doc, clippy::future_not_send)]
 pub async fn with_player<F, T>(lobby_id: &str, player_name: &str, f: F) -> Result<T>
 where
-    F: FnOnce(Lobby, Player) -> Result<T> + Send,
-    T: Send,
+    F: FnOnce(Lobby, Player) -> Result<T>,
 {
     let lobbys = LOBBYS.get().ok_or_else(|| anyhow::anyhow!("LOBBYS not initialized"))?;
     let lobbys_lock = lobbys.lock().await;
 
-    let lobby = lobbys_lock.get(lobby_id).ok_or_else(|| anyhow::anyhow!("Lobby '{lobby_id}' not found"))?;
+    let lobby = lobbys_lock
+        .get(lobby_id)
+        .ok_or_else(|| anyhow::anyhow!("Lobby '{lobby_id}' not found"))?;
     let lobby_state = lobby.clone();
     let player = lobby
         .players
@@ -203,15 +211,17 @@ where
     result
 }
 
+#[allow(clippy::missing_errors_doc, clippy::future_not_send)]
 pub async fn with_player_mut<F, T>(lobby_id: &str, player_name: &str, f: F) -> Result<T>
 where
-    F: FnOnce(Lobby, &mut Player) -> Result<T> + Send,
-    T: Send,
+    F: FnOnce(Lobby, &mut Player) -> Result<T>,
 {
     let lobbys = LOBBYS.get().ok_or_else(|| anyhow::anyhow!("LOBBYS not initialized"))?;
     let mut lobbys_lock = lobbys.lock().await;
 
-    let lobby = lobbys_lock.get_mut(lobby_id).ok_or_else(|| anyhow::anyhow!("Lobby '{lobby_id}' not found"))?;
+    let lobby = lobbys_lock
+        .get_mut(lobby_id)
+        .ok_or_else(|| anyhow::anyhow!("Lobby '{lobby_id}' not found"))?;
     let lobby_state = lobby.clone();
     let player = lobby
         .players
@@ -232,13 +242,4 @@ pub fn get_current_time() -> f64 {
 #[must_use]
 pub fn get_time_diff(start: f64) -> f64 {
     get_current_time() - start
-}
-
-#[must_use]
-pub fn filter_input(input: &str, max_length: usize, allow_spaces: bool) -> String {
-    input
-        .chars()
-        .filter(|c| c.is_alphanumeric() || (allow_spaces && *c == ' '))
-        .take(max_length)
-        .collect()
 }

@@ -28,6 +28,18 @@ document.addEventListener("input", function (event) {
     if (event.target && event.target.nodeName === "INPUT") {
         playSound("typing");
     }
+
+    // Restrict all input fields to their patterns
+    if (event.target.tagName === "INPUT" && event.target.pattern) {
+        var pattern = new RegExp("^" + event.target.pattern + "$");
+        var currentInput = event.target.value;
+
+        // Check the last character entered against the pattern
+        if (!pattern.test(currentInput)) {
+            // Remove the last character if it doesn't match the pattern
+            event.target.value = currentInput.slice(0, -1);
+        }
+    }
 });
 
 // Continuously check and play sounds

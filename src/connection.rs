@@ -1,12 +1,13 @@
 use crate::{
-    backend::items, filter_input, get_current_time, get_time_diff, ui::gameview::game_view, with_lobby_mut, with_player_mut, Lobby, Player, PlayerMessage,
-    COINS_EVERY_X_SECONDS, IDLE_KICK_TIME, LOBBYS, QUESTION_MIN_VOTES, STARTING_COINS, SUBMIT_QUESTION_EVERY_X_SECONDS,
+    backend::items, get_current_time, get_time_diff, ui::gameview::game_view, with_lobby_mut, with_player_mut, Lobby, Player,
+    PlayerMessage, COINS_EVERY_X_SECONDS, IDLE_KICK_TIME, LOBBYS, LOBBY_ID_PATTERN, MAX_LOBBY_ID_LENGTH, MAX_PLAYER_NAME_LENGTH,
+    PLAYER_NAME_PATTERN, QUESTION_MIN_VOTES, STARTING_COINS, SUBMIT_QUESTION_EVERY_X_SECONDS,
 };
 use anyhow::{anyhow, Result};
 use dioxus::prelude::*;
 use std::{collections::HashMap, time::Duration};
 
-#[allow(clippy::too_many_lines)]
+#[allow(clippy::too_many_lines, clippy::cast_possible_wrap)]
 pub fn app(cx: Scope) -> Element {
     let player_name: &UseState<String> = use_state(cx, String::new);
     let lobby_id: &UseState<String> = use_state(cx, String::new);
@@ -27,14 +28,20 @@ pub fn app(cx: Scope) -> Element {
     // Remove expired sounds
     let current_time = get_current_time();
     let sounds_to_play_vec = sounds_to_play.get().clone();
-    let new_sounds_to_play_vec = sounds_to_play_vec.iter().filter(|(time, _)| current_time - time < 5.0).cloned().collect();
+    let new_sounds_to_play_vec = sounds_to_play_vec
+        .iter()
+        .filter(|(time, _)| current_time - time < 5.0)
+        .cloned()
+        .collect();
     if new_sounds_to_play_vec != sounds_to_play_vec {
         sounds_to_play.set(new_sounds_to_play_vec);
     }
 
     // Process players messages
     let process_messages = {
-        move |messages: Vec<PlayerMessage>, sounds_to_play: &UseState<Vec<(f64, String)>>, item_reveal_message: &UseState<(bool, f64, bool, String)>| {
+        move |messages: Vec<PlayerMessage>,
+              sounds_to_play: &UseState<Vec<(f64, String)>>,
+              item_reveal_message: &UseState<(bool, f64, bool, String)>| {
             let old_sounds = sounds_to_play.get().clone();
             let mut new_sounds = old_sounds.clone();
             for message in messages {
@@ -194,19 +201,21 @@ pub fn app(cx: Scope) -> Element {
 
                 input {
                     r#type: "text",
-                    value: "{player_name}",
                     placeholder: "Player Name",
+                    pattern: PLAYER_NAME_PATTERN,
+                    maxlength: MAX_PLAYER_NAME_LENGTH as i64,
                     oninput: move |e| {
-                        player_name.set(filter_input(&e.value, 30, true));
+                        player_name.set(e.value.clone());
                     }
                 }
 
                 input {
                     r#type: "text",
-                    value: "{lobby_id}",
                     placeholder: "Lobby Id",
+                    pattern: LOBBY_ID_PATTERN,
+                    maxlength: MAX_LOBBY_ID_LENGTH as i64,
                     oninput: move |e| {
-                        lobby_id.set(filter_input(&e.value, 20, false));
+                        lobby_id.set(e.value.clone());
                     }
                 }
 
@@ -219,17 +228,21 @@ pub fn app(cx: Scope) -> Element {
 }
 
 async fn connect_player(lobby_id: String, player_name: String) -> Result<()> {
-    if lobby_id.trim() == "" {
-        return Err(anyhow!("Lobby ID cannot be empty"));
+    let lobby_id = lobby_id.trim().to_string();
+    let player_name = player_name.trim().to_string();
+    if lobby_id.len() < 3 || lobby_id.len() > MAX_LOBBY_ID_LENGTH {
+        return Err(anyhow!("Lobby ID must be between 3 and {MAX_LOBBY_ID_LENGTH} characters long"));
     }
-    if player_name.trim() == "" {
-        return Err(anyhow!("Player name cannot be empty"));
+    if player_name.len() < 3 || player_name.len() > MAX_PLAYER_NAME_LENGTH {
+        return Err(anyhow!(
+            "Player name must be between 3 and {MAX_PLAYER_NAME_LENGTH} characters long"
+        ));
     }
-    if lobby_id.len() < 3 {
-        return Err(anyhow!("Lobby ID must be at least 3 characters long"));
+    if !regex::Regex::new(LOBBY_ID_PATTERN).unwrap().is_match(&lobby_id) {
+        return Err(anyhow!("Lobby ID must be alphanumeric"));
     }
-    if player_name.len() < 3 {
-        return Err(anyhow!("Player name must be at least 3 characters long"));
+    if !regex::Regex::new(PLAYER_NAME_PATTERN).unwrap().is_match(&player_name) {
+        return Err(anyhow!("Player name must be alphanumeric"));
     }
 
     let lobbys = LOBBYS.get().ok_or_else(|| anyhow::anyhow!("LOBBYS not initialized"))?;
@@ -238,13 +251,6 @@ async fn connect_player(lobby_id: String, player_name: String) -> Result<()> {
     // Get the lobby or create a new one
     let lobby = lobbys_lock.entry(lobby_id.clone()).or_insert_with(|| {
         println!("Creating new lobby '{lobby_id}'");
-
-        // Add initial items to the lobbys queue
-        let lobby_id_clone = lobby_id.clone();
-        tokio::spawn(async move {
-            items::add_item_to_queue(lobby_id_clone, vec![], 0).await;
-        });
-
         Lobby {
             started: false,
             elapsed_time: 0.0,
@@ -257,7 +263,7 @@ async fn connect_player(lobby_id: String, player_name: String) -> Result<()> {
             items: Vec::new(),
             items_history: Vec::new(),
             items_queue: Vec::new(),
-            last_add_to_queue: 0.0,
+            last_add_to_queue: -10.0,
             questions_counter: 0,
         }
     });
@@ -282,19 +288,12 @@ async fn connect_player(lobby_id: String, player_name: String) -> Result<()> {
 }
 
 async fn disconnect_player(lobby_id: String, player_name: String) -> Result<()> {
-    let lobbys = LOBBYS.get().ok_or_else(|| anyhow::anyhow!("LOBBYS not initialized"))?;
-    let mut lobbys_lock = lobbys.lock().await;
-
-    let lobby = lobbys_lock.get_mut(&lobby_id).ok_or_else(|| anyhow::anyhow!("Lobby '{lobby_id}' not found"))?;
-
-    lobby.players.remove(&player_name);
-    println!("Player '{player_name}' disconnected from lobby '{lobby_id}'");
-    if player_name == lobby.key_player {
-        lobbys_lock.remove(&lobby_id);
-        drop(lobbys_lock);
-        println!("Key player left, lobby '{lobby_id}' closed");
-    }
-    Ok(())
+    with_lobby_mut(&lobby_id, |lobby| {
+        lobby.players.remove(&player_name);
+        println!("Player '{player_name}' disconnected from lobby '{lobby_id}'");
+        Ok(())
+    })
+    .await
 }
 
 async fn start_lobby(lobby_id: String, player_name: String) -> Result<()> {

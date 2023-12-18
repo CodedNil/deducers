@@ -21,7 +21,11 @@ pub async fn player_submit_question(lobby_id: String, player_name: String, quest
         }
 
         // Check if question already exists in the queue
-        if lobby.questions_queue.iter().any(|queued_question| queued_question.question == question) {
+        if lobby
+            .questions_queue
+            .iter()
+            .any(|queued_question| queued_question.question == question)
+        {
             return Err(anyhow::anyhow!("Question already exists in queue"));
         }
         Ok(())
