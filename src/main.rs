@@ -1,6 +1,7 @@
 use axum::{extract::ws::WebSocketUpgrade, response::Html, routing::get, Router};
 use std::{
     collections::HashMap,
+    env,
     sync::{Arc, OnceLock},
     time::Duration,
 };
@@ -107,6 +108,9 @@ async fn main() {
 
     let addr: std::net::SocketAddr = ([0, 0, 0, 0], SERVER_PORT).into();
 
+    // Get the server IP from an environment variable or default to localhost
+    let server_ip = env::var("SERVER_IP").unwrap_or_else(|_| "127.0.0.1".to_string());
+
     let view = dioxus_liveview::LiveViewPool::new();
     let index_page_with_glue = |glue: &str| {
         Html(format!(
@@ -134,7 +138,7 @@ async fn main() {
                 "/",
                 get(move || async move {
                     index_page_with_glue(&dioxus_liveview::interpreter_glue(&format!(
-                        "ws://{addr}/ws"
+                        "ws://{server_ip}/ws"
                     )))
                 }),
             )
