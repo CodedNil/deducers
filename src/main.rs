@@ -105,7 +105,7 @@ async fn main() {
     // Initialize the LOBBYS global variable
     LOBBYS.get_or_init(|| Arc::new(Mutex::new(HashMap::new())));
 
-    let addr: std::net::SocketAddr = ([127, 0, 0, 1], SERVER_PORT).into();
+    let addr: std::net::SocketAddr = ([0, 0, 0, 0], SERVER_PORT).into();
 
     let view = dioxus_liveview::LiveViewPool::new();
     let index_page_with_glue = |glue: &str| {

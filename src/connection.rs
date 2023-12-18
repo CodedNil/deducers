@@ -386,6 +386,47 @@ pub async fn kick_player(lobby_id: String, player_name: String) -> Result<()> {
     Ok(())
 }
 
+// async fn with_lobby_and_player<F, T>(
+//     lobby_id: &str,
+//     player_name: &str,
+//     f: F,
+// ) -> Result<T, anyhow::Error>
+// where
+//     F: FnOnce(&mut Lobby, &mut Player) -> Result<T>,
+// {
+//     let lobbys = LOBBYS
+//         .get()
+//         .ok_or_else(|| anyhow::anyhow!("LOBBYS not initialized"))?;
+//     let mut lobbys_lock = lobbys.lock().await;
+
+//     let lobby = lobbys_lock
+//         .get_mut(lobby_id)
+//         .ok_or_else(|| anyhow::anyhow!("Lobby '{lobby_id}' not found"))?;
+//     let player = lobby
+//         .players
+//         .get_mut(player_name)
+//         .ok_or_else(|| anyhow::anyhow!("Player '{player_name}' not found"))?;
+
+//     f(lobby, player)
+// }
+
+// async fn get_state(lobby_id: String, player_name: String) -> Result<(Lobby, Vec<PlayerMessage>)> {
+//     with_lobby_and_player(&lobby_id, &player_name, |lobby, player| {
+//         // Update last contact time for the player and convert to minimal lobby
+//         player.last_contact = get_current_time();
+
+//         // Get then clear messages for player
+//         let messages = player.messages.clone();
+//         player.messages.clear();
+
+//         // Return the entire state of the lobby and players messages
+//         let lobby = lobby.clone();
+
+//         Ok((lobby, messages))
+//     })
+//     .await
+// }
+
 async fn get_state(lobby_id: String, player_name: String) -> Result<(Lobby, Vec<PlayerMessage>)> {
     let lobbys = LOBBYS
         .get()
