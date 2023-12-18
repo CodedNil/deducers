@@ -22,7 +22,7 @@ struct ItemRevealMessage {
 impl ItemRevealMessage {
     fn render(&self) -> LazyNodes<'_, '_> {
         let item_reveal_correct_class = if self.correct { "correct" } else { "incorrect" };
-        rsx! {div { class: "item-reveal-dialog {item_reveal_correct_class}", top: if self.show { "20%" } else { "-100%" }, "{self.str}" }}
+        rsx! {div { class: "dialog floating item-reveal {item_reveal_correct_class}", top: if self.show { "20%" } else { "-100%" }, "{self.str}" }}
     }
 }
 
@@ -187,7 +187,7 @@ pub fn app(cx: Scope) -> Element {
     });
 
     let render_error_dialog = rsx! {
-        div { class: "error-dialog", top: if error_message.get().show { "50%" } else { "-100%" },
+        div { class: "dialog floating error", top: if error_message.get().show { "50%" } else { "-100%" },
             "{error_message.get().str}"
             button {
                 onclick: move |_| {
@@ -259,7 +259,7 @@ pub fn app(cx: Scope) -> Element {
                     }
                 }
                 form {
-                    class: "login-dialog",
+                    class: "dialog",
                     onsubmit: move |_| {
                         let player_name = player_name.clone();
                         let lobby_id = lobby_id.clone();

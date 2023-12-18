@@ -65,7 +65,7 @@ select:active {
   box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.12), inset 0 1px 2px rgba(0, 0, 0, 0.24);
 }
 
-.login-dialog {
+.dialog {
   background-color: rgb(40, 40, 60);
   padding: 20px;
   border-radius: 10px;
@@ -76,39 +76,24 @@ select:active {
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.24);
 }
 
-.error-dialog {
-  background-color: rgb(100, 20, 20);
+.dialog.floating {
+  background-color: rgb(40, 40, 60);
   position: fixed;
   top: -100%;
   left: 50%;
   transform: translate(-50%, -50%);
-  padding: 20px;
-  border-radius: 10px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.24);
   transition: top 0.5s;
 }
 
-.item-reveal-dialog {
+.dialog.error {
+  background-color: rgb(100, 20, 20);
+}
+
+.dialog.item-reveal {
   background-color: rgb(140, 80, 0);
-  position: fixed;
-  top: -100%;
-  left: 50%;
-  transform: translate(-50%, 0%);
-  padding: 20px;
-  border-radius: 10px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.24);
-  transition: top 0.5s;
 }
 
-.item-reveal-dialog.correct {
+.dialog.item-reveal.correct {
   background-color: rgb(60, 130, 50);
 }
 

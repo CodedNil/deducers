@@ -76,7 +76,7 @@ select {
     }
 }
 
-.login-dialog {
+.dialog {
     background-color: $background_color;
     padding: 20px;
     border-radius: 10px;
@@ -87,39 +87,24 @@ select {
     box-shadow: 0 1px 2px rgba($shadowColor, 0.24);
 }
 
-.error-dialog {
-    background-color: rgb(100, 20, 20);
+.dialog.floating {
+    background-color: $background_color;
     position: fixed;
     top: -100%;
     left: 50%;
     transform: translate(-50%, -50%);
-    padding: 20px;
-    border-radius: 10px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 10px;
-    box-shadow: 0 1px 2px rgba($shadowColor, 0.24);
     transition: top 0.5s;
 }
 
-.item-reveal-dialog {
+.dialog.error {
+    background-color: rgb(100, 20, 20);
+}
+
+.dialog.item-reveal {
     background-color: rgb(140, 80, 0);
-    position: fixed;
-    top: -100%;
-    left: 50%;
-    transform: translate(-50%, 0%);
-    padding: 20px;
-    border-radius: 10px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 10px;
-    box-shadow: 0 1px 2px rgba($shadowColor, 0.24);
-    transition: top 0.5s;
 }
 
-.item-reveal-dialog.correct {
+.dialog.item-reveal.correct {
     background-color: rgb(60, 130, 50);
 }
 
