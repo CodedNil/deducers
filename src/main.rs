@@ -110,6 +110,7 @@ async fn main() {
 
     // Get the server IP from an environment variable or default to localhost
     let server_ip = env::var("SERVER_IP").unwrap_or_else(|_| "127.0.0.1".to_string());
+    let server_address = format!("{}:{}", server_ip, SERVER_PORT);
 
     let view = dioxus_liveview::LiveViewPool::new();
     let index_page_with_glue = |glue: &str| {
@@ -138,7 +139,7 @@ async fn main() {
                 "/",
                 get(move || async move {
                     index_page_with_glue(&dioxus_liveview::interpreter_glue(&format!(
-                        "ws://{server_ip}/ws"
+                        "ws://{server_address}/ws"
                     )))
                 }),
             )
