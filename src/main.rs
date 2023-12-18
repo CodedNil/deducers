@@ -1,16 +1,10 @@
-use anyhow::Result;
 use axum::{extract::ws::WebSocketUpgrade, response::Html, routing::get, Router};
-use std::{
-    collections::HashMap,
-    env,
-    sync::{Arc, OnceLock},
-    time::Duration,
-};
-use tokio::sync::Mutex;
+use std::{env, time::Duration};
 use tower_http::services::ServeDir;
 
 mod backend;
 mod connection;
+mod lobby_utils;
 mod ui;
 
 pub const SERVER_PORT: u16 = 3013;
@@ -38,79 +32,9 @@ pub const LOBBY_ID_PATTERN: &str = "^[a-zA-Z0-9]+$"; // Alphanumeric only
 pub const MAX_PLAYER_NAME_LENGTH: usize = 20;
 pub const PLAYER_NAME_PATTERN: &str = "^[a-zA-Z0-9 ]+$"; // Alphanumeric and spaces only
 
-#[derive(Clone, Debug)]
-pub struct Lobby {
-    started: bool,
-    elapsed_time: f64,
-    last_update: f64,
-    key_player: String,
-    players: HashMap<String, Player>,
-    questions_queue: Vec<QueuedQuestion>,
-    questions_queue_waiting: bool,
-    questions_queue_countdown: f64,
-    items: Vec<Item>,
-    items_history: Vec<String>,
-    items_queue: Vec<String>,
-    last_add_to_queue: f64,
-    questions_counter: usize,
-}
-
-#[derive(Clone, Debug)]
-pub enum PlayerMessage {
-    ItemAdded,
-    QuestionAsked,
-    GameStart,
-    CoinGiven,
-    ItemGuessed(String, usize, String),
-    GuessIncorrect,
-    ItemRemoved(usize, String),
-}
-
-#[derive(Clone, Debug)]
-pub struct Player {
-    name: String,
-    last_contact: f64,
-    score: usize,
-    coins: usize,
-    messages: Vec<PlayerMessage>,
-}
-
-#[derive(Clone, Debug)]
-struct QueuedQuestion {
-    player: String,
-    question: String,
-    anonymous: bool,
-    votes: usize,
-}
-
-#[derive(Clone, Debug, PartialEq)]
-struct Item {
-    name: String,
-    id: usize,
-    questions: Vec<Question>,
-}
-
-#[derive(Clone, Debug, PartialEq)]
-struct Question {
-    player: String,
-    id: usize,
-    question: String,
-    answer: Answer,
-    anonymous: bool,
-}
-
-#[derive(Clone, Debug, PartialEq)]
-enum Answer {
-    Yes,
-    No,
-    Maybe,
-}
-
-pub static LOBBYS: OnceLock<Arc<Mutex<HashMap<String, Lobby>>>> = OnceLock::new();
-
 #[tokio::main]
 async fn main() {
-    LOBBYS.get_or_init(|| Arc::new(Mutex::new(HashMap::new())));
+    lobby_utils::init();
 
     // Get the server IP from an environment variable or default to localhost
     let addr: std::net::SocketAddr = ([0, 0, 0, 0], SERVER_PORT).into();
@@ -170,76 +94,4 @@ async fn main() {
         .serve(app.into_make_service())
         .await
         .unwrap();
-}
-
-#[allow(clippy::missing_errors_doc, clippy::future_not_send)]
-pub async fn with_lobby_mut<F, T>(lobby_id: &str, f: F) -> Result<T>
-where
-    F: FnOnce(&mut Lobby) -> Result<T>,
-{
-    let lobbys = LOBBYS.get().ok_or_else(|| anyhow::anyhow!("LOBBYS not initialized"))?;
-    let mut lobbys_lock = lobbys.lock().await;
-
-    let lobby = lobbys_lock
-        .get_mut(lobby_id)
-        .ok_or_else(|| anyhow::anyhow!("Lobby '{lobby_id}' not found"))?;
-
-    let result = f(lobby);
-    drop(lobbys_lock);
-    result
-}
-
-#[allow(clippy::missing_errors_doc, clippy::future_not_send)]
-pub async fn with_player<F, T>(lobby_id: &str, player_name: &str, f: F) -> Result<T>
-where
-    F: FnOnce(Lobby, Player) -> Result<T>,
-{
-    let lobbys = LOBBYS.get().ok_or_else(|| anyhow::anyhow!("LOBBYS not initialized"))?;
-    let lobbys_lock = lobbys.lock().await;
-
-    let lobby = lobbys_lock
-        .get(lobby_id)
-        .ok_or_else(|| anyhow::anyhow!("Lobby '{lobby_id}' not found"))?;
-    let lobby_state = lobby.clone();
-    let player = lobby
-        .players
-        .get(player_name)
-        .ok_or_else(|| anyhow::anyhow!("Player '{player_name}' not found"))?;
-
-    let result = f(lobby_state, player.clone());
-    drop(lobbys_lock);
-    result
-}
-
-#[allow(clippy::missing_errors_doc, clippy::future_not_send)]
-pub async fn with_player_mut<F, T>(lobby_id: &str, player_name: &str, f: F) -> Result<T>
-where
-    F: FnOnce(Lobby, &mut Player) -> Result<T>,
-{
-    let lobbys = LOBBYS.get().ok_or_else(|| anyhow::anyhow!("LOBBYS not initialized"))?;
-    let mut lobbys_lock = lobbys.lock().await;
-
-    let lobby = lobbys_lock
-        .get_mut(lobby_id)
-        .ok_or_else(|| anyhow::anyhow!("Lobby '{lobby_id}' not found"))?;
-    let lobby_state = lobby.clone();
-    let player = lobby
-        .players
-        .get_mut(player_name)
-        .ok_or_else(|| anyhow::anyhow!("Player '{player_name}' not found"))?;
-
-    let result = f(lobby_state, player);
-    drop(lobbys_lock);
-    result
-}
-
-#[must_use]
-pub fn get_current_time() -> f64 {
-    let now = std::time::SystemTime::now();
-    now.duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs_f64()
-}
-
-#[must_use]
-pub fn get_time_diff(start: f64) -> f64 {
-    get_current_time() - start
 }

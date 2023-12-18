@@ -1,4 +1,4 @@
-use crate::Lobby;
+use crate::lobby_utils::Lobby;
 use dioxus::prelude::*;
 
 #[derive(PartialEq)]

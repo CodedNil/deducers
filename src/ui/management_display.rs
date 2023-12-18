@@ -3,10 +3,10 @@ use crate::{
         items::player_guess_item,
         question_queue::{player_convert_score, player_submit_question},
     },
-    get_current_time, Lobby, ANONYMOUS_QUESTION_COST, GUESS_ITEM_COST, GUESS_ITEM_PATTERN, MAX_GUESS_ITEM_LENGTH, MAX_QUESTION_LENGTH,
-    QUESTION_PATTERN, SCORE_TO_COINS_RATIO, SUBMIT_QUESTION_COST,
+    lobby_utils::{get_current_time, Lobby},
+    ANONYMOUS_QUESTION_COST, GUESS_ITEM_COST, GUESS_ITEM_PATTERN, MAX_GUESS_ITEM_LENGTH, MAX_QUESTION_LENGTH, QUESTION_PATTERN,
+    SCORE_TO_COINS_RATIO, SUBMIT_QUESTION_COST,
 };
-use anyhow::Error;
 use dioxus::prelude::*;
 
 #[allow(clippy::too_many_lines, clippy::cast_possible_wrap)]
@@ -25,32 +25,22 @@ pub fn render<'a>(
     let submit_cost = SUBMIT_QUESTION_COST + if *question_anonymous.get() { ANONYMOUS_QUESTION_COST } else { 0 };
     let players_coins = lobby.players.get(player_name).unwrap().coins;
 
-    let handle_error = |error: Error| {
-        alert_popup.set(Some((get_current_time() + 5.0, error.to_string())));
-    };
-
     cx.render(rsx! {
         div { align_self: "center", font_size: "larger", "{players_coins}🪙 Available" }
         form {
             display: "flex",
             gap: "5px",
             onsubmit: move |_| {
-                let lobby_id = lobby_id.to_string();
-                let player_name = player_name.clone();
-                let question_submission = question_submission.get().clone();
-                let question_anonymous = question_anonymous.clone();
+                let (lobby_id, player_name) = (lobby_id.to_string(), player_name.clone());
+                let submission = question_submission.get().clone();
+                let anonymous = question_anonymous.clone();
                 let alert_popup = alert_popup.clone();
                 cx.spawn(async move {
-                    match player_submit_question(
-                            lobby_id,
-                            player_name,
-                            question_submission,
-                            *question_anonymous.get(),
-                        )
+                    match player_submit_question(lobby_id, player_name, submission, *anonymous.get())
                         .await
                     {
                         Ok(()) => {
-                            question_anonymous.set(false);
+                            anonymous.set(false);
                         }
                         Err(error) => {
                             alert_popup.set(Some((get_current_time() + 5.0, format!("{error}"))));
@@ -83,8 +73,7 @@ pub fn render<'a>(
         div { display: "flex", gap: "5px",
             button {
                 onclick: move |_| {
-                    let lobby_id = lobby_id.to_string();
-                    let player_name = player_name.clone();
+                    let (lobby_id, player_name) = (lobby_id.to_string(), player_name.clone());
                     let alert_popup = alert_popup.clone();
                     cx.spawn(async move {
                         player_convert_score(lobby_id, player_name)
@@ -103,8 +92,7 @@ pub fn render<'a>(
             display: "flex",
             gap: "5px",
             onsubmit: move |_| {
-                let lobby_id = lobby_id.to_string();
-                let player_name = player_name.clone();
+                let (lobby_id, player_name) = (lobby_id.to_string(), player_name.clone());
                 let item_choice = *guess_item_key.get();
                 let item_guess = guess_item_submission.get().clone();
                 let alert_popup = alert_popup.clone();

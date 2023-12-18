@@ -1,6 +1,7 @@
 use crate::{
-    backend::openai::query_ai, with_lobby_mut, with_player, with_player_mut, QueuedQuestion, ANONYMOUS_QUESTION_COST, MAX_QUESTION_LENGTH,
-    SCORE_TO_COINS_RATIO, SUBMIT_QUESTION_COST,
+    backend::openai::query_ai,
+    lobby_utils::{with_lobby_mut, with_player, with_player_mut, QueuedQuestion},
+    ANONYMOUS_QUESTION_COST, MAX_QUESTION_LENGTH, SCORE_TO_COINS_RATIO, SUBMIT_QUESTION_COST,
 };
 use anyhow::Result;
 use serde::{Deserialize, Serialize};

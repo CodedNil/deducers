@@ -1,7 +1,6 @@
 use crate::{
-    get_current_time,
+    lobby_utils::{get_current_time, Lobby},
     ui::{items_display, leaderboard_display, management_display, question_queue_display},
-    Lobby,
 };
 use dioxus::prelude::*;
 

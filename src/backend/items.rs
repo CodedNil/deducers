@@ -1,6 +1,7 @@
 use crate::{
-    backend::openai::query_ai, with_lobby_mut, with_player_mut, Answer, Item, Lobby, PlayerMessage, Question, ADD_ITEM_EVERY_X_QUESTIONS,
-    GUESS_ITEM_COST, QUESTION_MIN_VOTES, SUBMIT_QUESTION_EVERY_X_SECONDS,
+    backend::openai::query_ai,
+    lobby_utils::{with_lobby_mut, with_player_mut, Answer, Item, Lobby, PlayerMessage, Question},
+    ADD_ITEM_EVERY_X_QUESTIONS, GUESS_ITEM_COST, QUESTION_MIN_VOTES, SUBMIT_QUESTION_EVERY_X_SECONDS,
 };
 use anyhow::Result;
 use serde::Deserialize;
