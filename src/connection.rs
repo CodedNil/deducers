@@ -1,7 +1,7 @@
 use crate::{
-    backend::items, filter_input, get_current_time, get_time_diff, ui::gameview::game_view, Lobby,
-    Player, PlayerMessage, COINS_EVERY_X_SECONDS, IDLE_KICK_TIME, LOBBYS, QUESTION_MIN_VOTES,
-    STARTING_COINS, SUBMIT_QUESTION_EVERY_X_SECONDS,
+    backend::items, filter_input, get_current_time, get_time_diff, ui::gameview::game_view,
+    with_lobby_mut, with_player_mut, Lobby, Player, PlayerMessage, COINS_EVERY_X_SECONDS,
+    IDLE_KICK_TIME, LOBBYS, QUESTION_MIN_VOTES, STARTING_COINS, SUBMIT_QUESTION_EVERY_X_SECONDS,
 };
 use anyhow::{anyhow, Result};
 use dioxus::prelude::*;
@@ -332,127 +332,57 @@ async fn disconnect_player(lobby_id: String, player_name: String) -> Result<()> 
 }
 
 async fn start_lobby(lobby_id: String, player_name: String) -> Result<()> {
-    let lobbys = LOBBYS
-        .get()
-        .ok_or_else(|| anyhow::anyhow!("LOBBYS not initialized"))?;
-    let mut lobbys_lock = lobbys.lock().await;
+    with_lobby_mut(&lobby_id, |lobby| {
+        if lobby.started {
+            return Err(anyhow!("Lobby '{lobby_id}' already started"));
+        } else if player_name != lobby.key_player {
+            return Err(anyhow!(
+                "Only the key player can start the lobby '{lobby_id}'",
+            ));
+        } else if lobby.items_queue.is_empty() {
+            return Err(anyhow!(
+                "Not enough items in queue to start lobby '{lobby_id}'",
+            ));
+        }
+        lobby.started = true;
+        lobby.last_update = get_current_time();
 
-    let lobby = lobbys_lock
-        .get_mut(&lobby_id)
-        .ok_or_else(|| anyhow::anyhow!("Lobby '{lobby_id}' not found"))?;
+        // Send message to all players of game started
+        for player in lobby.players.values_mut() {
+            player.messages.push(PlayerMessage::GameStart);
+        }
 
-    if lobby.started {
-        return Err(anyhow!("Lobby '{lobby_id}' already started"));
-    } else if player_name != lobby.key_player {
-        return Err(anyhow!(
-            "Only the key player can start the lobby '{lobby_id}'",
-        ));
-    } else if lobby.items_queue.is_empty() {
-        return Err(anyhow!(
-            "Not enough items in queue to start lobby '{lobby_id}'",
-        ));
-    }
-    lobby.started = true;
-    lobby.last_update = get_current_time();
+        // Add 2 items to the lobby
+        items::add_item_to_lobby(lobby);
+        items::add_item_to_lobby(lobby);
 
-    // Send message to all players of game started
-    for player in lobby.players.values_mut() {
-        player.messages.push(PlayerMessage::GameStart);
-    }
-
-    // Add 2 items to the lobby
-    items::add_item_to_lobby(lobby);
-    items::add_item_to_lobby(lobby);
-    drop(lobbys_lock);
-
-    println!("Lobby '{lobby_id}' started by key player '{player_name}'");
-    Ok(())
+        println!("Lobby '{lobby_id}' started by key player '{player_name}'");
+        Ok(())
+    })
+    .await
 }
 
 pub async fn kick_player(lobby_id: String, player_name: String) -> Result<()> {
-    let lobbys = LOBBYS
-        .get()
-        .ok_or_else(|| anyhow::anyhow!("LOBBYS not initialized"))?;
-    let mut lobbys_lock = lobbys.lock().await;
+    with_lobby_mut(&lobby_id, |lobby| {
+        lobby.players.remove(&player_name);
 
-    let lobby = lobbys_lock
-        .get_mut(&lobby_id)
-        .ok_or_else(|| anyhow::anyhow!("Lobby '{lobby_id}' not found"))?;
-
-    lobby.players.remove(&player_name);
-    drop(lobbys_lock);
-
-    println!("Lobby '{lobby_id}' player '{player_name}' kicked by key player");
-    Ok(())
+        println!("Lobby '{lobby_id}' player '{player_name}' kicked by key player");
+        Ok(())
+    })
+    .await
 }
 
-// async fn with_lobby_and_player<F, T>(
-//     lobby_id: &str,
-//     player_name: &str,
-//     f: F,
-// ) -> Result<T, anyhow::Error>
-// where
-//     F: FnOnce(&mut Lobby, &mut Player) -> Result<T>,
-// {
-//     let lobbys = LOBBYS
-//         .get()
-//         .ok_or_else(|| anyhow::anyhow!("LOBBYS not initialized"))?;
-//     let mut lobbys_lock = lobbys.lock().await;
-
-//     let lobby = lobbys_lock
-//         .get_mut(lobby_id)
-//         .ok_or_else(|| anyhow::anyhow!("Lobby '{lobby_id}' not found"))?;
-//     let player = lobby
-//         .players
-//         .get_mut(player_name)
-//         .ok_or_else(|| anyhow::anyhow!("Player '{player_name}' not found"))?;
-
-//     f(lobby, player)
-// }
-
-// async fn get_state(lobby_id: String, player_name: String) -> Result<(Lobby, Vec<PlayerMessage>)> {
-//     with_lobby_and_player(&lobby_id, &player_name, |lobby, player| {
-//         // Update last contact time for the player and convert to minimal lobby
-//         player.last_contact = get_current_time();
-
-//         // Get then clear messages for player
-//         let messages = player.messages.clone();
-//         player.messages.clear();
-
-//         // Return the entire state of the lobby and players messages
-//         let lobby = lobby.clone();
-
-//         Ok((lobby, messages))
-//     })
-//     .await
-// }
-
 async fn get_state(lobby_id: String, player_name: String) -> Result<(Lobby, Vec<PlayerMessage>)> {
-    let lobbys = LOBBYS
-        .get()
-        .ok_or_else(|| anyhow::anyhow!("LOBBYS not initialized"))?;
-    let mut lobbys_lock = lobbys.lock().await;
+    with_player_mut(&lobby_id, &player_name, |lobby, player| {
+        // Update last contact time for the player and convert to minimal lobby
+        player.last_contact = get_current_time();
 
-    let lobby = lobbys_lock
-        .get_mut(&lobby_id)
-        .ok_or_else(|| anyhow::anyhow!("Lobby '{lobby_id}' not found"))?;
-    let player = lobby
-        .players
-        .get_mut(&player_name)
-        .ok_or_else(|| anyhow::anyhow!("Player '{player_name}' not found"))?;
-
-    // Update last contact time for the player and convert to minimal lobby
-    player.last_contact = get_current_time();
-
-    // Get then clear messages for player
-    let messages = player.messages.clone();
-    player.messages.clear();
-
-    // Return the entire state of the lobby and players messages
-    let lobby = lobby.clone();
-
-    drop(lobbys_lock);
-    Ok((lobby, messages))
+        // Get then clear messages for player
+        let messages = player.messages.clone();
+        player.messages.clear();
+        Ok((lobby, messages))
+    })
+    .await
 }
 
 #[allow(clippy::cast_precision_loss)]

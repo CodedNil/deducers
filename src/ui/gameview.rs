@@ -56,7 +56,7 @@ pub fn game_view<'a>(
                             span { font_weight: "normal", "{time}s" }
                         }
                         div { display: "flex", gap: "5px",
-                            if lobby.key_player == *player_name && !lobby.started {
+                            if lobby.key_player == *player_name && !lobby.started && !lobby.items_queue.is_empty() {
                                 rsx! { button { onclick: move |_| (start)(), "Start" } }
                             }
                             button { onclick: move |_| (disconnect)(), "Disconnect" }

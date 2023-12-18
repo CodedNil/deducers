@@ -1,6 +1,6 @@
 use crate::{
-    backend::openai::query_ai, QueuedQuestion, ANONYMOUS_QUESTION_COST, LOBBYS,
-    MAX_QUESTION_LENGTH, SCORE_TO_COINS_RATIO, SUBMIT_QUESTION_COST,
+    backend::openai::query_ai, with_lobby_mut, with_player, with_player_mut, QueuedQuestion,
+    ANONYMOUS_QUESTION_COST, MAX_QUESTION_LENGTH, SCORE_TO_COINS_RATIO, SUBMIT_QUESTION_COST,
 };
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
@@ -11,45 +11,33 @@ pub async fn player_submit_question(
     question: String,
     anonymous: bool,
 ) -> Result<()> {
-    let lobbys = LOBBYS
-        .get()
-        .ok_or_else(|| anyhow::anyhow!("LOBBYS not initialized"))?;
-    let mut lobbys_lock = lobbys.lock().await;
-
-    let lobby = lobbys_lock
-        .get_mut(&lobby_id)
-        .ok_or_else(|| anyhow::anyhow!("Lobby '{lobby_id}' not found"))?;
-    let player = lobby
-        .players
-        .get_mut(&player_name)
-        .ok_or_else(|| anyhow::anyhow!("Player '{player_name}' not found"))?;
-
-    // Lobby must be started
-    if !lobby.started {
-        return Err(anyhow::anyhow!("Lobby not started"));
-    }
-
-    // Calculate submission cost and check if player has enough coins
     let total_cost = if anonymous {
         SUBMIT_QUESTION_COST + ANONYMOUS_QUESTION_COST
     } else {
         SUBMIT_QUESTION_COST
     };
-    if player.coins < total_cost {
-        return Err(anyhow::anyhow!("Insufficient coins to submit question"));
-    }
 
-    // Check if question already exists in the queue
-    if lobby
-        .questions_queue
-        .iter()
-        .any(|queued_question| queued_question.question == question)
-    {
-        return Err(anyhow::anyhow!("Question already exists in queue"));
-    }
+    with_player(&lobby_id, &player_name, |lobby, player| {
+        if !lobby.started {
+            return Err(anyhow::anyhow!("Lobby not started"));
+        }
+        if player.coins < total_cost {
+            return Err(anyhow::anyhow!("Insufficient coins to submit question"));
+        }
+
+        // Check if question already exists in the queue
+        if lobby
+            .questions_queue
+            .iter()
+            .any(|queued_question| queued_question.question == question)
+        {
+            return Err(anyhow::anyhow!("Question already exists in queue"));
+        }
+        Ok(())
+    })
+    .await?;
 
     // Validate the question
-    drop(lobbys_lock);
     let validate_response = is_valid_question(&question).await;
     if !validate_response.suitable {
         return Err(anyhow::anyhow!("{}", validate_response.reasoning));
@@ -69,29 +57,26 @@ pub async fn player_submit_question(
     };
 
     // Reacquire lock and add question to queue
-    let mut lobbys_lock = lobbys.lock().await;
+    with_lobby_mut(&lobby_id, |lobby| {
+        let player = lobby
+            .players
+            .get_mut(&player_name)
+            .ok_or_else(|| anyhow::anyhow!("Player '{player_name}' not found"))?;
 
-    let lobby = lobbys_lock
-        .get_mut(&lobby_id)
-        .ok_or_else(|| anyhow::anyhow!("Lobby '{lobby_id}' not found"))?;
-    let player = lobby
-        .players
-        .get_mut(&player_name)
-        .ok_or_else(|| anyhow::anyhow!("Player '{player_name}' not found"))?;
-
-    // Deduct coins and add question to queue
-    if player.coins < total_cost {
-        return Err(anyhow::anyhow!("Insufficient coins to submit question"));
-    }
-    player.coins -= total_cost;
-    lobby.questions_queue.push(QueuedQuestion {
-        player: player_name.clone(),
-        question,
-        votes: 0,
-        anonymous,
-    });
-    drop(lobbys_lock);
-    Ok(())
+        // Deduct coins and add question to queue
+        if player.coins < total_cost {
+            return Err(anyhow::anyhow!("Insufficient coins to submit question"));
+        }
+        player.coins -= total_cost;
+        lobby.questions_queue.push(QueuedQuestion {
+            player: player_name.clone(),
+            question,
+            votes: 0,
+            anonymous,
+        });
+        Ok(())
+    })
+    .await
 }
 
 // Helper function to validate a question
@@ -141,72 +126,52 @@ pub async fn player_vote_question(
     player_name: String,
     question: String,
 ) -> Result<()> {
-    let lobbys = LOBBYS
-        .get()
-        .ok_or_else(|| anyhow::anyhow!("LOBBYS not initialized"))?;
-    let mut lobbys_lock = lobbys.lock().await;
+    with_lobby_mut(&lobby_id, |lobby| {
+        let player = lobby
+            .players
+            .get_mut(&player_name)
+            .ok_or_else(|| anyhow::anyhow!("Player '{player_name}' not found"))?;
 
-    let lobby = lobbys_lock
-        .get_mut(&lobby_id)
-        .ok_or_else(|| anyhow::anyhow!("Lobby '{lobby_id}' not found"))?;
-    let player = lobby
-        .players
-        .get_mut(&player_name)
-        .ok_or_else(|| anyhow::anyhow!("Player '{player_name}' not found"))?;
-
-    // Lobby must be started
-    if !lobby.started {
-        return Err(anyhow::anyhow!("Lobby not started"));
-    }
-
-    // Check if question exists in the queue
-    if let Some(queued_question) = lobby
-        .questions_queue
-        .iter_mut()
-        .find(|q| q.question == question)
-    {
-        // Check if player has enough coins
-        if player.coins < 1 {
-            return Err(anyhow::anyhow!("Insufficient coins to vote"));
+        if !lobby.started {
+            return Err(anyhow::anyhow!("Lobby not started"));
         }
 
-        // Deduct coins and increment vote count
-        player.coins -= 1;
-        queued_question.votes += 1;
-        drop(lobbys_lock);
-        return Ok(());
-    }
-    drop(lobbys_lock);
-    Err(anyhow::anyhow!("Question not found in queue"))
+        // Check if question exists in the queue
+        if let Some(queued_question) = lobby
+            .questions_queue
+            .iter_mut()
+            .find(|q| q.question == question)
+        {
+            // Check if player has enough coins
+            if player.coins < 1 {
+                return Err(anyhow::anyhow!("Insufficient coins to vote"));
+            }
+
+            // Deduct coins and increment vote count
+            player.coins -= 1;
+            queued_question.votes += 1;
+            return Ok(());
+        }
+        Err(anyhow::anyhow!("Question not found in queue"))
+    })
+    .await
 }
 
 pub async fn player_convert_score(lobby_id: String, player_name: String) -> Result<()> {
-    let lobbys = LOBBYS
-        .get()
-        .ok_or_else(|| anyhow::anyhow!("LOBBYS not initialized"))?;
-    let mut lobbys_lock = lobbys.lock().await;
+    with_player_mut(&lobby_id, &player_name, |lobby, player| {
+        if !lobby.started {
+            return Err(anyhow::anyhow!("Lobby not started"));
+        }
 
-    let lobby = lobbys_lock
-        .get_mut(&lobby_id)
-        .ok_or_else(|| anyhow::anyhow!("Lobby '{lobby_id}' not found"))?;
-    let player = lobby
-        .players
-        .get_mut(&player_name)
-        .ok_or_else(|| anyhow::anyhow!("Player '{player_name}' not found"))?;
+        // Check if player has enough score
+        if player.score < 1 {
+            return Err(anyhow::anyhow!("Insufficient score to convert"));
+        }
 
-    // Lobby must be started
-    if !lobby.started {
-        return Err(anyhow::anyhow!("Lobby not started"));
-    }
-
-    // Check if player has enough score
-    if player.score < 1 {
-        return Err(anyhow::anyhow!("Insufficient score to convert"));
-    }
-
-    // Deduct score and give coins
-    player.score -= 1;
-    player.coins += SCORE_TO_COINS_RATIO;
-    drop(lobbys_lock);
-    Ok(())
+        // Deduct score and give coins
+        player.score -= 1;
+        player.coins += SCORE_TO_COINS_RATIO;
+        Ok(())
+    })
+    .await
 }

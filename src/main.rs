@@ -1,3 +1,4 @@
+use anyhow::Result;
 use axum::{extract::ws::WebSocketUpgrade, response::Html, routing::get, Router};
 use std::{
     collections::HashMap,
@@ -59,7 +60,7 @@ pub enum PlayerMessage {
 }
 
 #[derive(Clone, Debug)]
-struct Player {
+pub struct Player {
     name: String,
     last_contact: f64,
     score: usize,
@@ -75,14 +76,14 @@ struct QueuedQuestion {
     votes: usize,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 struct Item {
     name: String,
     id: usize,
     questions: Vec<Question>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 struct Question {
     player: String,
     id: usize,
@@ -91,7 +92,7 @@ struct Question {
     anonymous: bool,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 enum Answer {
     Yes,
     No,
@@ -110,7 +111,7 @@ async fn main() {
 
     // Get the server IP from an environment variable or default to localhost
     let server_ip = env::var("SERVER_IP").unwrap_or_else(|_| "127.0.0.1".to_string());
-    let server_address = format!("{}:{}", server_ip, SERVER_PORT);
+    let server_address = format!("{server_ip}:{SERVER_PORT}");
 
     let view = dioxus_liveview::LiveViewPool::new();
     let index_page_with_glue = |glue: &str| {
@@ -174,6 +175,73 @@ async fn main() {
         .serve(app.into_make_service())
         .await
         .unwrap();
+}
+
+pub async fn with_lobby_mut<F, T>(lobby_id: &str, f: F) -> Result<T>
+where
+    F: FnOnce(&mut Lobby) -> Result<T> + Send,
+    T: Send,
+{
+    let lobbys = LOBBYS
+        .get()
+        .ok_or_else(|| anyhow::anyhow!("LOBBYS not initialized"))?;
+    let mut lobbys_lock = lobbys.lock().await;
+
+    let lobby = lobbys_lock
+        .get_mut(lobby_id)
+        .ok_or_else(|| anyhow::anyhow!("Lobby '{lobby_id}' not found"))?;
+
+    let result = f(lobby);
+    drop(lobbys_lock);
+    result
+}
+
+pub async fn with_player<F, T>(lobby_id: &str, player_name: &str, f: F) -> Result<T>
+where
+    F: FnOnce(Lobby, Player) -> Result<T> + Send,
+    T: Send,
+{
+    let lobbys = LOBBYS
+        .get()
+        .ok_or_else(|| anyhow::anyhow!("LOBBYS not initialized"))?;
+    let lobbys_lock = lobbys.lock().await;
+
+    let lobby = lobbys_lock
+        .get(lobby_id)
+        .ok_or_else(|| anyhow::anyhow!("Lobby '{lobby_id}' not found"))?;
+    let lobby_state = lobby.clone();
+    let player = lobby
+        .players
+        .get(player_name)
+        .ok_or_else(|| anyhow::anyhow!("Player '{player_name}' not found"))?;
+
+    let result = f(lobby_state, player.clone());
+    drop(lobbys_lock);
+    result
+}
+
+pub async fn with_player_mut<F, T>(lobby_id: &str, player_name: &str, f: F) -> Result<T>
+where
+    F: FnOnce(Lobby, &mut Player) -> Result<T> + Send,
+    T: Send,
+{
+    let lobbys = LOBBYS
+        .get()
+        .ok_or_else(|| anyhow::anyhow!("LOBBYS not initialized"))?;
+    let mut lobbys_lock = lobbys.lock().await;
+
+    let lobby = lobbys_lock
+        .get_mut(lobby_id)
+        .ok_or_else(|| anyhow::anyhow!("Lobby '{lobby_id}' not found"))?;
+    let lobby_state = lobby.clone();
+    let player = lobby
+        .players
+        .get_mut(player_name)
+        .ok_or_else(|| anyhow::anyhow!("Player '{player_name}' not found"))?;
+
+    let result = f(lobby_state, player);
+    drop(lobbys_lock);
+    result
 }
 
 #[must_use]

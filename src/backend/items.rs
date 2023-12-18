@@ -1,6 +1,7 @@
 use crate::{
-    backend::openai::query_ai, Answer, Item, Lobby, PlayerMessage, Question,
-    ADD_ITEM_EVERY_X_QUESTIONS, GUESS_ITEM_COST, LOBBYS, QUESTION_MIN_VOTES,
+    backend::openai::query_ai, with_lobby_mut, with_player_mut, Answer, Item, Lobby, PlayerMessage,
+    Question, ADD_ITEM_EVERY_X_QUESTIONS, GUESS_ITEM_COST, QUESTION_MIN_VOTES,
+    SUBMIT_QUESTION_EVERY_X_SECONDS,
 };
 use anyhow::Result;
 use serde::Deserialize;
@@ -61,21 +62,14 @@ pub async fn add_item_to_queue(lobby_id: String, mut items_history: Vec<String>,
 }
 
 pub async fn add_item_to_lobby_queue(lobby_id: String, item_name: String) -> Result<()> {
-    let lobbys = LOBBYS
-        .get()
-        .ok_or_else(|| anyhow::anyhow!("LOBBYS not initialized"))?;
-    let mut lobbys_lock = lobbys.lock().await;
-
-    let lobby = lobbys_lock
-        .get_mut(&lobby_id)
-        .ok_or_else(|| anyhow::anyhow!("Lobby '{lobby_id}' not found"))?;
-
-    if !lobby.items_history.contains(&item_name) {
-        lobby.items_queue.insert(0, item_name.clone());
-        drop(lobbys_lock);
-        return Ok(());
-    }
-    Err(anyhow::anyhow!("Item already in history"))
+    with_lobby_mut(&lobby_id, |lobby| {
+        if !lobby.items_history.contains(&item_name) {
+            lobby.items_queue.insert(0, item_name.clone());
+            return Ok(());
+        }
+        Err(anyhow::anyhow!("Item already in history"))
+    })
+    .await
 }
 
 pub fn add_item_to_lobby(lobby: &mut Lobby) {
@@ -108,57 +102,59 @@ struct AskQuestionResponse {
 
 #[allow(clippy::too_many_lines)]
 pub async fn ask_top_question(lobby_id: String) -> Result<()> {
-    let lobbys = LOBBYS
-        .get()
-        .ok_or_else(|| anyhow::anyhow!("LOBBYS not initialized"))?;
-    let mut lobbys_lock = lobbys.lock().await;
+    let (mut question_text, mut question_player, mut question_anonymous) =
+        (String::new(), String::new(), false);
+    let mut question_id = 0;
+    let mut items = Vec::new();
 
-    let lobby = lobbys_lock
-        .get_mut(&lobby_id)
-        .ok_or_else(|| anyhow::anyhow!("Lobby '{lobby_id}' not found"))?;
+    with_lobby_mut(&lobby_id, |lobby| {
+        let question = lobby
+            .questions_queue
+            .iter()
+            .max_by_key(|question| question.votes)
+            .ok_or_else(|| anyhow::anyhow!("No questions in queue"))?;
 
-    let top_question = lobby
-        .questions_queue
-        .iter()
-        .max_by_key(|question| question.votes);
-    let Some(question) = top_question else {
-        drop(lobbys_lock);
-        return Err(anyhow::anyhow!("No questions in queue"));
-    };
+        if question.votes < QUESTION_MIN_VOTES {
+            return Err(anyhow::anyhow!(
+                "Question needs at least {QUESTION_MIN_VOTES} votes"
+            ));
+        }
 
-    // Question needs at least X votes
-    if question.votes < QUESTION_MIN_VOTES {
-        drop(lobbys_lock);
-        return Err(anyhow::anyhow!(
-            "Question needs at least {QUESTION_MIN_VOTES} votes"
-        ));
-    }
+        question_text = question.question.clone();
+        question_player = question.player.clone();
+        question_anonymous = question.anonymous;
+        items = lobby.items.clone();
 
-    let question_clone = question.clone();
-    let question_text = question.question.clone();
-    let question_id = lobby.questions_counter;
+        // Remove question from queue
+        question_id = lobby.questions_counter;
+        lobby
+            .questions_queue
+            .retain(|q| q.question != question_text);
+        lobby.questions_counter += 1;
 
-    // Create list of items in string
-    let items_str = lobby
-        .items
+        // Reset queue waiting if needed
+        if !lobby
+            .questions_queue
+            .iter()
+            .any(|q| q.votes >= QUESTION_MIN_VOTES)
+        {
+            lobby.questions_queue_waiting = true;
+            lobby.questions_queue_countdown = SUBMIT_QUESTION_EVERY_X_SECONDS;
+        }
+
+        Ok(())
+    })
+    .await?;
+
+    let items_str = items
         .iter()
         .map(|item| item.name.as_str())
         .collect::<Vec<&str>>()
         .join(", ");
-    let items = lobby.items.clone();
-
-    // Remove question from queue
-    lobby
-        .questions_queue
-        .retain(|q| q.question != question_text);
-    lobby.questions_counter += 1;
-
-    drop(lobbys_lock);
 
     // Query with OpenAI API
     let mut answers = Vec::new();
     let mut attempt_count = 0;
-
     while attempt_count < 4 && answers.len() != items.len() {
         let response = query_ai(
             &format!("u:For each item in this list '{items_str}', answer the question '{question_text}', return compact one line JSON with key answers which is a list of yes, no or maybe, this is a 20 questions game, British English"),
@@ -187,55 +183,49 @@ pub async fn ask_top_question(lobby_id: String) -> Result<()> {
         attempt_count += 1;
     }
 
-    // Create a new lock
-    let mut lobbys_lock = lobbys.lock().await;
-    let lobby = lobbys_lock
-        .get_mut(&lobby_id)
-        .ok_or_else(|| anyhow::anyhow!("Lobby '{lobby_id}' not found"))?;
+    with_lobby_mut(&lobby_id, |lobby| {
+        if answers.len() != lobby.items.len() {
+            return Err(anyhow::anyhow!(
+                "Failed to get answers for question '{question_text}'"
+            ));
+        }
 
-    // Default to "maybe" if correct response not received after 4 attempts
-    if answers.len() != lobby.items.len() {
-        println!("Failed to get answers for question: {question_text}");
-        answers = vec![Answer::Maybe; lobby.items.len()];
-    }
+        // Ask question against each item
+        let mut remove_items = Vec::new();
+        for (index, item) in &mut lobby.items.iter_mut().enumerate() {
+            let answer = answers.get(index).unwrap_or(&Answer::Maybe).clone();
+            item.questions.push(Question {
+                player: question_player.clone(),
+                id: question_id,
+                question: question_text.clone(),
+                answer,
+                anonymous: question_anonymous,
+            });
 
-    // Ask question against each item
-    let mut retain_items = Vec::new();
-    for (index, item) in &mut lobby.items.iter_mut().enumerate() {
-        let answer = answers.get(index).unwrap_or(&Answer::Maybe).clone();
-        item.questions.push(Question {
-            player: question_clone.player.clone(),
-            id: question_id,
-            question: question_clone.question.clone(),
-            answer,
-            anonymous: question_clone.anonymous,
-        });
-
-        // If item has 20 questions, remove the item
-        if item.questions.len() < 20 {
-            retain_items.push(item.clone());
-        } else {
-            // Send message to all players of item removed
-            for player_n in lobby.players.values_mut() {
-                player_n
-                    .messages
-                    .push(PlayerMessage::ItemRemoved(item.id, item.name.clone()));
+            // If item has 20 questions, remove the item
+            if item.questions.len() >= 20 {
+                remove_items.push(item.clone());
+                for player_n in lobby.players.values_mut() {
+                    player_n
+                        .messages
+                        .push(PlayerMessage::ItemRemoved(item.id, item.name.clone()));
+                }
             }
         }
-    }
-    lobby.items = retain_items;
+        if !remove_items.is_empty() {
+            lobby.items.retain(|i| !remove_items.contains(i));
+        }
 
-    // Add new item if x questions have been asked
-    if lobby.questions_counter % ADD_ITEM_EVERY_X_QUESTIONS == 0 {
-        add_item_to_lobby(lobby);
-    }
+        if lobby.questions_counter % ADD_ITEM_EVERY_X_QUESTIONS == 0 {
+            add_item_to_lobby(lobby);
+        }
 
-    // Send message to all players of question asked
-    for player in lobby.players.values_mut() {
-        player.messages.push(PlayerMessage::QuestionAsked);
-    }
-    drop(lobbys_lock);
-    Ok(())
+        for player in lobby.players.values_mut() {
+            player.messages.push(PlayerMessage::QuestionAsked);
+        }
+        Ok(())
+    })
+    .await
 }
 
 pub async fn player_guess_item(
@@ -244,59 +234,52 @@ pub async fn player_guess_item(
     item_choice: usize,
     guess: String,
 ) -> Result<()> {
-    let lobbys = LOBBYS
-        .get()
-        .ok_or_else(|| anyhow::anyhow!("LOBBYS not initialized"))?;
-    let mut lobbys_lock = lobbys.lock().await;
+    let mut found_item = None;
+    with_player_mut(&lobby_id, &player_name, |lobby, player| {
+        if !lobby.started {
+            return Err(anyhow::anyhow!("Lobby not started"));
+        }
 
-    let lobby = lobbys_lock
-        .get_mut(&lobby_id)
-        .ok_or_else(|| anyhow::anyhow!("Lobby '{lobby_id}' not found"))?;
-    let player = lobby
-        .players
-        .get_mut(&player_name)
-        .ok_or_else(|| anyhow::anyhow!("Player '{player_name}' not found"))?;
+        let Some(item) = lobby.items.iter().find(|i| i.id == item_choice) else {
+            return Err(anyhow::anyhow!("Item not found"));
+        };
+        found_item = Some(item.clone());
 
-    // Lobby must be started
-    if !lobby.started {
-        return Err(anyhow::anyhow!("Lobby not started"));
+        if player.coins < GUESS_ITEM_COST {
+            return Err(anyhow::anyhow!("Insufficient coins to guess"));
+        }
+        player.coins -= GUESS_ITEM_COST;
+
+        if item.name.to_lowercase() != guess.to_lowercase() {
+            player.messages.push(PlayerMessage::GuessIncorrect);
+            return Err(anyhow::anyhow!("Incorrect guess"));
+        }
+
+        // Add score to player based on how many questions the item had remaining
+        let remaining_questions = 20 - item.questions.len();
+        player.score += remaining_questions;
+        Ok(())
+    })
+    .await?;
+
+    if let Some(item) = found_item {
+        return with_lobby_mut(&lobby_id, |lobby| {
+            // Remove item
+            let item_id = item.id;
+            let item_name = item.name.clone();
+            lobby.items.retain(|i| i.id != item_id);
+
+            // Send message to all players of item guessed
+            for player_n in lobby.players.values_mut() {
+                player_n.messages.push(PlayerMessage::ItemGuessed(
+                    player_name.clone(),
+                    item_id,
+                    item_name.clone(),
+                ));
+            }
+            Ok(())
+        })
+        .await;
     }
-
-    // Get item with id of item_choice
-    let Some(item) = lobby.items.iter().find(|i| i.id == item_choice) else {
-        return Err(anyhow::anyhow!("Item not found"));
-    };
-
-    // Check if player has enough coins
-    if player.coins < GUESS_ITEM_COST {
-        return Err(anyhow::anyhow!("Insufficient coins to guess"));
-    }
-    player.coins -= GUESS_ITEM_COST;
-
-    // Match guess with item name
-    if item.name.to_lowercase() != guess.to_lowercase() {
-        player.messages.push(PlayerMessage::GuessIncorrect);
-        return Err(anyhow::anyhow!("Incorrect guess"));
-    }
-
-    // Add score to player based on how many questions the item had remaining
-    let remaining_questions = 20 - item.questions.len();
-    player.score += remaining_questions;
-    let player_name = player.name.clone();
-
-    // Remove item
-    let item_id = item.id;
-    let item_name = item.name.clone();
-    lobby.items.retain(|i| i.id != item_id);
-
-    // Send message to all players of item guessed
-    for player_n in lobby.players.values_mut() {
-        player_n.messages.push(PlayerMessage::ItemGuessed(
-            player_name.clone(),
-            item_id,
-            item_name.clone(),
-        ));
-    }
-    drop(lobbys_lock);
-    Ok(())
+    Err(anyhow::anyhow!("Failed to find item"))
 }
