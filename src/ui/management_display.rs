@@ -3,7 +3,7 @@ use crate::{
         items::player_guess_item,
         question_queue::{player_convert_score, player_submit_question},
     },
-    filter_input, get_current_time, Lobby, ANONYMOUS_QUESTION_COST, GUESS_ITEM_COST, MAX_QUESTION_LENGTH, SCORE_TO_COINS_RATIO, SUBMIT_QUESTION_COST,
+    filter_input, get_current_time, Lobby, ANONYMOUS_QUESTION_COST, GUESS_ITEM_COST, SCORE_TO_COINS_RATIO, SUBMIT_QUESTION_COST,
 };
 use dioxus::prelude::*;
 
@@ -22,14 +22,13 @@ pub fn render<'a>(cx: Scope<'a>, player_name: &'a String, lobby_id: &'a str, lob
         move || {
             let lobby_id = lobby_id.to_string();
             let player_name = player_name.clone();
-            let question_submission = question_submission.clone();
+            let question_submission = question_submission.get().clone();
             let question_anonymous = question_anonymous.clone();
             let alert_popup = alert_popup.clone();
 
             cx.spawn(async move {
-                match player_submit_question(lobby_id, player_name, question_submission.get().clone(), *question_anonymous.get()).await {
+                match player_submit_question(lobby_id, player_name, question_submission, *question_anonymous.get()).await {
                     Ok(()) => {
-                        question_submission.set(String::new());
                         question_anonymous.set(false);
                     }
                     Err(error) => {
@@ -47,7 +46,6 @@ pub fn render<'a>(cx: Scope<'a>, player_name: &'a String, lobby_id: &'a str, lob
             let item_choice = *guess_item_key.get();
             let item_guess = guess_item_submission.get().clone();
             let alert_popup = alert_popup.clone();
-            guess_item_submission.set(String::new());
 
             cx.spawn(async move {
                 match player_guess_item(lobby_id, player_name, item_choice, item_guess).await {
@@ -81,11 +79,10 @@ pub fn render<'a>(cx: Scope<'a>, player_name: &'a String, lobby_id: &'a str, lob
         div { align_self: "center", font_size: "larger", "{players_coins}🪙 Available" }
         div { display: "flex", gap: "5px",
             input {
-                value: "{question_submission}",
                 placeholder: "Question To Ask",
                 flex: "1",
                 oninput: move |e| {
-                    question_submission.set(filter_input(&e.value, MAX_QUESTION_LENGTH, true));
+                    question_submission.set(e.value.clone());
                 }
             }
             button {
@@ -114,7 +111,6 @@ pub fn render<'a>(cx: Scope<'a>, player_name: &'a String, lobby_id: &'a str, lob
         }
         div { display: "flex", gap: "5px",
             input {
-                value: "{guess_item_submission}",
                 placeholder: "Guess Item",
                 flex: "1",
                 oninput: move |e| {
