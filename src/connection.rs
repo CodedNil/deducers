@@ -1,10 +1,15 @@
 use crate::{
-    lobby_utils::{connect_player, disconnect_player, get_current_time, get_state, start_lobby, Lobby, PlayerMessage},
+    lobby_utils::{
+        connect_player, disconnect_player, get_current_time, get_lobby_info, get_state, start_lobby, Lobby, LobbyInfo, PlayerMessage,
+    },
     ui::gameview::game_view,
     LOBBY_ID_PATTERN, MAX_LOBBY_ID_LENGTH, MAX_PLAYER_NAME_LENGTH, PLAYER_NAME_PATTERN,
 };
 use dioxus::prelude::*;
-use std::time::Duration;
+use std::{
+    sync::{Arc, Mutex},
+    time::Duration,
+};
 
 #[derive(Default)]
 struct ItemRevealMessage {
@@ -40,6 +45,7 @@ pub fn app(cx: Scope) -> Element {
     let is_connected: &UseState<bool> = use_state(cx, || false);
 
     let lobby_state: &UseState<Option<Lobby>> = use_state(cx, || None::<Lobby>);
+    let lobby_info: &UseState<Vec<LobbyInfo>> = use_state(cx, Vec::new);
 
     let error_message: &UseState<ErrorDialog> = use_state(cx, ErrorDialog::default);
 
@@ -111,18 +117,33 @@ pub fn app(cx: Scope) -> Element {
         }
     };
 
-    // Get lobby state every x seconds if connected
-    if *is_connected.get() {
-        use_effect(cx, (), |()| {
-            let lobby_state = lobby_state.clone();
-            let player_name = player_name.clone();
-            let lobby_id = lobby_id.clone();
-            let error_message = error_message.clone();
-            let is_connected = is_connected.clone();
-            let sounds_to_play = sounds_to_play.clone();
-            let item_reveal_message = item_reveal_message.clone();
-            async move {
-                while *is_connected.get() {
+    // Get lobby state every x seconds if connected or lobby info if not connected
+    let cancel_signal = use_state(cx, || Arc::new(Mutex::new(false)));
+    use_effect(cx, is_connected, |is_connected| {
+        let cancel_signal = cancel_signal.clone();
+
+        // Set the cancellation signal for the previous loop
+        {
+            let mut cancel = cancel_signal.get().lock().unwrap();
+            *cancel = true;
+        }
+        let new_cancel_signal = Arc::new(Mutex::new(false));
+        cancel_signal.set(new_cancel_signal.clone());
+
+        let lobby_state = lobby_state.clone();
+        let lobby_info = lobby_info.clone();
+        let lobby_id = lobby_id.clone();
+        let player_name = player_name.clone();
+        let error_message = error_message.clone();
+        let sounds_to_play = sounds_to_play.clone();
+        let item_reveal_message = item_reveal_message.clone();
+        async move {
+            loop {
+                if *new_cancel_signal.lock().unwrap() {
+                    break;
+                }
+
+                if *is_connected.get() {
                     match get_state(lobby_id.get().to_string(), player_name.get().to_string()).await {
                         Ok((lobby, messages)) => {
                             process_messages(messages.clone(), &sounds_to_play, &item_reveal_message);
@@ -137,12 +158,13 @@ pub fn app(cx: Scope) -> Element {
                             break;
                         }
                     }
-
-                    tokio::time::sleep(Duration::from_millis(500)).await;
+                } else if let Ok(lobbys) = get_lobby_info().await {
+                    lobby_info.set(lobbys);
                 }
+                tokio::time::sleep(Duration::from_millis(500)).await;
             }
-        });
-    }
+        }
+    });
 
     let disconnect = Box::new(move || {
         let player_name = player_name.clone();
@@ -198,48 +220,87 @@ pub fn app(cx: Scope) -> Element {
         }
     } else {
         cx.render(rsx! {
-            form {
-                class: "login-dialog",
-                onsubmit: move |_| {
-                    let player_name = player_name.clone();
-                    let lobby_id = lobby_id.clone();
-                    let is_connected = is_connected.clone();
-                    let error_message = error_message.clone();
-                    lobby_state.set(None);
-                    cx.spawn(async move {
-                        if let Err(error)
-                            = connect_player(lobby_id.get().to_string(), player_name.get().to_string())
-                                .await
-                        {
-                            error_message
-                                .set(ErrorDialog {
-                                    show: true,
-                                    str: format!("Failed to connect to lobby: {error}"),
-                                });
-                        } else {
-                            is_connected.set(true);
+            div {
+                display: "flex",
+                flex_direction: "column",
+                align_items: "center",
+                gap: "10px",
+                justify_content: "center",
+                height: "calc(100vh - 40px)",
+                div { class: "background-box", display: "flex", flex_direction: "column", gap: "5px",
+                    for lobby in lobby_info.get() {
+                        div { display: "flex", flex_direction: "row", align_items: "center", gap: "5px",
+                            div { "{lobby.id}: {lobby.players_count} Players" }
+                            button {
+                                onclick: move |_| {
+                                    lobby_id.set(lobby.id.clone());
+                                    let player_name = player_name.clone();
+                                    let lobby_id = lobby.id.clone();
+                                    let is_connected = is_connected.clone();
+                                    let error_message = error_message.clone();
+                                    lobby_state.set(None);
+                                    cx.spawn(async move {
+                                        if let Err(error)
+                                            = connect_player(lobby_id.clone(), player_name.get().to_string()).await
+                                        {
+                                            error_message
+                                                .set(ErrorDialog {
+                                                    show: true,
+                                                    str: format!("Failed to connect to lobby: {error}"),
+                                                });
+                                        } else {
+                                            is_connected.set(true);
+                                        }
+                                    });
+                                },
+                                "Connect"
+                            }
                         }
-                    });
-                },
-                input {
-                    r#type: "text",
-                    placeholder: "Player Name",
-                    pattern: PLAYER_NAME_PATTERN,
-                    maxlength: MAX_PLAYER_NAME_LENGTH as i64,
-                    oninput: move |e| {
-                        player_name.set(e.value.clone());
                     }
                 }
-                input {
-                    r#type: "text",
-                    placeholder: "Lobby Id",
-                    pattern: LOBBY_ID_PATTERN,
-                    maxlength: MAX_LOBBY_ID_LENGTH as i64,
-                    oninput: move |e| {
-                        lobby_id.set(e.value.clone());
+                form {
+                    class: "login-dialog",
+                    onsubmit: move |_| {
+                        let player_name = player_name.clone();
+                        let lobby_id = lobby_id.clone();
+                        let is_connected = is_connected.clone();
+                        let error_message = error_message.clone();
+                        lobby_state.set(None);
+                        cx.spawn(async move {
+                            if let Err(error)
+                                = connect_player(lobby_id.get().to_string(), player_name.get().to_string())
+                                    .await
+                            {
+                                error_message
+                                    .set(ErrorDialog {
+                                        show: true,
+                                        str: format!("Failed to connect to lobby: {error}"),
+                                    });
+                            } else {
+                                is_connected.set(true);
+                            }
+                        });
+                    },
+                    input {
+                        r#type: "text",
+                        placeholder: "Player Name",
+                        pattern: PLAYER_NAME_PATTERN,
+                        maxlength: MAX_PLAYER_NAME_LENGTH as i64,
+                        oninput: move |e| {
+                            player_name.set(e.value.clone());
+                        }
                     }
+                    input {
+                        r#type: "text",
+                        placeholder: "Lobby Id",
+                        pattern: LOBBY_ID_PATTERN,
+                        maxlength: MAX_LOBBY_ID_LENGTH as i64,
+                        oninput: move |e| {
+                            lobby_id.set(e.value.clone());
+                        }
+                    }
+                    button { r#type: "submit", "Connect" }
                 }
-                button { r#type: "submit", "Connect" }
             }
             render_error_dialog
         })

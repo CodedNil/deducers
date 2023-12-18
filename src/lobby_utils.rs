@@ -95,6 +95,24 @@ where
     f(lobby)
 }
 
+pub struct LobbyInfo {
+    pub id: String,
+    pub players_count: usize,
+}
+
+pub async fn get_lobby_info() -> Result<Vec<LobbyInfo>> {
+    let lobbys = LOBBYS.get().ok_or_else(|| anyhow!("LOBBYS not initialized"))?;
+    let lobbys_lock = lobbys.lock().await;
+    let mut lobby_infos = Vec::new();
+    for (id, lobby) in &lobbys_lock.clone() {
+        lobby_infos.push(LobbyInfo {
+            id: id.clone(),
+            players_count: lobby.players.len(),
+        });
+    }
+    Ok(lobby_infos)
+}
+
 pub async fn with_lobby_mut<F, T>(lobby_id: &str, f: F) -> Result<T>
 where
     F: FnOnce(&mut Lobby) -> Result<T>,
@@ -185,7 +203,7 @@ pub async fn connect_player(lobby_id: String, player_name: String) -> Result<()>
         return Err(anyhow!("Player name must be alphanumeric"));
     }
 
-    create_lobby(&lobby_id, player_name.clone()).await?;
+    let _ = create_lobby(&lobby_id, player_name.clone()).await;
 
     with_lobby_mut(&lobby_id, |lobby| {
         if lobby.players.contains_key(&player_name) {
