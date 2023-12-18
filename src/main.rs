@@ -85,7 +85,9 @@ async fn main() {
 
     tokio::spawn(async move {
         loop {
-            lobby_utils::lobby_loop().await;
+            if let Err(error) = lobby_utils::lobby_loop().await {
+                eprintln!("Error in lobby loop: {error}");
+            }
             tokio::time::sleep(Duration::from_millis(500)).await;
         }
     });

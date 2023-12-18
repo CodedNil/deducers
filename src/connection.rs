@@ -1,10 +1,8 @@
 use crate::{
-    backend::items,
-    lobby_utils::{create_lobby, get_current_time, with_lobby_mut, with_player_mut, Lobby, Player, PlayerMessage},
+    lobby_utils::{connect_player, disconnect_player, get_current_time, get_state, start_lobby, Lobby, PlayerMessage},
     ui::gameview::game_view,
-    LOBBY_ID_PATTERN, MAX_LOBBY_ID_LENGTH, MAX_PLAYER_NAME_LENGTH, PLAYER_NAME_PATTERN, STARTING_COINS,
+    LOBBY_ID_PATTERN, MAX_LOBBY_ID_LENGTH, MAX_PLAYER_NAME_LENGTH, PLAYER_NAME_PATTERN,
 };
-use anyhow::{anyhow, Result};
 use dioxus::prelude::*;
 use std::time::Duration;
 
@@ -246,96 +244,4 @@ pub fn app(cx: Scope) -> Element {
             render_error_dialog
         })
     }
-}
-
-async fn connect_player(lobby_id: String, player_name: String) -> Result<()> {
-    let lobby_id = lobby_id.trim().to_string();
-    let player_name = player_name.trim().to_string();
-    if lobby_id.len() < 3 || lobby_id.len() > MAX_LOBBY_ID_LENGTH {
-        return Err(anyhow!("Lobby ID must be between 3 and {MAX_LOBBY_ID_LENGTH} characters long"));
-    }
-    if player_name.len() < 3 || player_name.len() > MAX_PLAYER_NAME_LENGTH {
-        return Err(anyhow!(
-            "Player name must be between 3 and {MAX_PLAYER_NAME_LENGTH} characters long"
-        ));
-    }
-    if !regex::Regex::new(LOBBY_ID_PATTERN).unwrap().is_match(&lobby_id) {
-        return Err(anyhow!("Lobby ID must be alphanumeric"));
-    }
-    if !regex::Regex::new(PLAYER_NAME_PATTERN).unwrap().is_match(&player_name) {
-        return Err(anyhow!("Player name must be alphanumeric"));
-    }
-
-    create_lobby(&lobby_id, player_name.clone()).await?;
-
-    with_lobby_mut(&lobby_id, |lobby| {
-        if lobby.players.contains_key(&player_name) {
-            return Err(anyhow!("Player '{player_name}' is already connected to lobby '{lobby_id}'"));
-        }
-
-        lobby.players.entry(player_name.clone()).or_insert(Player {
-            name: player_name.clone(),
-            last_contact: get_current_time(),
-            score: 0,
-            coins: STARTING_COINS,
-            messages: Vec::new(),
-        });
-
-        println!("Player '{player_name}' connected to lobby '{lobby_id}'");
-        Ok(())
-    })
-    .await
-}
-
-async fn disconnect_player(lobby_id: String, player_name: String) -> Result<()> {
-    with_lobby_mut(&lobby_id, |lobby| {
-        lobby.players.remove(&player_name);
-        println!("Player '{player_name}' disconnected from lobby '{lobby_id}'");
-        Ok(())
-    })
-    .await
-}
-
-async fn start_lobby(lobby_id: String, player_name: String) -> Result<()> {
-    with_lobby_mut(&lobby_id, |lobby| {
-        if lobby.started {
-            return Err(anyhow!("Lobby '{lobby_id}' already started"));
-        } else if player_name != lobby.key_player {
-            return Err(anyhow!("Only the key player can start the lobby '{lobby_id}'",));
-        } else if lobby.items_queue.is_empty() {
-            return Err(anyhow!("Not enough items in queue to start lobby '{lobby_id}'",));
-        }
-        lobby.started = true;
-        lobby.last_update = get_current_time();
-
-        for player in lobby.players.values_mut() {
-            player.messages.push(PlayerMessage::GameStart);
-        }
-
-        items::add_item_to_lobby(lobby);
-        items::add_item_to_lobby(lobby);
-
-        println!("Lobby '{lobby_id}' started by key player '{player_name}'");
-        Ok(())
-    })
-    .await
-}
-
-pub async fn kick_player(lobby_id: String, player_name: String) -> Result<()> {
-    with_lobby_mut(&lobby_id, |lobby| {
-        lobby.players.remove(&player_name);
-        println!("Lobby '{lobby_id}' player '{player_name}' kicked by key player");
-        Ok(())
-    })
-    .await
-}
-
-async fn get_state(lobby_id: String, player_name: String) -> Result<(Lobby, Vec<PlayerMessage>)> {
-    with_player_mut(&lobby_id, &player_name, |lobby, player| {
-        player.last_contact = get_current_time();
-        let messages = player.messages.clone();
-        player.messages.clear();
-        Ok((lobby, messages))
-    })
-    .await
 }

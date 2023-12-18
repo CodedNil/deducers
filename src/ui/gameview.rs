@@ -31,7 +31,7 @@ pub fn game_view<'a>(
     start: Box<dyn Fn() + 'a>,
 ) -> Element<'a> {
     let alert_popup: &UseState<AlertPopup> = use_state(cx, AlertPopup::default);
-    if alert_popup.get().expiry < get_current_time() {
+    if alert_popup.get().shown && alert_popup.get().expiry < get_current_time() {
         alert_popup.set(AlertPopup::default());
     }
 
