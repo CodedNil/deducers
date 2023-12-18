@@ -15,51 +15,82 @@ pub fn app(cx: Scope) -> Element {
 
     let lobby_state: &UseState<Option<Lobby>> = use_state(cx, || None::<Lobby>);
 
-    let error_message: &UseState<Option<String>> = use_state(cx, || None::<String>);
+    let error_message: &UseState<(bool, String)> = use_state(cx, || (false, String::new()));
 
-    let item_reveal_message: &UseState<Option<(f64, bool, String)>> =
-        use_state(cx, || None::<(f64, bool, String)>);
-    let sound_to_play: &UseState<Option<String>> = use_state(cx, || None);
+    let item_reveal_message: &UseState<(bool, f64, bool, String)> =
+        use_state(cx, || (false, 0.0, false, String::new()));
+    let (show_item_message, item_reveal_expiry, item_reveal_correct, item_reveal_str) =
+        item_reveal_message.get();
+    // Hide the item reveal message after 5 seconds
+    if *show_item_message && get_time_diff(*item_reveal_expiry) > 5.0 {
+        item_reveal_message.set((false, 0.0, *item_reveal_correct, item_reveal_str.clone()));
+    }
+
+    let sounds_to_play: &UseState<Vec<(f64, String)>> = use_state(cx, Vec::new);
+    // Remove expired sounds
+    let current_time = get_current_time();
+    let sounds_to_play_vec = sounds_to_play.get().clone();
+    let new_sounds_to_play_vec = sounds_to_play_vec
+        .iter()
+        .filter(|(time, _)| current_time - time < 5.0)
+        .cloned()
+        .collect();
+    if new_sounds_to_play_vec != sounds_to_play_vec {
+        sounds_to_play.set(new_sounds_to_play_vec);
+    }
 
     // Process players messages
-    // if let Some(lobby) = lobby_state.get() {
-    //     if let Some(player) = lobby.players.get(player_name.get()) {
-    //         for message in &player.messages {
-    //             match message {
-    //                 PlayerMessage::ItemAdded => {
-    //                     sound_to_play.set(Some(String::from("item_added")));
-    //                 }
-    //                 PlayerMessage::QuestionAsked => {
-    //                     sound_to_play.set(Some(String::from("question_added")));
-    //                 }
-    //                 PlayerMessage::GameStart => {
-    //                     sound_to_play.set(Some(String::from("game_start")));
-    //                 }
-    //                 PlayerMessage::CoinGiven => {
-    //                     sound_to_play.set(Some(String::from("coin_added")));
-    //                 }
-    //                 PlayerMessage::ItemGuessed(player_name, item_id, item_name) => {
-    //                     item_reveal_message.set(Some((
-    //                         get_current_time(),
-    //                         true,
-    //                         format!(
-    //                             "{player_name} guessed item {item_id} correctly as {item_name}!"
-    //                         ),
-    //                     )));
-    //                 }
-    //                 PlayerMessage::ItemRemoved(item_id, item_name) => {
-    //                     item_reveal_message.set(Some((
-    //                         get_current_time(),
-    //                         false,
-    //                         format!(
-    //                             "Item {item_id} was removed from the game, it was {item_name}!"
-    //                         ),
-    //                     )));
-    //                 }
-    //             }
-    //         }
-    //     }
-    // }
+    let process_messages = {
+        move |messages: Vec<PlayerMessage>,
+              sounds_to_play: &UseState<Vec<(f64, String)>>,
+              item_reveal_message: &UseState<(bool, f64, bool, String)>| {
+            let old_sounds = sounds_to_play.get().clone();
+            let mut new_sounds = old_sounds.clone();
+            for message in messages {
+                match message {
+                    PlayerMessage::ItemAdded => {
+                        new_sounds.push((get_current_time(), String::from("item_added")));
+                    }
+                    PlayerMessage::QuestionAsked => {
+                        new_sounds.push((get_current_time(), String::from("question_added")));
+                    }
+                    PlayerMessage::GameStart => {
+                        new_sounds.push((get_current_time(), String::from("game_start")));
+                    }
+                    PlayerMessage::CoinGiven => {
+                        new_sounds.push((get_current_time(), String::from("coin_added")));
+                    }
+                    PlayerMessage::ItemGuessed(player_name, item_id, item_name) => {
+                        new_sounds.push((get_current_time(), String::from("guess_correct")));
+                        item_reveal_message.set((
+                            true,
+                            get_current_time(),
+                            true,
+                            format!(
+                                "{player_name} guessed item {item_id} correctly as {item_name}!"
+                            ),
+                        ));
+                    }
+                    PlayerMessage::GuessIncorrect => {
+                        new_sounds.push((get_current_time(), String::from("guess_incorrect")));
+                    }
+                    PlayerMessage::ItemRemoved(item_id, item_name) => {
+                        item_reveal_message.set((
+                            true,
+                            get_current_time(),
+                            false,
+                            format!(
+                                "Item {item_id} was removed from the game, it was {item_name}!"
+                            ),
+                        ));
+                    }
+                }
+            }
+            if new_sounds != old_sounds {
+                sounds_to_play.set(new_sounds);
+            }
+        }
+    };
 
     // Get lobby state every x seconds if connected
     if *is_connected.get() {
@@ -69,15 +100,22 @@ pub fn app(cx: Scope) -> Element {
             let lobby_id = lobby_id.clone();
             let error_message = error_message.clone();
             let is_connected = is_connected.clone();
+            let sounds_to_play = sounds_to_play.clone();
+            let item_reveal_message = item_reveal_message.clone();
             async move {
                 while *is_connected.get() {
                     match get_state(lobby_id.get().to_string(), player_name.get().to_string()).await
                     {
-                        Ok(lobby) => {
+                        Ok((lobby, messages)) => {
+                            process_messages(
+                                messages.clone(),
+                                &sounds_to_play,
+                                &item_reveal_message,
+                            );
                             lobby_state.set(Some(lobby));
                         }
                         Err(error) => {
-                            error_message.set(Some(format!("Disconnected from lobby: {error}")));
+                            error_message.set((true, format!("Disconnected from lobby: {error}")));
                             is_connected.set(false);
                             break;
                         }
@@ -105,7 +143,7 @@ pub fn app(cx: Scope) -> Element {
                         is_connected.set(true);
                     }
                     Err(error) => {
-                        error_message.set(Some(format!("Failed to connect to lobby: {error}")));
+                        error_message.set((true, format!("Failed to connect to lobby: {error}")));
                     }
                 };
             });
@@ -135,20 +173,38 @@ pub fn app(cx: Scope) -> Element {
     });
 
     // Error dialog rendering
-    let show_dialog = error_message.get().is_some();
-    let error_msg = error_message.get().clone().unwrap_or_default();
+    let (show_error_dialog, error_dialog_message) = error_message.get().clone();
     let render_error_dialog = rsx! {
-        div { class: "error-dialog", top: if show_dialog { "50%" } else { "-100%" },
-            "{error_msg}"
-            button { onclick: move |_| error_message.set(None), "OK" }
+        div { class: "error-dialog", top: if show_error_dialog { "50%" } else { "-100%" },
+            "{error_dialog_message}"
+            button { onclick: move |_| error_message.set((false, error_dialog_message.clone())),
+                "OK"
+            }
         }
+    };
+
+    // Item reveal dialog rendering
+    let item_reveal_correct_class = if *item_reveal_correct {
+        "correct"
+    } else {
+        "incorrect"
+    };
+    let render_item_reveal_dialog = rsx! {
+        div { class: "item-reveal-dialog {item_reveal_correct_class}", top: if *show_item_message { "20%" } else { "-100%" }, "{item_reveal_str}" }
     };
 
     if *is_connected.get() {
         if let Some(lobby) = lobby_state.get() {
+            let sounds_str = sounds_to_play
+                .iter()
+                .map(|(expiry, sound)| format!("{};{}", expiry.round(), sound))
+                .collect::<Vec<String>>()
+                .join(",");
             cx.render(rsx! {
                 game_view(cx, player_name, lobby_id, lobby, disconnect, start),
-                render_error_dialog
+                render_error_dialog,
+                render_item_reveal_dialog,
+                div { id: "sounds", visibility: "collapse", position: "absolute", "{sounds_str}" }
             })
         } else {
             cx.render(rsx! { div { "Loading..." } })
@@ -330,7 +386,7 @@ pub async fn kick_player(lobby_id: String, player_name: String) -> Result<()> {
     Ok(())
 }
 
-async fn get_state(lobby_id: String, player_name: String) -> Result<Lobby> {
+async fn get_state(lobby_id: String, player_name: String) -> Result<(Lobby, Vec<PlayerMessage>)> {
     let lobbys = LOBBYS
         .get()
         .ok_or_else(|| anyhow::anyhow!("LOBBYS not initialized"))?;
@@ -347,10 +403,15 @@ async fn get_state(lobby_id: String, player_name: String) -> Result<Lobby> {
     // Update last contact time for the player and convert to minimal lobby
     player.last_contact = get_current_time();
 
-    // Return the entire state of the lobby
+    // Get then clear messages for player
+    let messages = player.messages.clone();
+    player.messages.clear();
+
+    // Return the entire state of the lobby and players messages
     let lobby = lobby.clone();
+
     drop(lobbys_lock);
-    Ok(lobby)
+    Ok((lobby, messages))
 }
 
 #[allow(clippy::cast_precision_loss)]

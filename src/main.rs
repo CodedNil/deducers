@@ -53,6 +53,7 @@ pub enum PlayerMessage {
     GameStart,
     CoinGiven,
     ItemGuessed(String, usize, String),
+    GuessIncorrect,
     ItemRemoved(usize, String),
 }
 
@@ -118,7 +119,6 @@ async fn main() {
                 <link rel="stylesheet" type="text/css" href="assets/style.css">
             </head>
             <body>
-                <audio id="button-click-sound" src="assets/sounds/button_pressed.mp3"></audio>
                 <div id="main"></div>
             </body>
             {glue}

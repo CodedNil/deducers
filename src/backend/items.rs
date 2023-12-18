@@ -275,6 +275,8 @@ pub async fn player_guess_item(
 
     // Match guess with item name
     if item.name.to_lowercase() != guess.to_lowercase() {
+        // Send message to player of incorrect guess
+        player.messages.push(PlayerMessage::GuessIncorrect);
         drop(lobbys_lock);
         return Err(anyhow::anyhow!("Incorrect guess"));
     }
