@@ -1,9 +1,10 @@
+use super::gameview::AlertPopup;
 use crate::{
     backend::{
         items::player_guess_item,
-        question_queue::{player_convert_score, player_submit_question},
+        question_queue::{convert_score, submit_question},
     },
-    lobby_utils::{get_current_time, Lobby},
+    lobby_utils::Lobby,
     ANONYMOUS_QUESTION_COST, GUESS_ITEM_COST, GUESS_ITEM_PATTERN, MAX_GUESS_ITEM_LENGTH, MAX_QUESTION_LENGTH, QUESTION_PATTERN,
     SCORE_TO_COINS_RATIO, SUBMIT_QUESTION_COST,
 };
@@ -15,7 +16,7 @@ pub fn render<'a>(
     player_name: &'a String,
     lobby_id: &'a str,
     lobby: &Lobby,
-    alert_popup: &'a UseState<Option<(f64, String)>>,
+    alert_popup: &'a UseState<AlertPopup>,
 ) -> Element<'a> {
     let question_submission: &UseState<String> = use_state(cx, String::new);
     let question_anonymous: &UseState<bool> = use_state(cx, || false);
@@ -32,20 +33,17 @@ pub fn render<'a>(
             gap: "5px",
             onsubmit: move |_| {
                 let (lobby_id, player_name) = (lobby_id.to_string(), player_name.clone());
-                let submission = question_submission.get().clone();
-                let anonymous = question_anonymous.clone();
+                let input = question_submission.get().clone();
+                let anon = question_anonymous.clone();
                 let alert_popup = alert_popup.clone();
                 cx.spawn(async move {
-                    match player_submit_question(lobby_id, player_name, submission, *anonymous.get())
-                        .await
+                    if let Err(error)
+                        = submit_question(lobby_id, player_name, input, *anon.get()).await
                     {
-                        Ok(()) => {
-                            anonymous.set(false);
-                        }
-                        Err(error) => {
-                            alert_popup.set(Some((get_current_time() + 5.0, format!("{error}"))));
-                        }
-                    };
+                        alert_popup.set(AlertPopup::error(&error));
+                    } else {
+                        anon.set(false);
+                    }
                 });
             },
             input {
@@ -76,12 +74,9 @@ pub fn render<'a>(
                     let (lobby_id, player_name) = (lobby_id.to_string(), player_name.clone());
                     let alert_popup = alert_popup.clone();
                     cx.spawn(async move {
-                        player_convert_score(lobby_id, player_name)
-                            .await
-                            .map_err(|error| {
-                                alert_popup.set(Some((get_current_time() + 5.0, format!("{error}"))));
-                            })
-                            .ok();
+                        if let Err(error) = convert_score(lobby_id, player_name).await {
+                            alert_popup.set(AlertPopup::error(&error));
+                        }
                     });
                 },
                 flex: "1",
@@ -97,12 +92,11 @@ pub fn render<'a>(
                 let item_guess = guess_item_submission.get().clone();
                 let alert_popup = alert_popup.clone();
                 cx.spawn(async move {
-                    player_guess_item(lobby_id, player_name, item_choice, item_guess)
-                        .await
-                        .map_err(|error| {
-                            alert_popup.set(Some((get_current_time() + 5.0, format!("{error}"))));
-                        })
-                        .ok();
+                    if let Err(error)
+                        = player_guess_item(lobby_id, player_name, item_choice, item_guess).await
+                    {
+                        alert_popup.set(AlertPopup::error(&error));
+                    }
                 });
             },
             input {

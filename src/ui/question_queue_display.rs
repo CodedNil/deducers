@@ -1,5 +1,5 @@
 use crate::{
-    backend::question_queue::player_vote_question,
+    backend::question_queue::vote_question,
     lobby_utils::{Lobby, QueuedQuestion},
     QUESTION_MIN_VOTES,
 };
@@ -23,7 +23,7 @@ pub fn render<'a>(cx: Scope<'a>, player_name: &'a String, lobby_id: &'a String, 
             let player_name = player_name.clone();
 
             cx.spawn(async move {
-                let _result = player_vote_question(lobby_id, player_name, question).await;
+                let _result = vote_question(lobby_id, player_name, question).await;
             });
         }
     };

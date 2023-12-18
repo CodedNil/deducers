@@ -2,7 +2,25 @@ use crate::{
     lobby_utils::{get_current_time, Lobby},
     ui::{items_display, leaderboard_display, management_display, question_queue_display},
 };
+use anyhow::Error;
 use dioxus::prelude::*;
+
+#[derive(Default)]
+pub struct AlertPopup {
+    shown: bool,
+    expiry: f64,
+    message: String,
+}
+
+impl AlertPopup {
+    pub fn error(error: &Error) -> Self {
+        Self {
+            shown: true,
+            expiry: get_current_time() + 5.0,
+            message: error.to_string(),
+        }
+    }
+}
 
 pub fn game_view<'a>(
     cx: Scope<'a>,
@@ -12,14 +30,9 @@ pub fn game_view<'a>(
     disconnect: Box<dyn Fn() + 'a>,
     start: Box<dyn Fn() + 'a>,
 ) -> Element<'a> {
-    let time = lobby.elapsed_time.round();
-    let alert_popup: &UseState<Option<(f64, String)>> = use_state(cx, || None::<(f64, String)>);
-
-    // Clear alert if time has passed
-    if let Some(alert_popup_contents) = alert_popup.get() {
-        if alert_popup_contents.0 < get_current_time() {
-            alert_popup.set(None);
-        }
+    let alert_popup: &UseState<AlertPopup> = use_state(cx, AlertPopup::default);
+    if alert_popup.get().expiry < get_current_time() {
+        alert_popup.set(AlertPopup::default());
     }
 
     cx.render(rsx! {
@@ -51,7 +64,7 @@ pub fn game_view<'a>(
                         }
                         p { font_weight: "bold",
                             "Time "
-                            span { font_weight: "normal", "{time}s" }
+                            span { font_weight: "normal", "{lobby.elapsed_time.round()}s" }
                         }
                         div { display: "flex", gap: "5px",
                             if lobby.key_player == *player_name && !lobby.started && !lobby.items_queue.is_empty() {
@@ -79,8 +92,8 @@ pub fn game_view<'a>(
                         gap: "5px",
                         management_display::render(cx, player_name, lobby_id, lobby, &alert_popup)
                     }
-                    if alert_popup.get().is_some() {
-                        let message = alert_popup.get().clone().unwrap_or_default().1;
+                    if alert_popup.get().shown {
+                        let message = alert_popup.get().message.clone();
                         rsx! {
                             div {
                                 class: "background-box alert",

@@ -1,13 +1,39 @@
 use crate::{
     backend::items,
-    lobby_utils::{get_current_time, get_time_diff, with_lobby_mut, with_player_mut, Lobby, Player, PlayerMessage, LOBBYS},
+    lobby_utils::{create_lobby, get_current_time, with_lobby_mut, with_player_mut, Lobby, Player, PlayerMessage},
     ui::gameview::game_view,
-    COINS_EVERY_X_SECONDS, IDLE_KICK_TIME, LOBBY_ID_PATTERN, MAX_LOBBY_ID_LENGTH, MAX_PLAYER_NAME_LENGTH, PLAYER_NAME_PATTERN,
-    QUESTION_MIN_VOTES, STARTING_COINS, SUBMIT_QUESTION_EVERY_X_SECONDS,
+    LOBBY_ID_PATTERN, MAX_LOBBY_ID_LENGTH, MAX_PLAYER_NAME_LENGTH, PLAYER_NAME_PATTERN, STARTING_COINS,
 };
 use anyhow::{anyhow, Result};
 use dioxus::prelude::*;
-use std::{collections::HashMap, time::Duration};
+use std::time::Duration;
+
+#[derive(Default)]
+struct ItemRevealMessage {
+    show: bool,
+    expiry: f64,
+    correct: bool,
+    str: String,
+}
+
+impl ItemRevealMessage {
+    fn render(&self) -> LazyNodes<'_, '_> {
+        let item_reveal_correct_class = if self.correct { "correct" } else { "incorrect" };
+        rsx! {div { class: "item-reveal-dialog {item_reveal_correct_class}", top: if self.show { "20%" } else { "-100%" }, "{self.str}" }}
+    }
+}
+
+#[derive(Default)]
+struct ErrorDialog {
+    show: bool,
+    str: String,
+}
+
+#[derive(Default, Clone, PartialEq)]
+struct SoundsQueue {
+    expiry: f64,
+    sound: String,
+}
 
 #[allow(clippy::too_many_lines, clippy::cast_possible_wrap)]
 pub fn app(cx: Scope) -> Element {
@@ -17,22 +43,25 @@ pub fn app(cx: Scope) -> Element {
 
     let lobby_state: &UseState<Option<Lobby>> = use_state(cx, || None::<Lobby>);
 
-    let error_message: &UseState<(bool, String)> = use_state(cx, || (false, String::new()));
+    let error_message: &UseState<ErrorDialog> = use_state(cx, ErrorDialog::default);
 
-    let item_reveal_message: &UseState<(bool, f64, bool, String)> = use_state(cx, || (false, 0.0, false, String::new()));
-    let (show_item_message, item_reveal_expiry, item_reveal_correct, item_reveal_str) = item_reveal_message.get();
     // Hide the item reveal message after 5 seconds
-    if *show_item_message && get_time_diff(*item_reveal_expiry) > 5.0 {
-        item_reveal_message.set((false, 0.0, *item_reveal_correct, item_reveal_str.clone()));
+    let item_reveal_message: &UseState<ItemRevealMessage> = use_state(cx, ItemRevealMessage::default);
+    if item_reveal_message.get().show && item_reveal_message.get().expiry > get_current_time() {
+        item_reveal_message.set(ItemRevealMessage {
+            show: false,
+            expiry: 0.0,
+            correct: item_reveal_message.get().correct,
+            str: item_reveal_message.get().str.clone(),
+        });
     }
 
-    let sounds_to_play: &UseState<Vec<(f64, String)>> = use_state(cx, Vec::new);
     // Remove expired sounds
-    let current_time = get_current_time();
+    let sounds_to_play: &UseState<Vec<SoundsQueue>> = use_state(cx, Vec::new);
     let sounds_to_play_vec = sounds_to_play.get().clone();
     let new_sounds_to_play_vec = sounds_to_play_vec
         .iter()
-        .filter(|(time, _)| current_time - time < 5.0)
+        .filter(|sound| sound.expiry > get_current_time())
         .cloned()
         .collect();
     if new_sounds_to_play_vec != sounds_to_play_vec {
@@ -42,8 +71,8 @@ pub fn app(cx: Scope) -> Element {
     // Process players messages
     let process_messages = {
         move |messages: Vec<PlayerMessage>,
-              sounds_to_play: &UseState<Vec<(f64, String)>>,
-              item_reveal_message: &UseState<(bool, f64, bool, String)>| {
+              sounds_to_play: &UseState<Vec<SoundsQueue>>,
+              item_reveal_message: &UseState<ItemRevealMessage>| {
             let mut new_sounds = Vec::new();
             for message in messages {
                 let sound = match message {
@@ -52,26 +81,29 @@ pub fn app(cx: Scope) -> Element {
                     PlayerMessage::GameStart => "game_start",
                     PlayerMessage::CoinGiven => "coin_added",
                     PlayerMessage::ItemGuessed(player_name, item_id, item_name) => {
-                        item_reveal_message.set((
-                            true,
-                            get_current_time(),
-                            true,
-                            format!("{player_name} guessed item {item_id} correctly as {item_name}!"),
-                        ));
+                        item_reveal_message.set(ItemRevealMessage {
+                            show: true,
+                            expiry: get_current_time() + 5.0,
+                            correct: true,
+                            str: format!("{player_name} guessed item {item_id} correctly as {item_name}!"),
+                        });
                         "guess_correct"
                     }
                     PlayerMessage::GuessIncorrect => "guess_incorrect",
                     PlayerMessage::ItemRemoved(item_id, item_name) => {
-                        item_reveal_message.set((
-                            true,
-                            get_current_time(),
-                            false,
-                            format!("Item {item_id} was removed from the game, it was {item_name}!"),
-                        ));
+                        item_reveal_message.set(ItemRevealMessage {
+                            show: true,
+                            expiry: get_current_time() + 5.0,
+                            correct: false,
+                            str: format!("Item {item_id} was removed from the game, it was {item_name}!"),
+                        });
                         "guess_incorrect"
                     }
                 };
-                new_sounds.push((get_current_time(), String::from(sound)));
+                new_sounds.push(SoundsQueue {
+                    expiry: get_current_time() + 5.0,
+                    sound: String::from(sound),
+                });
             }
             if !new_sounds.is_empty() {
                 let mut old_sounds = sounds_to_play.get().clone();
@@ -99,7 +131,10 @@ pub fn app(cx: Scope) -> Element {
                             lobby_state.set(Some(lobby));
                         }
                         Err(error) => {
-                            error_message.set((true, format!("Disconnected from lobby: {error}")));
+                            error_message.set(ErrorDialog {
+                                show: true,
+                                str: format!("Disconnected from lobby: {error}"),
+                            });
                             is_connected.set(false);
                             break;
                         }
@@ -131,34 +166,33 @@ pub fn app(cx: Scope) -> Element {
         });
     });
 
-    // Error dialog rendering
-    let (show_error_dialog, error_dialog_message) = error_message.get().clone();
     let render_error_dialog = rsx! {
-        div { class: "error-dialog", top: if show_error_dialog { "50%" } else { "-100%" },
-            "{error_dialog_message}"
-            button { onclick: move |_| error_message.set((false, error_dialog_message.clone())),
+        div { class: "error-dialog", top: if error_message.get().show { "50%" } else { "-100%" },
+            "{error_message.get().str}"
+            button {
+                onclick: move |_| {
+                    error_message
+                        .set(ErrorDialog {
+                            show: false,
+                            str: error_message.get().str.clone(),
+                        });
+                },
                 "OK"
             }
         }
-    };
-
-    // Item reveal dialog rendering
-    let item_reveal_correct_class = if *item_reveal_correct { "correct" } else { "incorrect" };
-    let render_item_reveal_dialog = rsx! {
-        div { class: "item-reveal-dialog {item_reveal_correct_class}", top: if *show_item_message { "20%" } else { "-100%" }, "{item_reveal_str}" }
     };
 
     if *is_connected.get() {
         if let Some(lobby) = lobby_state.get() {
             let sounds_str = sounds_to_play
                 .iter()
-                .map(|(expiry, sound)| format!("{};{}", expiry.round(), sound))
+                .map(|sound| format!("{};{}", sound.expiry.round(), sound.sound))
                 .collect::<Vec<String>>()
                 .join(",");
             cx.render(rsx! {
                 game_view(cx, player_name, lobby_id, lobby, disconnect, start),
                 render_error_dialog,
-                render_item_reveal_dialog,
+                item_reveal_message.render(),
                 div { id: "sounds", visibility: "collapse", position: "absolute", "{sounds_str}" }
             })
         } else {
@@ -168,7 +202,6 @@ pub fn app(cx: Scope) -> Element {
         cx.render(rsx! {
             form {
                 class: "login-dialog",
-
                 onsubmit: move |_| {
                     let player_name = player_name.clone();
                     let lobby_id = lobby_id.clone();
@@ -176,20 +209,20 @@ pub fn app(cx: Scope) -> Element {
                     let error_message = error_message.clone();
                     lobby_state.set(None);
                     cx.spawn(async move {
-                        match connect_player(lobby_id.get().to_string(), player_name.get().to_string())
-                            .await
+                        if let Err(error)
+                            = connect_player(lobby_id.get().to_string(), player_name.get().to_string())
+                                .await
                         {
-                            Ok(()) => {
-                                is_connected.set(true);
-                            }
-                            Err(error) => {
-                                error_message
-                                    .set((true, format!("Failed to connect to lobby: {error}")));
-                            }
-                        };
+                            error_message
+                                .set(ErrorDialog {
+                                    show: true,
+                                    str: format!("Failed to connect to lobby: {error}"),
+                                });
+                        } else {
+                            is_connected.set(true);
+                        }
                     });
                 },
-
                 input {
                     r#type: "text",
                     placeholder: "Player Name",
@@ -199,7 +232,6 @@ pub fn app(cx: Scope) -> Element {
                         player_name.set(e.value.clone());
                     }
                 }
-
                 input {
                     r#type: "text",
                     placeholder: "Lobby Id",
@@ -209,10 +241,8 @@ pub fn app(cx: Scope) -> Element {
                         lobby_id.set(e.value.clone());
                     }
                 }
-
                 button { r#type: "submit", "Connect" }
             }
-
             render_error_dialog
         })
     }
@@ -236,46 +266,25 @@ async fn connect_player(lobby_id: String, player_name: String) -> Result<()> {
         return Err(anyhow!("Player name must be alphanumeric"));
     }
 
-    let lobbys = LOBBYS.get().ok_or_else(|| anyhow::anyhow!("LOBBYS not initialized"))?;
-    let mut lobbys_lock = lobbys.lock().await;
+    create_lobby(&lobby_id, player_name.clone()).await?;
 
-    // Get the lobby or create a new one
-    let lobby = lobbys_lock.entry(lobby_id.clone()).or_insert_with(|| {
-        println!("Creating new lobby '{lobby_id}'");
-        Lobby {
-            started: false,
-            elapsed_time: 0.0,
-            last_update: get_current_time(),
-            key_player: player_name.clone(),
-            players: HashMap::new(),
-            questions_queue: Vec::new(),
-            questions_queue_waiting: true,
-            questions_queue_countdown: SUBMIT_QUESTION_EVERY_X_SECONDS,
-            items: Vec::new(),
-            items_history: Vec::new(),
-            items_queue: Vec::new(),
-            last_add_to_queue: -10.0,
-            questions_counter: 0,
+    with_lobby_mut(&lobby_id, |lobby| {
+        if lobby.players.contains_key(&player_name) {
+            return Err(anyhow!("Player '{player_name}' is already connected to lobby '{lobby_id}'"));
         }
-    });
 
-    // Check if player with the same name is already connected
-    if lobby.players.contains_key(&player_name) {
-        drop(lobbys_lock);
-        return Err(anyhow!("Player '{player_name}' is already connected to lobby '{lobby_id}'"));
-    }
+        lobby.players.entry(player_name.clone()).or_insert(Player {
+            name: player_name.clone(),
+            last_contact: get_current_time(),
+            score: 0,
+            coins: STARTING_COINS,
+            messages: Vec::new(),
+        });
 
-    // Add the player to the lobby
-    lobby.players.entry(player_name.clone()).or_insert(Player {
-        name: player_name.clone(),
-        last_contact: get_current_time(),
-        score: 0,
-        coins: STARTING_COINS,
-        messages: Vec::new(),
-    });
-
-    println!("Player '{player_name}' connected to lobby '{lobby_id}'");
-    Ok(())
+        println!("Player '{player_name}' connected to lobby '{lobby_id}'");
+        Ok(())
+    })
+    .await
 }
 
 async fn disconnect_player(lobby_id: String, player_name: String) -> Result<()> {
@@ -299,12 +308,10 @@ async fn start_lobby(lobby_id: String, player_name: String) -> Result<()> {
         lobby.started = true;
         lobby.last_update = get_current_time();
 
-        // Send message to all players of game started
         for player in lobby.players.values_mut() {
             player.messages.push(PlayerMessage::GameStart);
         }
 
-        // Add 2 items to the lobby
         items::add_item_to_lobby(lobby);
         items::add_item_to_lobby(lobby);
 
@@ -317,7 +324,6 @@ async fn start_lobby(lobby_id: String, player_name: String) -> Result<()> {
 pub async fn kick_player(lobby_id: String, player_name: String) -> Result<()> {
     with_lobby_mut(&lobby_id, |lobby| {
         lobby.players.remove(&player_name);
-
         println!("Lobby '{lobby_id}' player '{player_name}' kicked by key player");
         Ok(())
     })
@@ -326,88 +332,10 @@ pub async fn kick_player(lobby_id: String, player_name: String) -> Result<()> {
 
 async fn get_state(lobby_id: String, player_name: String) -> Result<(Lobby, Vec<PlayerMessage>)> {
     with_player_mut(&lobby_id, &player_name, |lobby, player| {
-        // Update last contact time for the player and convert to minimal lobby
         player.last_contact = get_current_time();
-
-        // Get then clear messages for player
         let messages = player.messages.clone();
         player.messages.clear();
         Ok((lobby, messages))
     })
     .await
-}
-
-pub async fn lobby_loop() {
-    let lobbys = LOBBYS.get().unwrap();
-    let mut lobbys_lock = lobbys.lock().await;
-
-    // Iterate through lobbys to update or remove
-    lobbys_lock.retain(|lobby_id, lobby| {
-        let current_time = get_current_time();
-
-        // Remove inactive players and check if key player is active
-        lobby.players.retain(|player_id, player| {
-            if get_time_diff(player.last_contact) > IDLE_KICK_TIME {
-                // Log player kicking due to inactivity
-                println!("Kicking player '{player_id}' due to idle");
-                false
-            } else {
-                true
-            }
-        });
-        let key_player_active = lobby.players.contains_key(&lobby.key_player);
-
-        // Remove lobby if key player is inactive or no players are left
-        if !key_player_active || lobby.players.is_empty() {
-            println!("Removing lobby '{lobby_id}' due to no key player or no players");
-            false
-        } else {
-            // Add more items to the lobby's item queue if it's low
-            let time_since_last_add_to_queue = get_time_diff(lobby.last_add_to_queue);
-            if lobby.items_queue.len() < 3 && time_since_last_add_to_queue > 10.0 {
-                lobby.last_add_to_queue = current_time;
-                let lobby_id_clone = lobby_id.clone();
-                let history_clone = lobby.items_history.clone();
-                tokio::spawn(async move {
-                    items::add_item_to_queue(lobby_id_clone, history_clone, 0).await;
-                });
-            }
-
-            // Update lobby state if lobby is started
-            if lobby.started {
-                let elapsed_time_update = get_time_diff(lobby.last_update);
-
-                // Distribute coins if the elapsed time has crossed a multiple of COINS_EVERY_X_SECONDS
-                let previous_coin_multiple = lobby.elapsed_time / COINS_EVERY_X_SECONDS;
-                let current_coin_multiple = (lobby.elapsed_time + elapsed_time_update) / COINS_EVERY_X_SECONDS;
-                if current_coin_multiple.trunc() > previous_coin_multiple.trunc() {
-                    for player in lobby.players.values_mut() {
-                        player.coins += 1;
-                        player.messages.push(PlayerMessage::CoinGiven);
-                    }
-                }
-
-                // If lobby has a queued question with at least QUESTION_MIN_VOTES votes, tick it down, else reset
-                if lobby.questions_queue.iter().any(|q| q.votes >= QUESTION_MIN_VOTES) {
-                    lobby.questions_queue_waiting = false;
-                    lobby.questions_queue_countdown -= elapsed_time_update;
-                    if lobby.questions_queue_countdown <= 0.0 {
-                        lobby.questions_queue_countdown += SUBMIT_QUESTION_EVERY_X_SECONDS;
-                        let lobby_id_clone = lobby_id.clone();
-                        tokio::spawn(async move {
-                            let _result = items::ask_top_question(lobby_id_clone).await;
-                        });
-                    }
-                } else {
-                    lobby.questions_queue_waiting = true;
-                    lobby.questions_queue_countdown = SUBMIT_QUESTION_EVERY_X_SECONDS;
-                }
-
-                // Update the elapsed time and last update time for the lobby
-                lobby.elapsed_time += elapsed_time_update;
-                lobby.last_update = current_time;
-            }
-            true
-        }
-    });
 }

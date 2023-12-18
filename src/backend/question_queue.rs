@@ -6,7 +6,7 @@ use crate::{
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
-pub async fn player_submit_question(lobby_id: String, player_name: String, question: String, anonymous: bool) -> Result<()> {
+pub async fn submit_question(lobby_id: String, player_name: String, question: String, anonymous: bool) -> Result<()> {
     let total_cost = if anonymous {
         SUBMIT_QUESTION_COST + ANONYMOUS_QUESTION_COST
     } else {
@@ -34,7 +34,7 @@ pub async fn player_submit_question(lobby_id: String, player_name: String, quest
     .await?;
 
     // Validate the question
-    let validate_response = is_valid_question(&question).await;
+    let validate_response = validate_question(&question).await;
     if !validate_response.suitable {
         return Err(anyhow::anyhow!("{}", validate_response.reasoning));
     }
@@ -82,7 +82,7 @@ struct ValidateQuestionResponse {
     reasoning: String,
 }
 
-async fn is_valid_question(question: &str) -> ValidateQuestionResponse {
+async fn validate_question(question: &str) -> ValidateQuestionResponse {
     let trimmed = question.trim();
     let length = trimmed.len();
 
@@ -117,7 +117,7 @@ async fn is_valid_question(question: &str) -> ValidateQuestionResponse {
     }
 }
 
-pub async fn player_vote_question(lobby_id: String, player_name: String, question: String) -> Result<()> {
+pub async fn vote_question(lobby_id: String, player_name: String, question: String) -> Result<()> {
     with_lobby_mut(&lobby_id, |lobby| {
         let player = lobby
             .players
@@ -145,7 +145,7 @@ pub async fn player_vote_question(lobby_id: String, player_name: String, questio
     .await
 }
 
-pub async fn player_convert_score(lobby_id: String, player_name: String) -> Result<()> {
+pub async fn convert_score(lobby_id: String, player_name: String) -> Result<()> {
     with_player_mut(&lobby_id, &player_name, |lobby, player| {
         if !lobby.started {
             return Err(anyhow::anyhow!("Lobby not started"));
