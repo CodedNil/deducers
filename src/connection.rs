@@ -42,34 +42,23 @@ pub fn app(cx: Scope) -> Element {
         move |messages: Vec<PlayerMessage>,
               sounds_to_play: &UseState<Vec<(f64, String)>>,
               item_reveal_message: &UseState<(bool, f64, bool, String)>| {
-            let old_sounds = sounds_to_play.get().clone();
-            let mut new_sounds = old_sounds.clone();
+            let mut new_sounds = Vec::new();
             for message in messages {
-                match message {
-                    PlayerMessage::ItemAdded => {
-                        new_sounds.push((get_current_time(), String::from("item_added")));
-                    }
-                    PlayerMessage::QuestionAsked => {
-                        new_sounds.push((get_current_time(), String::from("question_added")));
-                    }
-                    PlayerMessage::GameStart => {
-                        new_sounds.push((get_current_time(), String::from("game_start")));
-                    }
-                    PlayerMessage::CoinGiven => {
-                        new_sounds.push((get_current_time(), String::from("coin_added")));
-                    }
+                let sound = match message {
+                    PlayerMessage::ItemAdded => "item_added",
+                    PlayerMessage::QuestionAsked => "question_added",
+                    PlayerMessage::GameStart => "game_start",
+                    PlayerMessage::CoinGiven => "coin_added",
                     PlayerMessage::ItemGuessed(player_name, item_id, item_name) => {
-                        new_sounds.push((get_current_time(), String::from("guess_correct")));
                         item_reveal_message.set((
                             true,
                             get_current_time(),
                             true,
                             format!("{player_name} guessed item {item_id} correctly as {item_name}!"),
                         ));
+                        "guess_correct"
                     }
-                    PlayerMessage::GuessIncorrect => {
-                        new_sounds.push((get_current_time(), String::from("guess_incorrect")));
-                    }
+                    PlayerMessage::GuessIncorrect => "guess_incorrect",
                     PlayerMessage::ItemRemoved(item_id, item_name) => {
                         item_reveal_message.set((
                             true,
@@ -77,11 +66,15 @@ pub fn app(cx: Scope) -> Element {
                             false,
                             format!("Item {item_id} was removed from the game, it was {item_name}!"),
                         ));
+                        "guess_incorrect"
                     }
-                }
+                };
+                new_sounds.push((get_current_time(), String::from(sound)));
             }
-            if new_sounds != old_sounds {
-                sounds_to_play.set(new_sounds);
+            if !new_sounds.is_empty() {
+                let mut old_sounds = sounds_to_play.get().clone();
+                old_sounds.extend(new_sounds);
+                sounds_to_play.set(old_sounds);
             }
         }
     };
@@ -115,27 +108,6 @@ pub fn app(cx: Scope) -> Element {
             }
         });
     }
-
-    let connect = {
-        move || {
-            let player_name = player_name.clone();
-            let lobby_id = lobby_id.clone();
-            let is_connected = is_connected.clone();
-            let error_message = error_message.clone();
-            lobby_state.set(None);
-
-            cx.spawn(async move {
-                match connect_player(lobby_id.get().to_string(), player_name.get().to_string()).await {
-                    Ok(()) => {
-                        is_connected.set(true);
-                    }
-                    Err(error) => {
-                        error_message.set((true, format!("Failed to connect to lobby: {error}")));
-                    }
-                };
-            });
-        }
-    };
 
     let disconnect = Box::new(move || {
         let player_name = player_name.clone();
@@ -196,7 +168,24 @@ pub fn app(cx: Scope) -> Element {
                 class: "login-dialog",
 
                 onsubmit: move |_| {
-                    connect();
+                    let player_name = player_name.clone();
+                    let lobby_id = lobby_id.clone();
+                    let is_connected = is_connected.clone();
+                    let error_message = error_message.clone();
+                    lobby_state.set(None);
+                    cx.spawn(async move {
+                        match connect_player(lobby_id.get().to_string(), player_name.get().to_string())
+                            .await
+                        {
+                            Ok(()) => {
+                                is_connected.set(true);
+                            }
+                            Err(error) => {
+                                error_message
+                                    .set((true, format!("Failed to connect to lobby: {error}")));
+                            }
+                        };
+                    });
                 },
 
                 input {
@@ -371,6 +360,17 @@ pub async fn lobby_loop() {
             println!("Removing lobby '{lobby_id}' due to no key player or no players");
             false
         } else {
+            // Add more items to the lobby's item queue if it's low
+            let time_since_last_add_to_queue = get_time_diff(lobby.last_add_to_queue);
+            if lobby.items_queue.len() < 3 && time_since_last_add_to_queue > 10.0 {
+                lobby.last_add_to_queue = current_time;
+                let lobby_id_clone = lobby_id.clone();
+                let history_clone = lobby.items_history.clone();
+                tokio::spawn(async move {
+                    items::add_item_to_queue(lobby_id_clone, history_clone, 0).await;
+                });
+            }
+
             // Update lobby state if lobby is started
             if lobby.started {
                 let elapsed_time_update = get_time_diff(lobby.last_update);
@@ -399,17 +399,6 @@ pub async fn lobby_loop() {
                 } else {
                     lobby.questions_queue_waiting = true;
                     lobby.questions_queue_countdown = SUBMIT_QUESTION_EVERY_X_SECONDS;
-                }
-
-                // Add more items to the lobby's item queue if it's low
-                let time_since_last_add_to_queue = get_time_diff(lobby.last_add_to_queue);
-                if lobby.items_queue.len() < 3 && time_since_last_add_to_queue > 5.0 {
-                    lobby.last_add_to_queue = current_time;
-                    let lobby_id_clone = lobby_id.clone();
-                    let history_clone = lobby.items_history.clone();
-                    tokio::spawn(async move {
-                        items::add_item_to_queue(lobby_id_clone, history_clone, 0).await;
-                    });
                 }
 
                 // Update the elapsed time and last update time for the lobby

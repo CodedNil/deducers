@@ -6,6 +6,7 @@ use crate::{
     get_current_time, Lobby, ANONYMOUS_QUESTION_COST, GUESS_ITEM_COST, GUESS_ITEM_PATTERN, MAX_GUESS_ITEM_LENGTH, MAX_QUESTION_LENGTH,
     QUESTION_PATTERN, SCORE_TO_COINS_RATIO, SUBMIT_QUESTION_COST,
 };
+use anyhow::Error;
 use dioxus::prelude::*;
 
 #[allow(clippy::too_many_lines, clippy::cast_possible_wrap)]
@@ -22,13 +23,43 @@ pub fn render<'a>(
     let guess_item_key: &UseState<usize> = use_state(cx, || 1);
 
     let submit_cost = SUBMIT_QUESTION_COST + if *question_anonymous.get() { ANONYMOUS_QUESTION_COST } else { 0 };
-
     let players_coins = lobby.players.get(player_name).unwrap().coins;
+
+    let handle_error = |error: Error| {
+        alert_popup.set(Some((get_current_time() + 5.0, error.to_string())));
+    };
 
     cx.render(rsx! {
         div { align_self: "center", font_size: "larger", "{players_coins}🪙 Available" }
-        div { display: "flex", gap: "5px",
+        form {
+            display: "flex",
+            gap: "5px",
+            onsubmit: move |_| {
+                let lobby_id = lobby_id.to_string();
+                let player_name = player_name.clone();
+                let question_submission = question_submission.get().clone();
+                let question_anonymous = question_anonymous.clone();
+                let alert_popup = alert_popup.clone();
+                cx.spawn(async move {
+                    match player_submit_question(
+                            lobby_id,
+                            player_name,
+                            question_submission,
+                            *question_anonymous.get(),
+                        )
+                        .await
+                    {
+                        Ok(()) => {
+                            question_anonymous.set(false);
+                        }
+                        Err(error) => {
+                            alert_popup.set(Some((get_current_time() + 5.0, format!("{error}"))));
+                        }
+                    };
+                });
+            },
             input {
+                r#type: "text",
                 placeholder: "Question To Ask",
                 flex: "1",
                 pattern: QUESTION_PATTERN,
@@ -37,33 +68,7 @@ pub fn render<'a>(
                     question_submission.set(e.value.clone());
                 }
             }
-            button {
-                onclick: move |_| {
-                    let lobby_id = lobby_id.to_string();
-                    let player_name = player_name.clone();
-                    let question_submission = question_submission.get().clone();
-                    let question_anonymous = question_anonymous.clone();
-                    let alert_popup = alert_popup.clone();
-                    cx.spawn(async move {
-                        match player_submit_question(
-                                lobby_id,
-                                player_name,
-                                question_submission,
-                                *question_anonymous.get(),
-                            )
-                            .await
-                        {
-                            Ok(()) => {
-                                question_anonymous.set(false);
-                            }
-                            Err(error) => {
-                                alert_popup.set(Some((get_current_time() + 5.0, format!("{error}"))));
-                            }
-                        };
-                    });
-                },
-                "Submit Question {submit_cost}🪙"
-            }
+            button { r#type: "submit", "Submit Question {submit_cost}🪙" }
         }
         div { display: "flex", gap: "5px", justify_content: "center",
             input {
@@ -82,20 +87,38 @@ pub fn render<'a>(
                     let player_name = player_name.clone();
                     let alert_popup = alert_popup.clone();
                     cx.spawn(async move {
-                        match player_convert_score(lobby_id, player_name).await {
-                            Ok(()) => {}
-                            Err(error) => {
+                        player_convert_score(lobby_id, player_name)
+                            .await
+                            .map_err(|error| {
                                 alert_popup.set(Some((get_current_time() + 5.0, format!("{error}"))));
-                            }
-                        };
+                            })
+                            .ok();
                     });
                 },
                 flex: "1",
                 "Convert Leaderboard Score To {SCORE_TO_COINS_RATIO}🪙"
             }
         }
-        div { display: "flex", gap: "5px",
+        form {
+            display: "flex",
+            gap: "5px",
+            onsubmit: move |_| {
+                let lobby_id = lobby_id.to_string();
+                let player_name = player_name.clone();
+                let item_choice = *guess_item_key.get();
+                let item_guess = guess_item_submission.get().clone();
+                let alert_popup = alert_popup.clone();
+                cx.spawn(async move {
+                    player_guess_item(lobby_id, player_name, item_choice, item_guess)
+                        .await
+                        .map_err(|error| {
+                            alert_popup.set(Some((get_current_time() + 5.0, format!("{error}"))));
+                        })
+                        .ok();
+                });
+            },
             input {
+                r#type: "text",
                 placeholder: "Guess Item",
                 flex: "1",
                 maxlength: MAX_GUESS_ITEM_LENGTH as i64,
@@ -116,24 +139,7 @@ pub fn render<'a>(
                     }
                 })
             }
-            button {
-                onclick: move |_| {
-                    let lobby_id = lobby_id.to_string();
-                    let player_name = player_name.clone();
-                    let item_choice = *guess_item_key.get();
-                    let item_guess = guess_item_submission.get().clone();
-                    let alert_popup = alert_popup.clone();
-                    cx.spawn(async move {
-                        match player_guess_item(lobby_id, player_name, item_choice, item_guess).await {
-                            Ok(()) => {}
-                            Err(error) => {
-                                alert_popup.set(Some((get_current_time() + 5.0, format!("{error}"))));
-                            }
-                        };
-                    });
-                },
-                "Submit Guess {GUESS_ITEM_COST}🪙"
-            }
+            button { r#type: "submit", "Submit Guess {GUESS_ITEM_COST}🪙" }
         }
     })
 }
