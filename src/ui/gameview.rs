@@ -93,14 +93,13 @@ pub fn game_view<'a>(
                         management_display::render(cx, player_name, lobby_id, lobby, &alert_popup)
                     }
                     if alert_popup.get().shown {
-                        let message = alert_popup.get().message.clone();
                         rsx! {
                             div {
                                 class: "background-box alert",
                                 display: "flex",
                                 flex_direction: "column",
                                 gap: "5px",
-                                "{message}"
+                                "{alert_popup.get().message}"
                             }
                         }
                     }

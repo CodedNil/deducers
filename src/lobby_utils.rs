@@ -72,11 +72,22 @@ pub struct Question {
     pub anonymous: bool,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Answer {
     Yes,
     No,
     Maybe,
+}
+
+impl Answer {
+    pub fn from_str(s: &str) -> Option<Self> {
+        match s.to_lowercase().as_str() {
+            "yes" => Some(Self::Yes),
+            "no" => Some(Self::No),
+            "maybe" => Some(Self::Maybe),
+            _ => None,
+        }
+    }
 }
 
 static LOBBYS: OnceLock<Arc<Mutex<HashMap<String, Lobby>>>> = OnceLock::new();

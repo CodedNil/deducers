@@ -51,10 +51,15 @@ pub fn render<'a>(cx: Scope<'a>, player_name: &'a String, lobby_id: &'a String, 
                 "table-body-box"
             };
             let question_string = question.question.clone();
+            let question_text = if question.anonymous && question.player != *player_name {
+                "ANONYMOUS".to_string()
+            } else {
+                question.question.clone()
+            };
             rsx! {
                 div { class: "table-row",
                     div { class: row_class, flex: "1", "{question.player}" }
-                    div { class: row_class, flex: "3", "{question.question}" }
+                    div { class: row_class, flex: "3", "{question_text}" }
                     div {
                         class: row_class,
                         flex: "1",

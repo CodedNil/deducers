@@ -25,7 +25,7 @@ pub fn render<'a>(cx: Scope<'a>, player_name: &String, lobby: &Lobby) -> Element
                 if question_player_name == *player_name {
                     question.question.clone()
                 } else {
-                    format!("ANONYMOUS - {player_name}")
+                    format!("ANONYMOUS - {question_player_name}")
                 }
             } else {
                 question.question.clone()

@@ -4,7 +4,9 @@ use crate::{
     ADD_ITEM_EVERY_X_QUESTIONS, GUESS_ITEM_COST, QUESTION_MIN_VOTES, SUBMIT_QUESTION_EVERY_X_SECONDS,
 };
 use anyhow::Result;
+use futures::future::join_all;
 use serde::Deserialize;
+use std::collections::HashMap;
 
 const MAX_RECURSIONS: u32 = 4; // Maximum for recursion depth for adding items
 
@@ -96,6 +98,7 @@ struct AskQuestionResponse {
     answers: Vec<String>,
 }
 
+#[allow(clippy::too_many_lines)]
 pub async fn ask_top_question(lobby_id: String) -> Result<()> {
     let (mut question_text, mut question_player, mut question_anonymous) = (String::new(), String::new(), false);
     let mut question_id = 0;
@@ -135,34 +138,55 @@ pub async fn ask_top_question(lobby_id: String) -> Result<()> {
     let items_str = items.iter().map(|item| item.name.as_str()).collect::<Vec<&str>>().join(", ");
 
     // Query with OpenAI API
-    let mut answers = Vec::new();
-    let mut attempt_count = 0;
-    while attempt_count < 4 && answers.len() != items.len() {
-        let response = query_ai(
-            &format!("u:For each item in this list '{items_str}', answer the question '{question_text}', return compact one line JSON with key answers which is a list of yes, no or maybe, this is a 20 questions game, British English"),
-            100,
-            1.0,
-        )
-        .await;
+    // Get 3 answers for each item to pick the most common answer
+    let mut answers_choices: Vec<Vec<Answer>> = Vec::new();
+    let mut successful_attempts = 0;
+    let mut total_attempts = 0;
 
-        if let Ok(message) = response {
-            if let Ok(validate_response) = serde_json::from_str::<AskQuestionResponse>(&message) {
-                answers.clear();
-                for answer in validate_response.answers {
-                    let answer = match answer.to_lowercase().trim() {
-                        "yes" => Answer::Yes,
-                        "no" => Answer::No,
-                        "maybe" => Answer::Maybe,
-                        _ => continue,
-                    };
-                    answers.push(answer);
-                }
-            } else {
-                println!("Failed to parse answer response {message}");
-            }
+    let prompt = format!("u:For each item in this list '{items_str}', answer the question '{question_text}', return compact one line JSON with key answers which is a list of yes, no or maybe, this is a 20 questions game, British English");
+    while successful_attempts < 3 && total_attempts < 3 {
+        let mut futures = Vec::new();
+        for _ in 0..3 {
+            let future = query_ai(&prompt, 100, 1.0);
+            futures.push(future);
         }
 
-        attempt_count += 1;
+        let responses: Vec<Result<String>> = join_all(futures).await;
+        for response in responses.into_iter().flatten() {
+            if let Ok(validate_response) = serde_json::from_str::<AskQuestionResponse>(&response) {
+                let mut choices = Vec::new();
+                for answer_str in validate_response.answers {
+                    if let Some(answer) = Answer::from_str(&answer_str) {
+                        choices.push(answer);
+                    }
+                }
+                if choices.len() == items.len() {
+                    answers_choices.push(choices);
+                    successful_attempts += 1;
+                }
+            } else {
+                println!("Failed to parse answer response {response}");
+            }
+        }
+        total_attempts += 1;
+    }
+
+    // Get most common answer for each item
+    let mut answers: Vec<Answer> = Vec::new();
+    for item_index in 0..items.len() {
+        let mut answer_frequency: HashMap<Answer, usize> = HashMap::new();
+
+        for answers in &answers_choices {
+            let answer = answers.get(item_index).expect("Answers should have the same length as items");
+            *answer_frequency.entry(answer.clone()).or_insert(0) += 1;
+        }
+
+        let most_common_answer = answer_frequency
+            .into_iter()
+            .max_by(|a, b| a.1.cmp(&b.1))
+            .map_or(Answer::Maybe, |(ans, _)| ans);
+
+        answers.push(most_common_answer);
     }
 
     with_lobby_mut(&lobby_id, |lobby| {
