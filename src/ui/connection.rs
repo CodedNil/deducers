@@ -225,6 +225,7 @@ pub fn app(cx: Scope) -> Element {
             cx.render(rsx! { div { "Loading" } })
         }
     } else {
+        let is_lobby_valid = lobby_info.get().iter().any(|lobby| lobby.id == *lobby_id.get());
         cx.render(rsx! {
             div {
                 display: "flex",
@@ -259,7 +260,7 @@ pub fn app(cx: Scope) -> Element {
                                         }
                                     });
                                 },
-                                "Connect"
+                                "Join"
                             }
                         }
                     }
@@ -305,7 +306,9 @@ pub fn app(cx: Scope) -> Element {
                             lobby_id.set(e.value.clone());
                         }
                     }
-                    button { r#type: "submit", "Connect" }
+                    button { r#type: "submit",
+                        if is_lobby_valid { "Join" } else { "Create Lobby" }
+                    }
                 }
             }
             render_error_dialog
