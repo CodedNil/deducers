@@ -1,9 +1,9 @@
+use crate::ui::connection::app;
 use axum::{extract::ws::WebSocketUpgrade, response::Html, routing::get, Router};
 use std::{env, time::Duration};
 use tower_http::services::ServeDir;
 
 mod backend;
-mod connection;
 mod lobby_utils;
 mod ui;
 
@@ -50,6 +50,7 @@ async fn main() {
             <head>
                 <title>Deducers</title>
                 <meta name="darkreader-lock">
+                <link rel="icon" href="/assets/favicon.ico" type="image/x-icon">
                 <link rel="stylesheet" type="text/css" href="assets/style.css">
             </head>
             <body>
@@ -75,7 +76,7 @@ async fn main() {
             "/ws",
             get(move |ws: WebSocketUpgrade| async move {
                 ws.on_upgrade(move |socket| async move {
-                    _ = view.launch(dioxus_liveview::axum_socket(socket), connection::app).await;
+                    _ = view.launch(dioxus_liveview::axum_socket(socket), app).await;
                 })
             }),
         )

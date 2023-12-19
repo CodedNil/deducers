@@ -22,7 +22,13 @@ struct ItemRevealMessage {
 impl ItemRevealMessage {
     fn render(&self) -> LazyNodes<'_, '_> {
         let item_reveal_correct_class = if self.correct { "correct" } else { "incorrect" };
-        rsx! {div { class: "dialog floating item-reveal {item_reveal_correct_class}", top: if self.show { "20%" } else { "-100%" }, "{self.str}" }}
+        rsx! {
+            div {
+                class: "dialog floating item-reveal {item_reveal_correct_class}",
+                top: if self.show { "20%" } else { "-100%" },
+                "{self.str}"
+            }
+        }
     }
 }
 
@@ -216,7 +222,7 @@ pub fn app(cx: Scope) -> Element {
                 div { id: "sounds", visibility: "collapse", position: "absolute", "{sounds_str}" }
             })
         } else {
-            cx.render(rsx! { div { "Loading..." } })
+            cx.render(rsx! { div { "Loading" } })
         }
     } else {
         cx.render(rsx! {
@@ -225,8 +231,8 @@ pub fn app(cx: Scope) -> Element {
                 flex_direction: "column",
                 align_items: "center",
                 gap: "10px",
-                justify_content: "center",
                 height: "calc(100vh - 40px)",
+                img { src: "/assets/deducers_banner2.png", width: "400px", padding: "20px" }
                 div { class: "background-box", display: "flex", flex_direction: "column", gap: "5px",
                     for lobby in lobby_info.get() {
                         div { display: "flex", flex_direction: "row", align_items: "center", gap: "5px",
