@@ -1,7 +1,6 @@
 use crate::{
     backend::question_queue::vote_question,
     lobby_utils::{Lobby, QueuedQuestion},
-    QUESTION_MIN_VOTES,
 };
 use dioxus::prelude::*;
 
@@ -29,7 +28,7 @@ pub fn render<'a>(cx: Scope<'a>, player_name: &'a String, lobby_id: &'a String, 
     };
 
     let top_text = if lobby.questions_queue_waiting {
-        format!("Top Question Submitted After {QUESTION_MIN_VOTES} Votes")
+        format!("Top Question Submitted After {} Votes", lobby.settings.question_min_votes)
     } else {
         format!("Top Question Submitted in {} Seconds", lobby.questions_queue_countdown.round())
     };

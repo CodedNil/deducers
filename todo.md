@@ -2,6 +2,7 @@ When item is guessed, pop out the coins on the display and have them float into 
 Background music
 Start sound isnt great
 Add chat
+Advanced settings
 
 Help ? button
 

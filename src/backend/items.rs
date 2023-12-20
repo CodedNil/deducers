@@ -2,7 +2,6 @@ use crate::{
     backend::openai::query_ai,
     backend::parse_words::WORD_SETS,
     lobby_utils::{with_lobby_mut, with_player_mut, Answer, Difficulty, Item, Lobby, PlayerMessage, Question},
-    ADD_ITEM_EVERY_X_QUESTIONS, GUESS_ITEM_COST, QUESTION_MIN_VOTES, SUBMIT_QUESTION_EVERY_X_SECONDS,
 };
 use anyhow::Result;
 use futures::future::join_all;
@@ -60,7 +59,7 @@ struct AskQuestionResponse {
     answers: Vec<String>,
 }
 
-#[allow(clippy::too_many_lines)]
+#[allow(clippy::too_many_lines, clippy::cast_precision_loss)]
 pub async fn ask_top_question(lobby_id: String) -> Result<()> {
     let (mut question_text, mut question_player, mut question_anonymous) = (String::new(), String::new(), false);
     let mut question_id = 0;
@@ -73,8 +72,11 @@ pub async fn ask_top_question(lobby_id: String) -> Result<()> {
             .max_by_key(|question| question.votes)
             .ok_or_else(|| anyhow::anyhow!("No questions in queue"))?;
 
-        if question.votes < QUESTION_MIN_VOTES {
-            return Err(anyhow::anyhow!("Question needs at least {QUESTION_MIN_VOTES} votes"));
+        if question.votes < lobby.settings.question_min_votes {
+            return Err(anyhow::anyhow!(
+                "Question needs at least {} votes",
+                lobby.settings.question_min_votes
+            ));
         }
 
         question_text = question.question.clone();
@@ -88,9 +90,9 @@ pub async fn ask_top_question(lobby_id: String) -> Result<()> {
         lobby.questions_counter += 1;
 
         // Reset queue waiting if needed
-        if !lobby.questions_queue.iter().any(|q| q.votes >= QUESTION_MIN_VOTES) {
+        if !lobby.questions_queue.iter().any(|q| q.votes >= lobby.settings.question_min_votes) {
             lobby.questions_queue_waiting = true;
-            lobby.questions_queue_countdown = SUBMIT_QUESTION_EVERY_X_SECONDS;
+            lobby.questions_queue_countdown = lobby.settings.submit_question_every_x_seconds as f64;
         }
 
         Ok(())
@@ -179,7 +181,7 @@ pub async fn ask_top_question(lobby_id: String) -> Result<()> {
             lobby.items.retain(|i| !remove_items.contains(i));
         }
 
-        if lobby.questions_counter % ADD_ITEM_EVERY_X_QUESTIONS == 0 {
+        if lobby.questions_counter % lobby.settings.add_item_every_x_questions == 0 {
             add_item_to_lobby(lobby);
         }
 
@@ -205,10 +207,10 @@ pub async fn player_guess_item(lobby_id: String, player_name: String, item_choic
         };
         found_item = Some(item.clone());
 
-        if player.coins < GUESS_ITEM_COST {
+        if player.coins < lobby.settings.guess_item_cost {
             return Err(anyhow::anyhow!("Insufficient coins to guess"));
         }
-        player.coins -= GUESS_ITEM_COST;
+        player.coins -= lobby.settings.guess_item_cost;
 
         if item.name.to_lowercase() != guess.to_lowercase() {
             player.messages.push(PlayerMessage::GuessIncorrect);

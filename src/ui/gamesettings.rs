@@ -11,15 +11,28 @@ pub fn render<'a>(
     lobby_id: &'a str,
     lobby: &Lobby,
 ) -> Element<'a> {
+    let advanced_settings: &UseState<bool> = use_state(cx, || false);
     let player_controlled = lobby.settings.player_controlled;
+    let game_time = calculate_game_time(lobby.settings.item_count, lobby.settings.submit_question_every_x_seconds);
 
     cx.render(rsx! {
         div { class: "dialog floating", display: "flex", gap: "20px", top: if *lobby_settings_open.get() { "50%" } else { "-100%" },
             label { font_weight: "bold", font_size: "larger", "Lobby Settings" }
             div { display: "flex", flex_direction: "column", gap: "5px",
                 standard_settings(cx, player_name, lobby_id, lobby)
+                "Estimated game length {game_time}"
                 if player_controlled {
                     item_settings(cx, player_name, lobby_id, lobby)
+                }
+                label {
+                    "Advanced options: "
+                    input {
+                        r#type: "checkbox",
+                        checked: "{advanced_settings}",
+                        oninput: move |e| {
+                            advanced_settings.set(e.value.parse::<bool>().unwrap_or(false));
+                        }
+                    }
                 }
             }
             button {
@@ -31,6 +44,32 @@ pub fn render<'a>(
             }
         }
     })
+}
+
+// Function to estimate game time in seconds
+#[allow(clippy::cast_precision_loss, clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+fn calculate_game_time(items_count: usize, every_x_seconds: usize) -> String {
+    // Initial items are added at the start, so we subtract them from the total count
+    let remaining_items = if items_count > 2 { items_count - 2 } else { 0 };
+
+    // Calculate the number of questions after which all items are added
+    let final_item_added_at_question = if items_count > 2 { remaining_items * 5 } else { 0 };
+
+    // Total questions required to remove all items (20 questions per item)
+    let total_questions_to_complete = 20 + final_item_added_at_question;
+
+    // Calculate total game time in seconds
+    let game_time = total_questions_to_complete * every_x_seconds;
+
+    if game_time < 60 {
+        // If less than a minute, display just in seconds
+        format!("{game_time} seconds")
+    } else {
+        // Calculate minutes and seconds
+        let minutes = game_time / 60;
+        let seconds = game_time % 60;
+        format!("{minutes} minutes {seconds} seconds")
+    }
 }
 
 #[allow(clippy::too_many_lines, clippy::cast_possible_wrap)]

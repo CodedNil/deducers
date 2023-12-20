@@ -1,8 +1,7 @@
 #![allow(clippy::missing_errors_doc, clippy::future_not_send, clippy::significant_drop_tightening)]
 use crate::{
     backend::items::{add_item_to_lobby, ask_top_question, select_lobby_words},
-    COINS_EVERY_X_SECONDS, IDLE_KICK_TIME, ITEM_NAME_PATTERN, LOBBY_ID_PATTERN, MAX_LOBBY_ID_LENGTH, MAX_LOBBY_ITEMS,
-    MAX_PLAYER_NAME_LENGTH, PLAYER_NAME_PATTERN, QUESTION_MIN_VOTES, STARTING_COINS, SUBMIT_QUESTION_EVERY_X_SECONDS,
+    IDLE_KICK_TIME, ITEM_NAME_PATTERN, LOBBY_ID_PATTERN, MAX_LOBBY_ID_LENGTH, MAX_LOBBY_ITEMS, MAX_PLAYER_NAME_LENGTH, PLAYER_NAME_PATTERN,
 };
 use anyhow::{anyhow, Result};
 use once_cell::sync::Lazy;
@@ -36,6 +35,18 @@ pub struct LobbySettings {
     pub item_count: usize,
     pub difficulty: Difficulty,
     pub player_controlled: bool,
+
+    pub starting_coins: usize,
+    pub coin_every_x_seconds: usize,
+    pub submit_question_every_x_seconds: usize,
+    pub add_item_every_x_questions: usize,
+
+    pub submit_question_cost: usize,
+    pub anonymous_question_cost: usize,
+    pub guess_item_cost: usize,
+    pub question_min_votes: usize,
+
+    pub score_to_coins_ratio: usize,
 }
 
 impl Default for LobbySettings {
@@ -44,6 +55,18 @@ impl Default for LobbySettings {
             item_count: 6,
             difficulty: Difficulty::Easy,
             player_controlled: false,
+
+            starting_coins: 4,
+            coin_every_x_seconds: 8,
+            submit_question_every_x_seconds: 10,
+            add_item_every_x_questions: 5,
+
+            submit_question_cost: 4,
+            anonymous_question_cost: 8,
+            guess_item_cost: 3,
+            question_min_votes: 2,
+
+            score_to_coins_ratio: 3,
         }
     }
 }
@@ -221,7 +244,7 @@ pub async fn create_lobby(lobby_id: &str, key_player: String) -> Result<()> {
             players: HashMap::new(),
             questions_queue: Vec::new(),
             questions_queue_waiting: true,
-            questions_queue_countdown: SUBMIT_QUESTION_EVERY_X_SECONDS,
+            questions_queue_countdown: 0.0,
             items: Vec::new(),
             items_history: Vec::new(),
             items_queue: select_lobby_words(&LobbySettings::default().difficulty, LobbySettings::default().item_count),
@@ -291,7 +314,7 @@ pub async fn connect_player(lobby_id: String, player_name: String) -> Result<()>
             name: player_name.clone(),
             last_contact: get_current_time(),
             score: 0,
-            coins: STARTING_COINS,
+            coins: 0,
             messages: Vec::new(),
         });
 
@@ -410,6 +433,7 @@ pub async fn start_lobby(lobby_id: String, player_name: String) -> Result<()> {
 
         for player in lobby.players.values_mut() {
             player.messages.push(PlayerMessage::GameStart);
+            player.coins = lobby.settings.starting_coins;
         }
 
         if !lobby.settings.player_controlled {
@@ -457,6 +481,7 @@ pub fn get_time_diff(start: f64) -> f64 {
     get_current_time() - start
 }
 
+#[allow(clippy::cast_precision_loss)]
 pub async fn lobby_loop() -> Result<()> {
     let mut lobbys_lock = LOBBYS.lock().await;
 
@@ -485,8 +510,8 @@ pub async fn lobby_loop() -> Result<()> {
                 let elapsed_time_update = get_time_diff(lobby.last_update);
 
                 // Distribute coins if the elapsed time has crossed a multiple of COINS_EVERY_X_SECONDS
-                let previous_coin_multiple = lobby.elapsed_time / COINS_EVERY_X_SECONDS;
-                let current_coin_multiple = (lobby.elapsed_time + elapsed_time_update) / COINS_EVERY_X_SECONDS;
+                let previous_coin_multiple = lobby.elapsed_time / lobby.settings.coin_every_x_seconds as f64;
+                let current_coin_multiple = (lobby.elapsed_time + elapsed_time_update) / lobby.settings.coin_every_x_seconds as f64;
                 if current_coin_multiple.trunc() > previous_coin_multiple.trunc() {
                     for player in lobby.players.values_mut() {
                         player.coins += 1;
@@ -495,11 +520,11 @@ pub async fn lobby_loop() -> Result<()> {
                 }
 
                 // If lobby has a queued question with at least QUESTION_MIN_VOTES votes, tick it down, else reset
-                if lobby.questions_queue.iter().any(|q| q.votes >= QUESTION_MIN_VOTES) {
+                if lobby.questions_queue.iter().any(|q| q.votes >= lobby.settings.question_min_votes) {
                     lobby.questions_queue_waiting = false;
                     lobby.questions_queue_countdown -= elapsed_time_update;
                     if lobby.questions_queue_countdown <= 0.0 {
-                        lobby.questions_queue_countdown += SUBMIT_QUESTION_EVERY_X_SECONDS;
+                        lobby.questions_queue_countdown += lobby.settings.submit_question_every_x_seconds as f64;
                         let lobby_id_clone = lobby_id.clone();
                         tokio::spawn(async move {
                             let _result = ask_top_question(lobby_id_clone).await;
@@ -507,7 +532,7 @@ pub async fn lobby_loop() -> Result<()> {
                     }
                 } else {
                     lobby.questions_queue_waiting = true;
-                    lobby.questions_queue_countdown = SUBMIT_QUESTION_EVERY_X_SECONDS;
+                    lobby.questions_queue_countdown = lobby.settings.submit_question_every_x_seconds as f64;
                 }
 
                 // Update the elapsed time and last update time for the lobby

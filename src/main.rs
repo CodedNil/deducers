@@ -11,18 +11,6 @@ pub const SERVER_PORT: u16 = 3013;
 
 pub const IDLE_KICK_TIME: f64 = 10.0;
 
-pub const STARTING_COINS: usize = 4;
-pub const COINS_EVERY_X_SECONDS: f64 = 4.0;
-pub const SUBMIT_QUESTION_EVERY_X_SECONDS: f64 = 10.0;
-pub const ADD_ITEM_EVERY_X_QUESTIONS: usize = 5;
-
-pub const SUBMIT_QUESTION_COST: usize = 4;
-pub const ANONYMOUS_QUESTION_COST: usize = 8;
-pub const GUESS_ITEM_COST: usize = 3;
-pub const QUESTION_MIN_VOTES: usize = 2;
-
-pub const SCORE_TO_COINS_RATIO: usize = 3;
-
 pub const MAX_QUESTION_LENGTH: usize = 70;
 pub const QUESTION_PATTERN: &str = "^[a-zA-Z0-9 ?]+$"; // Alphanumeric and spaces and question mark only
 

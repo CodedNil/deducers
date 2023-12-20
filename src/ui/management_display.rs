@@ -5,8 +5,7 @@ use crate::{
         question_queue::{convert_score, submit_question},
     },
     lobby_utils::Lobby,
-    ANONYMOUS_QUESTION_COST, GUESS_ITEM_COST, ITEM_NAME_PATTERN, MAX_ITEM_NAME_LENGTH, MAX_QUESTION_LENGTH, QUESTION_PATTERN,
-    SCORE_TO_COINS_RATIO, SUBMIT_QUESTION_COST,
+    ITEM_NAME_PATTERN, MAX_ITEM_NAME_LENGTH, MAX_QUESTION_LENGTH, QUESTION_PATTERN,
 };
 use dioxus::prelude::*;
 
@@ -23,7 +22,12 @@ pub fn render<'a>(
     let guess_item_submission: &UseState<String> = use_state(cx, String::new);
     let guess_item_key: &UseState<usize> = use_state(cx, || 1);
 
-    let submit_cost = SUBMIT_QUESTION_COST + if *question_anonymous.get() { ANONYMOUS_QUESTION_COST } else { 0 };
+    let submit_cost = lobby.settings.submit_question_cost
+        + if *question_anonymous.get() {
+            lobby.settings.anonymous_question_cost
+        } else {
+            0
+        };
     let players_coins = lobby.players.get(player_name).unwrap().coins;
 
     cx.render(rsx! {
@@ -67,7 +71,7 @@ pub fn render<'a>(
                     question_anonymous.set(!question_anonymous.get());
                 }
             }
-            "Anonymous +{ANONYMOUS_QUESTION_COST}🪙"
+            "Anonymous +{lobby.settings.anonymous_question_cost}🪙"
         }
         div { display: "flex", gap: "5px",
             button {
@@ -81,7 +85,7 @@ pub fn render<'a>(
                     });
                 },
                 flex: "1",
-                "Convert Leaderboard Score To {SCORE_TO_COINS_RATIO}🪙"
+                "Convert Leaderboard Score To {lobby.settings.score_to_coins_ratio}🪙"
             }
         }
         form {
@@ -123,7 +127,7 @@ pub fn render<'a>(
                     }
                 })
             }
-            button { r#type: "submit", "Submit Guess {GUESS_ITEM_COST}🪙" }
+            button { r#type: "submit", "Submit Guess {lobby.settings.guess_item_cost}🪙" }
         }
     })
 }

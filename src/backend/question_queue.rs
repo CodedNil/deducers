@@ -1,17 +1,22 @@
 use crate::{
     backend::openai::query_ai,
-    lobby_utils::{with_lobby_mut, with_player, with_player_mut, QueuedQuestion},
-    ANONYMOUS_QUESTION_COST, MAX_QUESTION_LENGTH, SCORE_TO_COINS_RATIO, SUBMIT_QUESTION_COST,
+    lobby_utils::{with_lobby, with_lobby_mut, with_player, with_player_mut, QueuedQuestion},
+    MAX_QUESTION_LENGTH,
 };
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
 pub async fn submit_question(lobby_id: String, player_name: String, question: String, anonymous: bool) -> Result<()> {
-    let total_cost = if anonymous {
-        SUBMIT_QUESTION_COST + ANONYMOUS_QUESTION_COST
-    } else {
-        SUBMIT_QUESTION_COST
-    };
+    let mut total_cost = 0;
+    with_lobby(&lobby_id, |lobby| {
+        total_cost = if anonymous {
+            lobby.settings.submit_question_cost + lobby.settings.anonymous_question_cost
+        } else {
+            lobby.settings.submit_question_cost
+        };
+        Ok(())
+    })
+    .await?;
 
     with_player(&lobby_id, &player_name, |lobby, player| {
         if !lobby.started {
@@ -158,7 +163,7 @@ pub async fn convert_score(lobby_id: String, player_name: String) -> Result<()> 
 
         // Deduct score and give coins
         player.score -= 1;
-        player.coins += SCORE_TO_COINS_RATIO;
+        player.coins += lobby.settings.score_to_coins_ratio;
         Ok(())
     })
     .await
