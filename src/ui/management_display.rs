@@ -5,7 +5,7 @@ use crate::{
         question_queue::{convert_score, submit_question},
     },
     lobby_utils::Lobby,
-    ANONYMOUS_QUESTION_COST, GUESS_ITEM_COST, GUESS_ITEM_PATTERN, MAX_GUESS_ITEM_LENGTH, MAX_QUESTION_LENGTH, QUESTION_PATTERN,
+    ANONYMOUS_QUESTION_COST, GUESS_ITEM_COST, ITEM_NAME_PATTERN, MAX_ITEM_NAME_LENGTH, MAX_QUESTION_LENGTH, QUESTION_PATTERN,
     SCORE_TO_COINS_RATIO, SUBMIT_QUESTION_COST,
 };
 use dioxus::prelude::*;
@@ -52,6 +52,7 @@ pub fn render<'a>(
                 flex: "1",
                 pattern: QUESTION_PATTERN,
                 maxlength: MAX_QUESTION_LENGTH as i64,
+                "data-clear-on-submit": "true",
                 oninput: move |e| {
                     question_submission.set(e.value.clone());
                 }
@@ -103,8 +104,9 @@ pub fn render<'a>(
                 r#type: "text",
                 placeholder: "Guess Item",
                 flex: "1",
-                maxlength: MAX_GUESS_ITEM_LENGTH as i64,
-                pattern: GUESS_ITEM_PATTERN,
+                maxlength: MAX_ITEM_NAME_LENGTH as i64,
+                pattern: ITEM_NAME_PATTERN,
+                "data-clear-on-submit": "true",
                 oninput: move |e| {
                     guess_item_submission.set(e.value.clone());
                 }

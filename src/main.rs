@@ -25,8 +25,10 @@ pub const SCORE_TO_COINS_RATIO: usize = 3;
 
 pub const MAX_QUESTION_LENGTH: usize = 70;
 pub const QUESTION_PATTERN: &str = "^[a-zA-Z0-9 ?]+$"; // Alphanumeric and spaces and question mark only
-pub const MAX_GUESS_ITEM_LENGTH: usize = 20;
-pub const GUESS_ITEM_PATTERN: &str = "^[a-zA-Z0-9 ]+$"; // Alphanumeric and spaces only
+
+pub const MAX_ITEM_NAME_LENGTH: usize = 30;
+pub const ITEM_NAME_PATTERN: &str = "^[a-zA-Z]+$"; // Alphabetic only
+
 pub const MAX_LOBBY_ID_LENGTH: usize = 20;
 pub const LOBBY_ID_PATTERN: &str = "^[a-zA-Z0-9]+$"; // Alphanumeric only
 pub const MAX_PLAYER_NAME_LENGTH: usize = 20;
@@ -57,7 +59,7 @@ async fn main() {
                 <div id="main"></div>
             </body>
             {glue}
-            <script src="assets/sounds.js"></script>
+            <script src="assets/client.js"></script>
         </html>
         "#,
         ))

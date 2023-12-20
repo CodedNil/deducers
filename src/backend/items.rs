@@ -35,10 +35,11 @@ pub fn add_item_to_lobby(lobby: &mut Lobby) {
     if !lobby.started {
         return;
     }
-    // Get oldest item in queue, if no items return
-    let Some(item_name) = lobby.items_queue.pop() else {
+    // Get first item in queue, if no items return
+    if lobby.items_queue.is_empty() {
         return;
-    };
+    }
+    let item_name = lobby.items_queue.remove(0);
 
     // Add item to lobby
     println!("Adding item '{item_name}' to lobby");

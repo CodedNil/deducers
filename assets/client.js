@@ -24,6 +24,21 @@ document.addEventListener("click", function (event) {
     }
 });
 
+// Clear input fields on form submission
+document.addEventListener(
+    "submit",
+    (event) => {
+        if (event.target.tagName === "FORM") {
+            event.target.querySelectorAll('[data-clear-on-submit="true"]').forEach((element) => {
+                if (element.tagName === "INPUT") {
+                    element.value = "";
+                }
+            });
+        }
+    },
+    true
+);
+
 document.addEventListener("input", function (event) {
     if (event.target && event.target.nodeName === "INPUT") {
         playSound("typing");

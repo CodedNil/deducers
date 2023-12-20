@@ -1,8 +1,8 @@
 #![allow(clippy::missing_errors_doc, clippy::future_not_send, clippy::significant_drop_tightening)]
 use crate::{
     backend::items::{add_item_to_lobby, ask_top_question, select_lobby_words},
-    COINS_EVERY_X_SECONDS, IDLE_KICK_TIME, LOBBY_ID_PATTERN, MAX_LOBBY_ID_LENGTH, MAX_LOBBY_ITEMS, MAX_PLAYER_NAME_LENGTH,
-    PLAYER_NAME_PATTERN, QUESTION_MIN_VOTES, STARTING_COINS, SUBMIT_QUESTION_EVERY_X_SECONDS,
+    COINS_EVERY_X_SECONDS, IDLE_KICK_TIME, ITEM_NAME_PATTERN, LOBBY_ID_PATTERN, MAX_LOBBY_ID_LENGTH, MAX_LOBBY_ITEMS,
+    MAX_PLAYER_NAME_LENGTH, PLAYER_NAME_PATTERN, QUESTION_MIN_VOTES, STARTING_COINS, SUBMIT_QUESTION_EVERY_X_SECONDS,
 };
 use anyhow::{anyhow, Result};
 use once_cell::sync::Lazy;
@@ -97,6 +97,7 @@ pub enum AlterLobbySetting {
     Difficulty(Difficulty),
     PlayerControlled(bool),
     AddItem(String),
+    RemoveItem(String),
     RefreshItem(String),
     RefreshAllItems,
 }
@@ -273,10 +274,10 @@ pub async fn connect_player(lobby_id: String, player_name: String) -> Result<()>
         ));
     }
     if !regex::Regex::new(LOBBY_ID_PATTERN).unwrap().is_match(&lobby_id) {
-        return Err(anyhow!("Lobby ID must be alphanumeric"));
+        return Err(anyhow!("Lobby ID must be alphabetic"));
     }
     if !regex::Regex::new(PLAYER_NAME_PATTERN).unwrap().is_match(&player_name) {
-        return Err(anyhow!("Player name must be alphanumeric"));
+        return Err(anyhow!("Player name must be alphabetic"));
     }
 
     let _ = create_lobby(&lobby_id, player_name.clone()).await;
@@ -355,12 +356,36 @@ pub async fn alter_lobby_settings(lobby_id: String, player_name: String, setting
                 lobby.settings.player_controlled = player_controlled;
             }
             AlterLobbySetting::AddItem(item) => {
+                if !regex::Regex::new(ITEM_NAME_PATTERN).unwrap().is_match(&item) {
+                    return Err(anyhow!("Item name must be alphabetic"));
+                }
+                if lobby.items_queue.contains(&item) {
+                    return Err(anyhow!("Item '{item}' already exists in the lobby"));
+                }
+                // Capitalise the first letter of the item
+                let item = item
+                    .chars()
+                    .enumerate()
+                    .map(|(i, c)| if i == 0 { c.to_ascii_uppercase() } else { c })
+                    .collect::<String>();
                 lobby.items_queue.push(item);
+                lobby.settings.item_count = lobby.items_queue.len();
+            }
+            AlterLobbySetting::RemoveItem(item) => {
+                let index = lobby.items_queue.iter().position(|i| i.to_lowercase() == item.to_lowercase());
+                if let Some(index) = index {
+                    lobby.items_queue.remove(index);
+                }
+                lobby.settings.item_count = lobby.items_queue.len();
             }
             AlterLobbySetting::RefreshItem(item) => {
                 let index = lobby.items_queue.iter().position(|i| i.to_lowercase() == item.to_lowercase());
                 if let Some(index) = index {
-                    lobby.items_queue.remove(index);
+                    let mut new_word = select_lobby_words(&lobby.settings.difficulty, 1).pop().unwrap();
+                    while lobby.items_queue.contains(&new_word) {
+                        new_word = select_lobby_words(&lobby.settings.difficulty, 1).pop().unwrap();
+                    }
+                    lobby.items_queue[index] = new_word;
                 }
             }
             AlterLobbySetting::RefreshAllItems => {
