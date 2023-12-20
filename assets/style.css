@@ -33,6 +33,17 @@ button.highlighted:hover, button.highlighted:focus {
   color: white;
 }
 
+button.smallbutton {
+  padding: 2px;
+  padding-top: 0px;
+}
+
+button.smallanswerbutton {
+  padding: 8px;
+  flex: 1;
+  border: 1px solid white;
+}
+
 input {
   background-color: rgb(60, 60, 80);
   border: 2px solid rgb(25, 25, 40);

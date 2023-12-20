@@ -42,13 +42,21 @@ pub fn render<'a>(cx: Scope<'a>, player_name: &String, lobby: &Lobby) -> Element
         }
     }
 
+    let is_quizmaster = player_name == &lobby.key_player && lobby.settings.player_controlled;
+
     cx.render(rsx! {
         div { class: "table-row",
             rsx! {
                 div { class: "table-header-box", flex: "1", "Question" }
                 lobby.items.iter().map(|item| {
-                    rsx! {
-                        div { class: "table-header-box", width: "20px", flex: "unset", text_align: "center", "{item.id}" }
+                    if is_quizmaster {
+                        rsx! {
+                            div { class: "table-header-box", flex: "unset", text_align: "center", "{item.name}" }
+                        }
+                    } else {
+                        rsx! {
+                            div { class: "table-header-box", width: "20px", flex: "unset", text_align: "center", "{item.id}" }
+                        }
                     }
                 })
             }
@@ -76,7 +84,7 @@ pub fn render<'a>(cx: Scope<'a>, player_name: &String, lobby: &Lobby) -> Element
                         let answer_type = if question_index < 20 - num_blanks {
                             item.questions.iter()
                                 .find(|answer_question| answer_question.id == question_id)
-                                .map_or(String::new(), |answer_question| format!("{:?}", answer_question.answer).to_lowercase())
+                                .map_or(String::new(), |answer_question| answer_question.answer.to_string().to_lowercase())
                         } else {
                             String::new()
                         };

@@ -169,7 +169,14 @@ pub struct QueuedQuestionQuizmaster {
     pub player: String,
     pub question: String,
     pub anonymous: bool,
-    pub items: Vec<String>,
+    pub items: Vec<QuizmasterItem>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct QuizmasterItem {
+    pub name: String,
+    pub id: usize,
+    pub answer: Answer,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -205,6 +212,31 @@ impl Answer {
             "unknown" => Some(Self::Unknown),
             _ => None,
         }
+    }
+
+    pub const fn next(&self) -> Self {
+        match self {
+            Self::Maybe => Self::Yes,
+            Self::Yes => Self::No,
+            Self::No => Self::Unknown,
+            Self::Unknown => Self::Maybe,
+        }
+    }
+
+    pub fn variants() -> Vec<Self> {
+        vec![Self::Yes, Self::No, Self::Maybe, Self::Unknown]
+    }
+}
+
+impl Display for Answer {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let answer = match self {
+            Self::Yes => "Yes",
+            Self::No => "No",
+            Self::Maybe => "Maybe",
+            Self::Unknown => "Unknown",
+        };
+        write!(f, "{answer}")
     }
 }
 
@@ -269,10 +301,26 @@ pub async fn create_lobby(lobby_id: &str, key_player: String) -> Result<()> {
                 question: "Is it a fruit?".to_string(),
                 anonymous: false,
                 items: vec![
-                    "Apple".to_string(),
-                    "Pear".to_string(),
-                    "Pineapple".to_string(),
-                    "Strawberry".to_string(),
+                    QuizmasterItem {
+                        name: "Apple".to_string(),
+                        id: 1,
+                        answer: Answer::Maybe,
+                    },
+                    QuizmasterItem {
+                        name: "Banana".to_string(),
+                        id: 2,
+                        answer: Answer::Maybe,
+                    },
+                    QuizmasterItem {
+                        name: "Orange".to_string(),
+                        id: 3,
+                        answer: Answer::Maybe,
+                    },
+                    QuizmasterItem {
+                        name: "Pear".to_string(),
+                        id: 4,
+                        answer: Answer::Maybe,
+                    },
                 ],
             }],
             items: Vec::new(),

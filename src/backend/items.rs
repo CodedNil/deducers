@@ -1,7 +1,9 @@
 use crate::{
     backend::openai::query_ai,
     backend::parse_words::WORD_SETS,
-    lobby_utils::{with_lobby_mut, with_player_mut, Answer, Difficulty, Item, Lobby, PlayerMessage, Question, QueuedQuestionQuizmaster},
+    lobby_utils::{
+        with_lobby_mut, with_player_mut, Answer, Difficulty, Item, Lobby, PlayerMessage, Question, QueuedQuestionQuizmaster, QuizmasterItem,
+    },
 };
 use anyhow::Result;
 use futures::future::join_all;
@@ -104,13 +106,20 @@ pub async fn ask_top_question(lobby_id: String) -> Result<()> {
 
     // If quizmaster end here and add to the quizmasters queue
     if is_quizmaster {
-        let items_str = items.iter().map(|item| item.name.clone()).collect::<Vec<String>>();
+        let items_list = items
+            .iter()
+            .map(|item| QuizmasterItem {
+                id: item.id,
+                name: item.name.clone(),
+                answer: Answer::Maybe,
+            })
+            .collect();
         with_lobby_mut(&lobby_id, |lobby| {
             lobby.quizmaster_queue.push(QueuedQuestionQuizmaster {
                 question: question_text.clone(),
                 player: question_player.clone(),
                 anonymous: question_anonymous,
-                items: items_str,
+                items: items_list,
             });
             Ok(())
         })
@@ -212,6 +221,33 @@ pub async fn ask_top_question(lobby_id: String) -> Result<()> {
     .await?;
 
     test_game_over(lobby_id).await
+}
+
+pub async fn quizmaster_change_answer(
+    lobby_id: String,
+    player_name: String,
+    question: String,
+    item_id: usize,
+    new_answer: Answer,
+) -> Result<()> {
+    with_lobby_mut(&lobby_id, |lobby| {
+        if !lobby.started {
+            return Err(anyhow::anyhow!("Lobby not started"));
+        }
+        let player = lobby.players.get(&player_name).ok_or_else(|| anyhow::anyhow!("Player not found"))?;
+        if !player.quizmaster {
+            return Err(anyhow::anyhow!("Only quizmaster can use this"));
+        }
+
+        lobby
+            .quizmaster_queue
+            .iter_mut()
+            .find(|q| q.question == question)
+            .and_then(|q| q.items.iter_mut().find(|i| i.id == item_id))
+            .map(|i| i.answer = new_answer)
+            .ok_or_else(|| anyhow::anyhow!("Question or item not found"))
+    })
+    .await
 }
 
 pub async fn player_guess_item(lobby_id: String, player_name: String, item_choice: usize, guess: String) -> Result<()> {

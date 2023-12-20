@@ -238,8 +238,7 @@ fn item_settings<'a>(cx: Scope<'a>, player_name: &'a str, lobby_id: &'a str, lob
                             "↻"
                         }
                         button {
-                            padding: "2px",
-                            padding_top: "0px",
+                            class: "smallbutton",
                             background_color: "rgb(100, 20, 20)",
                             onclick: move |_| {
                                 let lobby_id = lobby_id.to_string();
