@@ -7,7 +7,6 @@ Advanced settings
 Help ? button
 
 When user asks question it adds to answer queue for quizmaster to answer
-Quizmaster doesnt participate in game, render differently on leaderboard, no management ui, no voting questions
 
 SUBTLEX-UK database of word frequencies https://www.tandfonline.com/doi/suppl/10.1080/17470218.2013.850521
 WordNet database of word categories https://wordnet.princeton.edu/download/current-version

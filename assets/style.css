@@ -153,6 +153,10 @@ p {
   background-color: rgb(60, 80, 80);
 }
 
+.table-body-box.quizmaster {
+  background-color: rgb(120, 110, 20);
+}
+
 .table-body-box.winner {
   background-color: rgb(80, 80, 60);
 }

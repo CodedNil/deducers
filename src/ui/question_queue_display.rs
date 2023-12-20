@@ -64,12 +64,14 @@ pub fn render<'a>(cx: Scope<'a>, player_name: &'a String, lobby_id: &'a String, 
                         flex: "1",
                         gap: "5px",
                         "{question.votes}",
-                        button {
-                            onclick: move |_| {
-                                vote_question(question_string.clone());
-                            },
-                            padding: "2px",
-                            "🪙"
+                        if !(player_name == &lobby.key_player && lobby.settings.player_controlled) {
+                            rsx! { button {
+                                onclick: move |_| {
+                                    vote_question(question_string.clone());
+                                },
+                                padding: "2px",
+                                "🪙"
+                            }}
                         }
                     }
                 }

@@ -1,6 +1,7 @@
 use crate::{
-    lobby_utils::{get_current_time, Lobby},
+    lobby_utils::{add_chat_message, get_current_time, Lobby},
     ui::{items_display, leaderboard_display, management_display, question_queue_display},
+    MAX_CHAT_LENGTH,
 };
 use anyhow::Error;
 use dioxus::prelude::*;
@@ -22,6 +23,7 @@ impl AlertPopup {
     }
 }
 
+#[allow(clippy::too_many_lines, clippy::cast_possible_wrap)]
 pub fn render<'a>(
     cx: Scope<'a>,
     player_name: &'a String,
@@ -35,6 +37,7 @@ pub fn render<'a>(
     if alert_popup.get().shown && alert_popup.get().expiry < get_current_time() {
         alert_popup.set(AlertPopup::default());
     }
+    let chat_submission: &UseState<String> = use_state(cx, String::new);
 
     cx.render(rsx! {
         div { display: "flex", height: "calc(100vh - 40px)", gap: "20px",
@@ -128,6 +131,37 @@ pub fn render<'a>(
                     display: "flex",
                     flex_direction: "column",
                     gap: "5px",
+                    overflow_y: "auto",
+                    div { class: "table-header-box", "Chat" }
+                    div { flex: "1", display: "flex", flex_direction: "column", gap: "3px", overflow_y: "auto",
+                        lobby.chat_messages.iter().rev().map(|message| {
+                            rsx! {
+                                div { class: "table-body-box", "{message.player}: {message.message}" }
+                            }
+                        })
+                    }
+                    form {
+                        display: "flex",
+                        gap: "5px",
+                        onsubmit: move |_| {
+                            let lobby_id = lobby_id.to_string();
+                            let player_name = player_name.to_string();
+                            let submission = chat_submission.get().clone();
+                            cx.spawn(async move {
+                                let _result = add_chat_message(lobby_id, player_name, submission).await;
+                            });
+                        },
+                        input {
+                            placeholder: "Message",
+                            maxlength: MAX_CHAT_LENGTH as i64,
+                            flex: "1",
+                            "data-clear-on-submit": "true",
+                            oninput: move |e| {
+                                chat_submission.set(e.value.clone());
+                            }
+                        }
+                        button { r#type: "submit", "Send" }
+                    }
                 }
             }
         }

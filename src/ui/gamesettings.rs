@@ -25,7 +25,7 @@ pub fn render<'a>(
         div { class: "dialog floating", display: "flex", gap: "20px", top: if settings_open { "50%" } else { "-100%" },
             label { font_weight: "bold", font_size: "larger", "Lobby Settings" }
             div { display: "flex", flex_direction: "column", gap: "5px",
-                standard_settings(cx, player_name, lobby_id, lobby)
+                standard_settings(cx, player_name, lobby_id, lobby),
                 "Estimated game length {game_time}"
                 if player_controlled {
                     item_settings(cx, player_name, lobby_id, lobby)

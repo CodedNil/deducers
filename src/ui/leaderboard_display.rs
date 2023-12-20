@@ -31,7 +31,9 @@ pub fn render<'a>(cx: Scope<'a>, player_name: &String, lobby_id: &'a String, lob
             }
         }
         sorted_players.iter().map(|player| {
-            let row_class = if player.score == sorted_players[0].score {
+            let row_class = if player.quizmaster {
+                "table-body-box quizmaster"
+            } else if player.score == sorted_players[0].score {
                 "table-body-box winner"
             } else if player.name == *player_name {
                 "table-body-box self"
@@ -43,7 +45,9 @@ pub fn render<'a>(cx: Scope<'a>, player_name: &String, lobby_id: &'a String, lob
             rsx! {
                 div { class: "table-row",
                     div { class: row_class, flex: "2", "{row_player}" }
-                    if can_kick {
+                    if player.quizmaster {
+                        rsx! { div { class: row_class, flex: "1", "👑" } }
+                    } else if can_kick {
                         rsx! {
                             div {
                                 class: row_class,
