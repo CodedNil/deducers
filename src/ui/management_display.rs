@@ -30,6 +30,18 @@ pub fn render<'a>(
         };
     let players_coins = lobby.players.get(player_name).unwrap().coins;
 
+    if !lobby.started {
+        return cx.render(rsx! {
+            div { align_self: "center", font_size: "larger", "Waiting for game to start" }
+        });
+    }
+
+    if player_name == &lobby.key_player && lobby.settings.player_controlled {
+        return cx.render(rsx! {
+            div { align_self: "center", font_size: "larger", "Quizmaster WIP" }
+        });
+    }
+
     cx.render(rsx! {
         div { align_self: "center", font_size: "larger", "{players_coins}🪙 Available" }
         form {

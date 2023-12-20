@@ -201,6 +201,9 @@ pub async fn player_guess_item(lobby_id: String, player_name: String, item_choic
         if !lobby.started {
             return Err(anyhow::anyhow!("Lobby not started"));
         }
+        if player.quizmaster {
+            return Err(anyhow::anyhow!("Quizmaster cannot engage"));
+        }
 
         let Some(item) = lobby.items.iter().find(|i| i.id == item_choice) else {
             return Err(anyhow::anyhow!("Item not found"));

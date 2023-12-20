@@ -59,7 +59,7 @@ pub fn app(cx: Scope) -> Element {
 
     let lobby_state: &UseState<Option<Lobby>> = use_state(cx, || None::<Lobby>);
     let lobby_info: &UseState<Vec<LobbyInfo>> = use_state(cx, Vec::new);
-    let lobby_settings_open: &UseState<bool> = use_state(cx, || false);
+    let lobby_settings_open: &UseState<bool> = use_state(cx, || true);
 
     let error_message: &UseState<ErrorDialog> = use_state(cx, ErrorDialog::default);
 

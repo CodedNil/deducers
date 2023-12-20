@@ -15,8 +15,14 @@ pub fn render<'a>(
     let player_controlled = lobby.settings.player_controlled;
     let game_time = calculate_game_time(lobby.settings.item_count, lobby.settings.submit_question_every_x_seconds);
 
+    let settings_open = if player_name == lobby.key_player {
+        *lobby_settings_open.get()
+    } else {
+        false
+    };
+
     cx.render(rsx! {
-        div { class: "dialog floating", display: "flex", gap: "20px", top: if *lobby_settings_open.get() { "50%" } else { "-100%" },
+        div { class: "dialog floating", display: "flex", gap: "20px", top: if settings_open { "50%" } else { "-100%" },
             label { font_weight: "bold", font_size: "larger", "Lobby Settings" }
             div { display: "flex", flex_direction: "column", gap: "5px",
                 standard_settings(cx, player_name, lobby_id, lobby)

@@ -25,6 +25,9 @@ pub async fn submit_question(lobby_id: String, player_name: String, question: St
         if player.coins < total_cost {
             return Err(anyhow::anyhow!("Insufficient coins to submit question"));
         }
+        if player.quizmaster {
+            return Err(anyhow::anyhow!("Quizmaster cannot engage"));
+        }
 
         // Check if question already exists in the queue
         if lobby
@@ -132,6 +135,9 @@ pub async fn vote_question(lobby_id: String, player_name: String, question: Stri
         if !lobby.started {
             return Err(anyhow::anyhow!("Lobby not started"));
         }
+        if player.quizmaster {
+            return Err(anyhow::anyhow!("Quizmaster cannot engage"));
+        }
 
         // Check if question exists in the queue
         if let Some(queued_question) = lobby.questions_queue.iter_mut().find(|q| q.question == question) {
@@ -156,12 +162,13 @@ pub async fn convert_score(lobby_id: String, player_name: String) -> Result<()> 
             return Err(anyhow::anyhow!("Lobby not started"));
         }
 
-        // Check if player has enough score
         if player.score < 1 {
             return Err(anyhow::anyhow!("Insufficient score to convert"));
         }
+        if player.quizmaster {
+            return Err(anyhow::anyhow!("Quizmaster cannot engage"));
+        }
 
-        // Deduct score and give coins
         player.score -= 1;
         player.coins += lobby.settings.score_to_coins_ratio;
         Ok(())

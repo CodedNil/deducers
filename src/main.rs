@@ -24,6 +24,9 @@ pub const PLAYER_NAME_PATTERN: &str = "^[a-zA-Z0-9 ]+$"; // Alphanumeric and spa
 
 pub const MAX_LOBBY_ITEMS: usize = 20;
 
+pub const MAX_CHAT_LENGTH: usize = 100;
+pub const MAX_CHAT_MESSAGES: usize = 20;
+
 #[tokio::main]
 async fn main() {
     // Get the server IP from an environment variable or default to localhost

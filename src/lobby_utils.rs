@@ -1,7 +1,8 @@
 #![allow(clippy::missing_errors_doc, clippy::future_not_send, clippy::significant_drop_tightening)]
 use crate::{
     backend::items::{add_item_to_lobby, ask_top_question, select_lobby_words},
-    IDLE_KICK_TIME, ITEM_NAME_PATTERN, LOBBY_ID_PATTERN, MAX_LOBBY_ID_LENGTH, MAX_LOBBY_ITEMS, MAX_PLAYER_NAME_LENGTH, PLAYER_NAME_PATTERN,
+    IDLE_KICK_TIME, ITEM_NAME_PATTERN, LOBBY_ID_PATTERN, MAX_CHAT_LENGTH, MAX_CHAT_MESSAGES, MAX_LOBBY_ID_LENGTH, MAX_LOBBY_ITEMS,
+    MAX_PLAYER_NAME_LENGTH, PLAYER_NAME_PATTERN,
 };
 use anyhow::{anyhow, Result};
 use once_cell::sync::Lazy;
@@ -20,6 +21,7 @@ pub struct Lobby {
     pub last_update: f64,
     pub key_player: String,
     pub players: HashMap<String, Player>,
+    pub chat_messages: Vec<ChatMessage>,
     pub questions_queue: Vec<QueuedQuestion>,
     pub questions_queue_waiting: bool,
     pub questions_queue_countdown: f64,
@@ -141,9 +143,16 @@ pub enum PlayerMessage {
 pub struct Player {
     pub name: String,
     pub last_contact: f64,
+    pub quizmaster: bool,
     pub score: usize,
     pub coins: usize,
     pub messages: Vec<PlayerMessage>,
+}
+
+#[derive(Clone, Debug)]
+pub struct ChatMessage {
+    pub player: String,
+    pub message: String,
 }
 
 #[derive(Clone, Debug)]
@@ -242,6 +251,7 @@ pub async fn create_lobby(lobby_id: &str, key_player: String) -> Result<()> {
             last_update: get_current_time(),
             key_player: key_player.clone(),
             players: HashMap::new(),
+            chat_messages: Vec::new(),
             questions_queue: Vec::new(),
             questions_queue_waiting: true,
             questions_queue_countdown: 0.0,
@@ -313,6 +323,7 @@ pub async fn connect_player(lobby_id: String, player_name: String) -> Result<()>
         lobby.players.entry(player_name.clone()).or_insert(Player {
             name: player_name.clone(),
             last_contact: get_current_time(),
+            quizmaster: false,
             score: 0,
             coins: 0,
             messages: Vec::new(),
@@ -434,6 +445,9 @@ pub async fn start_lobby(lobby_id: String, player_name: String) -> Result<()> {
         for player in lobby.players.values_mut() {
             player.messages.push(PlayerMessage::GameStart);
             player.coins = lobby.settings.starting_coins;
+            if player.name == lobby.key_player && lobby.settings.player_controlled {
+                player.quizmaster = true;
+            }
         }
 
         if !lobby.settings.player_controlled {
@@ -457,6 +471,23 @@ pub async fn kick_player(lobby_id: String, player_name: String) -> Result<()> {
     with_lobby_mut(&lobby_id, |lobby| {
         lobby.players.remove(&player_name);
         println!("Lobby '{lobby_id}' player '{player_name}' kicked by key player");
+        Ok(())
+    })
+    .await
+}
+
+pub async fn add_chat_message(lobby_id: String, player_name: String, message: String) -> Result<()> {
+    if message.len() > MAX_CHAT_LENGTH {
+        return Err(anyhow!("Chat message must be less than {MAX_CHAT_LENGTH} characters long"));
+    }
+    with_lobby_mut(&lobby_id, |lobby| {
+        lobby.chat_messages.push(ChatMessage {
+            player: player_name.clone(),
+            message,
+        });
+        if lobby.chat_messages.len() > MAX_CHAT_MESSAGES {
+            lobby.chat_messages.remove(0);
+        }
         Ok(())
     })
     .await
@@ -514,8 +545,10 @@ pub async fn lobby_loop() -> Result<()> {
                 let current_coin_multiple = (lobby.elapsed_time + elapsed_time_update) / lobby.settings.coin_every_x_seconds as f64;
                 if current_coin_multiple.trunc() > previous_coin_multiple.trunc() {
                     for player in lobby.players.values_mut() {
-                        player.coins += 1;
-                        player.messages.push(PlayerMessage::CoinGiven);
+                        if !player.quizmaster {
+                            player.coins += 1;
+                            player.messages.push(PlayerMessage::CoinGiven);
+                        }
                     }
                 }
 
