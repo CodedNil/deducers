@@ -32,6 +32,8 @@ pub const LOBBY_ID_PATTERN: &str = "^[a-zA-Z0-9]+$"; // Alphanumeric only
 pub const MAX_PLAYER_NAME_LENGTH: usize = 20;
 pub const PLAYER_NAME_PATTERN: &str = "^[a-zA-Z0-9 ]+$"; // Alphanumeric and spaces only
 
+pub const MAX_LOBBY_ITEMS: usize = 20;
+
 #[tokio::main]
 async fn main() {
     // Get the server IP from an environment variable or default to localhost

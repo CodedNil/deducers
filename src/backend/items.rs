@@ -10,10 +10,10 @@ use rand::seq::SliceRandom;
 use serde::Deserialize;
 use std::collections::HashMap;
 
-pub fn select_lobby_words(lobby: &mut Lobby) {
+pub fn select_lobby_words(difficulty: &Difficulty, count: usize) -> Vec<String> {
     let mut rng = rand::thread_rng();
 
-    let combined_words = match lobby.settings.difficulty {
+    let combined_words = match difficulty {
         Difficulty::Easy => WORD_SETS.easy_words.iter().collect::<Vec<_>>(),
         Difficulty::Medium => [&WORD_SETS.easy_words, &WORD_SETS.medium_words]
             .iter()
@@ -28,7 +28,7 @@ pub fn select_lobby_words(lobby: &mut Lobby) {
     let mut shuffled_words = combined_words;
     shuffled_words.shuffle(&mut rng);
 
-    lobby.items_queue = shuffled_words.into_iter().take(lobby.settings.item_count).cloned().collect();
+    shuffled_words.into_iter().take(count).cloned().collect()
 }
 
 pub fn add_item_to_lobby(lobby: &mut Lobby) {
@@ -192,38 +192,6 @@ pub async fn ask_top_question(lobby_id: String) -> Result<()> {
     test_game_over(lobby_id).await
 }
 
-pub async fn test_game_over(lobby_id: String) -> Result<()> {
-    with_lobby_mut(&lobby_id, |lobby| {
-        if lobby.started && lobby.items.is_empty() {
-            lobby.started = false;
-
-            // Find winner, player with max score, or if tied multiple players, or if 0 score no winner
-            let mut max_score = 0;
-            let mut winners = Vec::new();
-            for player in lobby.players.values() {
-                match player.score.cmp(&max_score) {
-                    std::cmp::Ordering::Greater => {
-                        max_score = player.score;
-                        winners.clear();
-                        winners.push(player.name.clone());
-                    }
-                    std::cmp::Ordering::Equal => {
-                        winners.push(player.name.clone());
-                    }
-                    std::cmp::Ordering::Less => {}
-                }
-            }
-
-            for player in lobby.players.values_mut() {
-                player.messages.push(PlayerMessage::Winner(winners.clone()));
-            }
-        }
-        Ok(())
-    })
-    .await?;
-    Ok(())
-}
-
 pub async fn player_guess_item(lobby_id: String, player_name: String, item_choice: usize, guess: String) -> Result<()> {
     let mut found_item = None;
     with_player_mut(&lobby_id, &player_name, |lobby, player| {
@@ -254,7 +222,7 @@ pub async fn player_guess_item(lobby_id: String, player_name: String, item_choic
     .await?;
 
     if let Some(item) = found_item {
-        return with_lobby_mut(&lobby_id, |lobby| {
+        with_lobby_mut(&lobby_id, |lobby| {
             // Remove item
             let item_id = item.id;
             let item_name = item.name.clone();
@@ -268,7 +236,41 @@ pub async fn player_guess_item(lobby_id: String, player_name: String, item_choic
             }
             Ok(())
         })
-        .await;
+        .await?;
+
+        return test_game_over(lobby_id).await;
     }
     Err(anyhow::anyhow!("Failed to find item"))
+}
+
+pub async fn test_game_over(lobby_id: String) -> Result<()> {
+    with_lobby_mut(&lobby_id, |lobby| {
+        if lobby.started && lobby.items.is_empty() {
+            lobby.started = false;
+
+            // Find winner, player with max score, or if tied multiple players, or if 0 score no winner
+            let mut max_score = 0;
+            let mut winners = Vec::new();
+            for player in lobby.players.values() {
+                match player.score.cmp(&max_score) {
+                    std::cmp::Ordering::Greater => {
+                        max_score = player.score;
+                        winners.clear();
+                        winners.push(player.name.clone());
+                    }
+                    std::cmp::Ordering::Equal => {
+                        winners.push(player.name.clone());
+                    }
+                    std::cmp::Ordering::Less => {}
+                }
+            }
+
+            for player in lobby.players.values_mut() {
+                player.messages.push(PlayerMessage::Winner(winners.clone()));
+            }
+        }
+        Ok(())
+    })
+    .await?;
+    Ok(())
 }

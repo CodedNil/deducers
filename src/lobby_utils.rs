@@ -1,12 +1,17 @@
 #![allow(clippy::missing_errors_doc, clippy::future_not_send, clippy::significant_drop_tightening)]
 use crate::{
     backend::items::{add_item_to_lobby, ask_top_question, select_lobby_words},
-    COINS_EVERY_X_SECONDS, IDLE_KICK_TIME, LOBBY_ID_PATTERN, MAX_LOBBY_ID_LENGTH, MAX_PLAYER_NAME_LENGTH, PLAYER_NAME_PATTERN,
-    QUESTION_MIN_VOTES, STARTING_COINS, SUBMIT_QUESTION_EVERY_X_SECONDS,
+    COINS_EVERY_X_SECONDS, IDLE_KICK_TIME, LOBBY_ID_PATTERN, MAX_LOBBY_ID_LENGTH, MAX_LOBBY_ITEMS, MAX_PLAYER_NAME_LENGTH,
+    PLAYER_NAME_PATTERN, QUESTION_MIN_VOTES, STARTING_COINS, SUBMIT_QUESTION_EVERY_X_SECONDS,
 };
 use anyhow::{anyhow, Result};
 use once_cell::sync::Lazy;
-use std::{collections::HashMap, sync::Arc};
+use std::{
+    cmp::Ordering,
+    collections::{HashMap, HashSet},
+    fmt::Display,
+    sync::Arc,
+};
 use tokio::sync::Mutex;
 
 #[derive(Clone, Debug)]
@@ -30,13 +35,70 @@ pub struct Lobby {
 pub struct LobbySettings {
     pub item_count: usize,
     pub difficulty: Difficulty,
+    pub player_controlled: bool,
 }
 
-#[derive(Clone, Debug)]
+impl Default for LobbySettings {
+    fn default() -> Self {
+        Self {
+            item_count: 6,
+            difficulty: Difficulty::Easy,
+            player_controlled: false,
+        }
+    }
+}
+
+impl Display for LobbySettings {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Item Count: {}, Difficulty: {}, Player Controlled: {}",
+            self.item_count,
+            self.difficulty,
+            if self.player_controlled { "Yes" } else { "No" }
+        )
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Difficulty {
     Easy,
     Medium,
     Hard,
+}
+
+impl std::str::FromStr for Difficulty {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Self> {
+        match s.to_lowercase().as_str() {
+            "easy" => Ok(Self::Easy),
+            "medium" => Ok(Self::Medium),
+            "hard" => Ok(Self::Hard),
+            _ => Err(anyhow!("Difficulty must be easy, medium, or hard")),
+        }
+    }
+}
+
+impl Display for Difficulty {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let difficulty = match self {
+            Self::Easy => "Easy",
+            Self::Medium => "Medium",
+            Self::Hard => "Hard",
+        };
+        write!(f, "{difficulty}")
+    }
+}
+
+#[derive(Clone, Debug)]
+pub enum AlterLobbySetting {
+    ItemCount(usize),
+    Difficulty(Difficulty),
+    PlayerControlled(bool),
+    AddItem(String),
+    RefreshItem(String),
+    RefreshAllItems,
 }
 
 #[derive(Clone, Debug)]
@@ -161,14 +223,12 @@ pub async fn create_lobby(lobby_id: &str, key_player: String) -> Result<()> {
             questions_queue_countdown: SUBMIT_QUESTION_EVERY_X_SECONDS,
             items: Vec::new(),
             items_history: Vec::new(),
-            items_queue: Vec::new(),
+            items_queue: select_lobby_words(&LobbySettings::default().difficulty, LobbySettings::default().item_count),
             questions_counter: 0,
-            settings: LobbySettings {
-                item_count: 1,
-                difficulty: Difficulty::Easy,
-            },
+            settings: LobbySettings::default(),
         },
     );
+    println!("Lobby '{lobby_id}' created by key player '{key_player}'");
     Ok(())
 }
 
@@ -249,6 +309,70 @@ pub async fn disconnect_player(lobby_id: String, player_name: String) -> Result<
     .await
 }
 
+pub async fn alter_lobby_settings(lobby_id: String, player_name: String, setting: AlterLobbySetting) -> Result<()> {
+    with_lobby_mut(&lobby_id, |lobby| {
+        if player_name != lobby.key_player {
+            return Err(anyhow!("Only the key player can alter the lobby settings"));
+        }
+
+        match setting {
+            AlterLobbySetting::ItemCount(item_count) => {
+                if !(1..=MAX_LOBBY_ITEMS).contains(&item_count) {
+                    return Err(anyhow!("Item count must be between 1 and 20"));
+                }
+                lobby.settings.item_count = item_count;
+                // Expand or shrink the items queue to match the new item count
+                match lobby.items_queue.len().cmp(&item_count) {
+                    Ordering::Less => {
+                        let mut additional_items_needed = item_count - lobby.items_queue.len();
+                        let mut unique_new_words = HashSet::new();
+
+                        while additional_items_needed > 0 {
+                            let new_words = select_lobby_words(&lobby.settings.difficulty, additional_items_needed);
+
+                            for word in new_words {
+                                if !lobby.items_queue.contains(&word) && unique_new_words.insert(word) {
+                                    additional_items_needed -= 1;
+                                }
+                                if additional_items_needed == 0 {
+                                    break;
+                                }
+                            }
+                        }
+
+                        lobby.items_queue.extend(unique_new_words);
+                    }
+                    Ordering::Greater => {
+                        lobby.items_queue.truncate(item_count);
+                    }
+                    Ordering::Equal => {}
+                }
+            }
+            AlterLobbySetting::Difficulty(difficulty) => {
+                lobby.settings.difficulty = difficulty;
+            }
+            AlterLobbySetting::PlayerControlled(player_controlled) => {
+                lobby.settings.player_controlled = player_controlled;
+            }
+            AlterLobbySetting::AddItem(item) => {
+                lobby.items_queue.push(item);
+            }
+            AlterLobbySetting::RefreshItem(item) => {
+                let index = lobby.items_queue.iter().position(|i| i.to_lowercase() == item.to_lowercase());
+                if let Some(index) = index {
+                    lobby.items_queue.remove(index);
+                }
+            }
+            AlterLobbySetting::RefreshAllItems => {
+                lobby.items_queue = select_lobby_words(&lobby.settings.difficulty, lobby.settings.item_count);
+            }
+        }
+
+        Ok(())
+    })
+    .await
+}
+
 pub async fn start_lobby(lobby_id: String, player_name: String) -> Result<()> {
     with_lobby_mut(&lobby_id, |lobby| {
         if lobby.started {
@@ -263,13 +387,18 @@ pub async fn start_lobby(lobby_id: String, player_name: String) -> Result<()> {
             player.messages.push(PlayerMessage::GameStart);
         }
 
-        select_lobby_words(lobby);
+        if !lobby.settings.player_controlled {
+            lobby.items_queue = select_lobby_words(&lobby.settings.difficulty, lobby.settings.item_count);
+        }
         add_item_to_lobby(lobby);
         if lobby.settings.item_count > 1 {
             add_item_to_lobby(lobby);
         }
 
-        println!("Lobby '{lobby_id}' started by key player '{player_name}'");
+        println!(
+            "Lobby '{lobby_id}' started by key player '{player_name}' with settings {}",
+            lobby.settings
+        );
         Ok(())
     })
     .await

@@ -22,13 +22,14 @@ impl AlertPopup {
     }
 }
 
-pub fn game_view<'a>(
+pub fn render<'a>(
     cx: Scope<'a>,
     player_name: &'a String,
     lobby_id: &'a String,
     lobby: &Lobby,
     disconnect: Box<dyn Fn() + 'a>,
     start: Box<dyn Fn() + 'a>,
+    lobby_settings_open: &'a UseState<bool>,
 ) -> Element<'a> {
     let alert_popup: &UseState<AlertPopup> = use_state(cx, AlertPopup::default);
     if alert_popup.get().shown && alert_popup.get().expiry < get_current_time() {
@@ -68,10 +69,15 @@ pub fn game_view<'a>(
                         }
                         div { display: "flex", gap: "5px",
                             if lobby.key_player == *player_name && !lobby.started {
-                                rsx! { button { onclick: move |_| (start)(), "Start" } }
+                                rsx! { button { onclick: move |_| {
+                                    lobby_settings_open.set(false);
+                                    start();
+                                }, "Start" } }
                             }
                             if lobby.key_player == *player_name && !lobby.started {
-                                rsx! { button { "Settings" } }
+                                rsx! { button { onclick: move |_| {
+                                    lobby_settings_open.set(!lobby_settings_open.get());
+                                }, "Settings" } }
                             }
                             button { onclick: move |_| (disconnect)(), "Disconnect" }
                         }

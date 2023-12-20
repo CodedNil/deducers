@@ -2,7 +2,7 @@ use crate::{
     lobby_utils::{
         connect_player, disconnect_player, get_current_time, get_lobby_info, get_state, start_lobby, Lobby, LobbyInfo, PlayerMessage,
     },
-    ui::gameview::game_view,
+    ui::{gamesettings, gameview},
     LOBBY_ID_PATTERN, MAX_LOBBY_ID_LENGTH, MAX_PLAYER_NAME_LENGTH, PLAYER_NAME_PATTERN,
 };
 use dioxus::prelude::*;
@@ -15,13 +15,20 @@ use std::{
 struct ItemRevealMessage {
     show: bool,
     expiry: f64,
+    victory: bool,
     correct: bool,
     str: String,
 }
 
 impl ItemRevealMessage {
     fn render(&self) -> LazyNodes<'_, '_> {
-        let item_reveal_correct_class = if self.correct { "correct" } else { "incorrect" };
+        let item_reveal_correct_class = if self.victory {
+            "victory"
+        } else if self.correct {
+            "correct"
+        } else {
+            "incorrect"
+        };
         rsx! {
             div {
                 class: "dialog floating item-reveal {item_reveal_correct_class}",
@@ -52,15 +59,17 @@ pub fn app(cx: Scope) -> Element {
 
     let lobby_state: &UseState<Option<Lobby>> = use_state(cx, || None::<Lobby>);
     let lobby_info: &UseState<Vec<LobbyInfo>> = use_state(cx, Vec::new);
+    let lobby_settings_open: &UseState<bool> = use_state(cx, || false);
 
     let error_message: &UseState<ErrorDialog> = use_state(cx, ErrorDialog::default);
 
     // Hide the item reveal message after 5 seconds
     let item_reveal_message: &UseState<ItemRevealMessage> = use_state(cx, ItemRevealMessage::default);
-    if item_reveal_message.get().show && item_reveal_message.get().expiry > get_current_time() {
+    if item_reveal_message.get().show && item_reveal_message.get().expiry < get_current_time() {
         item_reveal_message.set(ItemRevealMessage {
             show: false,
             expiry: 0.0,
+            victory: item_reveal_message.get().victory,
             correct: item_reveal_message.get().correct,
             str: item_reveal_message.get().str.clone(),
         });
@@ -91,22 +100,28 @@ pub fn app(cx: Scope) -> Element {
                     PlayerMessage::GameStart => "game_start",
                     PlayerMessage::CoinGiven => "coin_added",
                     PlayerMessage::ItemGuessed(player_name, item_id, item_name) => {
-                        item_reveal_message.set(ItemRevealMessage {
-                            show: true,
-                            expiry: get_current_time() + 5.0,
-                            correct: true,
-                            str: format!("{player_name} guessed item {item_id} correctly as {item_name}!"),
-                        });
+                        if !(item_reveal_message.get().show && item_reveal_message.get().victory) {
+                            item_reveal_message.set(ItemRevealMessage {
+                                show: true,
+                                expiry: get_current_time() + 5.0,
+                                victory: false,
+                                correct: true,
+                                str: format!("{player_name} guessed item {item_id} correctly as {item_name}!"),
+                            });
+                        }
                         "guess_correct"
                     }
                     PlayerMessage::GuessIncorrect => "guess_incorrect",
                     PlayerMessage::ItemRemoved(item_id, item_name) => {
-                        item_reveal_message.set(ItemRevealMessage {
-                            show: true,
-                            expiry: get_current_time() + 5.0,
-                            correct: false,
-                            str: format!("Item {item_id} was removed from the game, it was {item_name}!"),
-                        });
+                        if !(item_reveal_message.get().show && item_reveal_message.get().victory) {
+                            item_reveal_message.set(ItemRevealMessage {
+                                show: true,
+                                expiry: get_current_time() + 5.0,
+                                victory: false,
+                                correct: false,
+                                str: format!("Item {item_id} was removed from the game, it was {item_name}!"),
+                            });
+                        }
                         "guess_incorrect"
                     }
                     PlayerMessage::Winner(players) => {
@@ -120,6 +135,7 @@ pub fn app(cx: Scope) -> Element {
                         item_reveal_message.set(ItemRevealMessage {
                             show: true,
                             expiry: get_current_time() + 30.0,
+                            victory: true,
                             correct: true,
                             str: win_message,
                         });
@@ -232,9 +248,10 @@ pub fn app(cx: Scope) -> Element {
                 .collect::<Vec<String>>()
                 .join(",");
             cx.render(rsx! {
-                game_view(cx, player_name, lobby_id, lobby, disconnect, start),
+                gameview::render(cx, player_name, lobby_id, lobby, disconnect, start, lobby_settings_open),
                 render_error_dialog,
                 item_reveal_message.render(),
+                rsx! { gamesettings::render(cx, lobby_settings_open, player_name, lobby_id, lobby) },
                 div { id: "sounds", visibility: "collapse", position: "absolute", "{sounds_str}" }
             })
         } else {

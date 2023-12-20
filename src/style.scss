@@ -32,6 +32,16 @@ button {
     }
 }
 
+button.highlighted {
+    background-color: rgb(90, 80, 40);
+
+    &:hover,
+    &:focus {
+        background-color: rgb(140, 120, 60);
+        color: white;
+    }
+}
+
 input {
     background-color: $tertiary_color;
     border: 2px solid $secondary_color;
@@ -106,6 +116,10 @@ select {
 
 .dialog.item-reveal.correct {
     background-color: rgb(60, 130, 50);
+}
+
+.dialog.item-reveal.victory {
+    background-color: rgb(120, 110, 20);
 }
 
 .background-box {

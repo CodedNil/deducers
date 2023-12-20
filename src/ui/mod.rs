@@ -1,4 +1,5 @@
 pub mod connection;
+pub mod gamesettings;
 pub mod gameview;
 pub mod items_display;
 pub mod leaderboard_display;
