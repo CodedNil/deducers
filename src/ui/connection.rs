@@ -109,6 +109,22 @@ pub fn app(cx: Scope) -> Element {
                         });
                         "guess_incorrect"
                     }
+                    PlayerMessage::Winner(players) => {
+                        let win_message = if players.len() > 1 {
+                            format!("The tied winners are {players}!", players = players.join(", "))
+                        } else if players.is_empty() {
+                            String::from("The game has ended with no winner!")
+                        } else {
+                            format!("The winner is {players}!", players = players.join(", "))
+                        };
+                        item_reveal_message.set(ItemRevealMessage {
+                            show: true,
+                            expiry: get_current_time() + 30.0,
+                            correct: true,
+                            str: win_message,
+                        });
+                        "guess_correct"
+                    }
                 };
                 new_sounds.push(SoundsQueue {
                     expiry: get_current_time() + 5.0,

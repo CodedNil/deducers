@@ -408,6 +408,8 @@ dependencies = [
  "dioxus",
  "dioxus-liveview",
  "futures",
+ "once_cell",
+ "rand",
  "regex",
  "reqwest",
  "rsass",

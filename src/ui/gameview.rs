@@ -67,8 +67,11 @@ pub fn game_view<'a>(
                             span { font_weight: "normal", "{lobby.elapsed_time.round()}s" }
                         }
                         div { display: "flex", gap: "5px",
-                            if lobby.key_player == *player_name && !lobby.started && !lobby.items_queue.is_empty() {
+                            if lobby.key_player == *player_name && !lobby.started {
                                 rsx! { button { onclick: move |_| (start)(), "Start" } }
+                            }
+                            if lobby.key_player == *player_name && !lobby.started {
+                                rsx! { button { "Settings" } }
                             }
                             button { onclick: move |_| (disconnect)(), "Disconnect" }
                         }

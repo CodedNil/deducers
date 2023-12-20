@@ -1,14 +1,12 @@
 #![allow(clippy::missing_errors_doc, clippy::future_not_send, clippy::significant_drop_tightening)]
 use crate::{
-    backend::items::{add_item_to_lobby, add_item_to_queue, ask_top_question},
+    backend::items::{add_item_to_lobby, ask_top_question, select_lobby_words},
     COINS_EVERY_X_SECONDS, IDLE_KICK_TIME, LOBBY_ID_PATTERN, MAX_LOBBY_ID_LENGTH, MAX_PLAYER_NAME_LENGTH, PLAYER_NAME_PATTERN,
     QUESTION_MIN_VOTES, STARTING_COINS, SUBMIT_QUESTION_EVERY_X_SECONDS,
 };
 use anyhow::{anyhow, Result};
-use std::{
-    collections::HashMap,
-    sync::{Arc, OnceLock},
-};
+use once_cell::sync::Lazy;
+use std::{collections::HashMap, sync::Arc};
 use tokio::sync::Mutex;
 
 #[derive(Clone, Debug)]
@@ -24,8 +22,21 @@ pub struct Lobby {
     pub items: Vec<Item>,
     pub items_history: Vec<String>,
     pub items_queue: Vec<String>,
-    pub last_add_to_queue: f64,
     pub questions_counter: usize,
+    pub settings: LobbySettings,
+}
+
+#[derive(Clone, Debug)]
+pub struct LobbySettings {
+    pub item_count: usize,
+    pub difficulty: Difficulty,
+}
+
+#[derive(Clone, Debug)]
+pub enum Difficulty {
+    Easy,
+    Medium,
+    Hard,
 }
 
 #[derive(Clone, Debug)]
@@ -37,6 +48,7 @@ pub enum PlayerMessage {
     ItemGuessed(String, usize, String),
     GuessIncorrect,
     ItemRemoved(usize, String),
+    Winner(Vec<String>),
 }
 
 #[derive(Clone, Debug)]
@@ -90,18 +102,13 @@ impl Answer {
     }
 }
 
-static LOBBYS: OnceLock<Arc<Mutex<HashMap<String, Lobby>>>> = OnceLock::new();
-
-pub fn init() {
-    LOBBYS.get_or_init(|| Arc::new(Mutex::new(HashMap::new())));
-}
+static LOBBYS: Lazy<Arc<Mutex<HashMap<String, Lobby>>>> = Lazy::new(|| Arc::new(Mutex::new(HashMap::new())));
 
 pub async fn with_lobby<F, T>(lobby_id: &str, f: F) -> Result<T>
 where
     F: FnOnce(&Lobby) -> Result<T>,
 {
-    let lobbys = LOBBYS.get().ok_or_else(|| anyhow!("LOBBYS not initialized"))?;
-    let lobbys_lock = lobbys.lock().await;
+    let lobbys_lock = LOBBYS.lock().await;
     let lobby = lobbys_lock.get(lobby_id).ok_or_else(|| anyhow!("Lobby '{lobby_id}' not found"))?;
     f(lobby)
 }
@@ -112,8 +119,7 @@ pub struct LobbyInfo {
 }
 
 pub async fn get_lobby_info() -> Result<Vec<LobbyInfo>> {
-    let lobbys = LOBBYS.get().ok_or_else(|| anyhow!("LOBBYS not initialized"))?;
-    let lobbys_lock = lobbys.lock().await;
+    let lobbys_lock = LOBBYS.lock().await;
     let mut lobby_infos = Vec::new();
     for (id, lobby) in &lobbys_lock.clone() {
         lobby_infos.push(LobbyInfo {
@@ -128,8 +134,7 @@ pub async fn with_lobby_mut<F, T>(lobby_id: &str, f: F) -> Result<T>
 where
     F: FnOnce(&mut Lobby) -> Result<T>,
 {
-    let lobbys = LOBBYS.get().ok_or_else(|| anyhow!("LOBBYS not initialized"))?;
-    let mut lobbys_lock = lobbys.lock().await;
+    let mut lobbys_lock = LOBBYS.lock().await;
     let lobby = lobbys_lock
         .get_mut(lobby_id)
         .ok_or_else(|| anyhow!("Lobby '{lobby_id}' not found"))?;
@@ -137,8 +142,7 @@ where
 }
 
 pub async fn create_lobby(lobby_id: &str, key_player: String) -> Result<()> {
-    let lobbys = LOBBYS.get().ok_or_else(|| anyhow!("LOBBYS not initialized"))?;
-    let mut lobbys_lock = lobbys.lock().await;
+    let mut lobbys_lock = LOBBYS.lock().await;
     if lobbys_lock.contains_key(lobby_id) {
         return Err(anyhow!("Lobby '{lobby_id}' already exists"));
     }
@@ -156,14 +160,13 @@ pub async fn create_lobby(lobby_id: &str, key_player: String) -> Result<()> {
             items: Vec::new(),
             items_history: Vec::new(),
             items_queue: Vec::new(),
-            last_add_to_queue: 0.0,
             questions_counter: 0,
+            settings: LobbySettings {
+                item_count: 10,
+                difficulty: Difficulty::Easy,
+            },
         },
     );
-    let lobby_id = lobby_id.to_string();
-    tokio::spawn(async move {
-        add_item_to_queue(lobby_id, Vec::new(), 0).await;
-    });
     Ok(())
 }
 
@@ -250,8 +253,6 @@ pub async fn start_lobby(lobby_id: String, player_name: String) -> Result<()> {
             return Err(anyhow!("Lobby '{lobby_id}' already started"));
         } else if player_name != lobby.key_player {
             return Err(anyhow!("Only the key player can start the lobby '{lobby_id}'",));
-        } else if lobby.items_queue.is_empty() {
-            return Err(anyhow!("Not enough items in queue to start lobby '{lobby_id}'",));
         }
         lobby.started = true;
         lobby.last_update = get_current_time();
@@ -260,8 +261,11 @@ pub async fn start_lobby(lobby_id: String, player_name: String) -> Result<()> {
             player.messages.push(PlayerMessage::GameStart);
         }
 
+        select_lobby_words(lobby);
         add_item_to_lobby(lobby);
-        add_item_to_lobby(lobby);
+        if lobby.settings.item_count > 1 {
+            add_item_to_lobby(lobby);
+        }
 
         println!("Lobby '{lobby_id}' started by key player '{player_name}'");
         Ok(())
@@ -298,8 +302,7 @@ pub fn get_time_diff(start: f64) -> f64 {
 }
 
 pub async fn lobby_loop() -> Result<()> {
-    let lobbys = LOBBYS.get().unwrap();
-    let mut lobbys_lock = lobbys.lock().await;
+    let mut lobbys_lock = LOBBYS.lock().await;
 
     // Iterate through lobbys to update or remove
     lobbys_lock.retain(|lobby_id, lobby| {
@@ -349,17 +352,6 @@ pub async fn lobby_loop() -> Result<()> {
                 } else {
                     lobby.questions_queue_waiting = true;
                     lobby.questions_queue_countdown = SUBMIT_QUESTION_EVERY_X_SECONDS;
-                }
-
-                // Add more items to the lobby's item queue if it's low
-                let time_since_last_add_to_queue = get_time_diff(lobby.last_add_to_queue);
-                if lobby.items_queue.len() < 3 && time_since_last_add_to_queue > 10.0 {
-                    lobby.last_add_to_queue = current_time;
-                    let lobby_id_clone = lobby_id.clone();
-                    let history_clone = lobby.items_history.clone();
-                    tokio::spawn(async move {
-                        add_item_to_queue(lobby_id_clone, history_clone, 0).await;
-                    });
                 }
 
                 // Update the elapsed time and last update time for the lobby

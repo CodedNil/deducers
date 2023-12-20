@@ -5,7 +5,6 @@ use std::{
     collections::HashSet,
     fs::File,
     io::{BufWriter, Write},
-    string::ToString,
 };
 use std::{fs, io, path::Path};
 
@@ -18,7 +17,7 @@ fn main() -> io::Result<()> {
     let output_path = Path::new("assets").join("style.css");
     fs::write(output_path, css)?;
 
-    if !Path::new("src/words.txt").exists() {
+    if !Path::new("src/backend/words.txt").exists() {
         if let Err(result) = parse_words() {
             println!("cargo:warning=Error parsing words: {result:?}");
         }
@@ -52,7 +51,7 @@ fn parse_words() -> Result<()> {
 
     println!("cargo:warning=Intersection time: {:?}", start_time.elapsed());
 
-    let file_path = "src/words.txt";
+    let file_path = "src/backend/words.txt";
     let mut file = BufWriter::new(File::create(file_path)?);
 
     write_word_sets(&mut file, &word_sets)?;
@@ -71,7 +70,15 @@ fn write_word_sets(file: &mut BufWriter<File>, word_sets: &WordSets) -> Result<(
 
 fn write_word_set(file: &mut BufWriter<File>, title: &str, words: &HashSet<String>) -> Result<()> {
     writeln!(file, "[{title}]")?;
-    let words_string = words.iter().map(ToString::to_string).collect::<Vec<String>>().join(",");
+    let words_string = words
+        .iter()
+        .map(|word| {
+            let mut c = word.chars();
+            c.next()
+                .map_or_else(String::new, |first| first.to_uppercase().collect::<String>() + c.as_str())
+        })
+        .collect::<Vec<String>>()
+        .join(",");
     writeln!(file, "{words_string}")?;
     Ok(())
 }

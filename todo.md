@@ -5,6 +5,8 @@ Start sound isnt great
 Clear question box on submit
 Add chat
 
+Help ? button
+
 Quizmaster rewrite:
 
 -   [x] Add lobby settings page for key player to edit, including:

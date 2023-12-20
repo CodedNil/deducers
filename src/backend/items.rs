@@ -1,73 +1,34 @@
 use crate::{
     backend::openai::query_ai,
-    lobby_utils::{with_lobby_mut, with_player_mut, Answer, Item, Lobby, PlayerMessage, Question},
+    backend::parse_words::WORD_SETS,
+    lobby_utils::{with_lobby_mut, with_player_mut, Answer, Difficulty, Item, Lobby, PlayerMessage, Question},
     ADD_ITEM_EVERY_X_QUESTIONS, GUESS_ITEM_COST, QUESTION_MIN_VOTES, SUBMIT_QUESTION_EVERY_X_SECONDS,
 };
 use anyhow::Result;
 use futures::future::join_all;
+use rand::seq::SliceRandom;
 use serde::Deserialize;
 use std::collections::HashMap;
 
-const MAX_RECURSIONS: u32 = 4; // Maximum for recursion depth for adding items
+pub fn select_lobby_words(lobby: &mut Lobby) {
+    let mut rng = rand::thread_rng();
 
-#[derive(Deserialize, Debug)]
-struct ItemsResponse {
-    item1: String,
-    item2: String,
-    item3: String,
-}
+    let combined_words = match lobby.settings.difficulty {
+        Difficulty::Easy => WORD_SETS.easy_words.iter().collect::<Vec<_>>(),
+        Difficulty::Medium => [&WORD_SETS.easy_words, &WORD_SETS.medium_words]
+            .iter()
+            .flat_map(|set| set.iter())
+            .collect::<Vec<_>>(),
+        Difficulty::Hard => [&WORD_SETS.easy_words, &WORD_SETS.medium_words, &WORD_SETS.hard_words]
+            .iter()
+            .flat_map(|set| set.iter())
+            .collect::<Vec<_>>(),
+    };
 
-#[async_recursion::async_recursion]
-pub async fn add_item_to_queue(lobby_id: String, mut items_history: Vec<String>, recursions: u32) {
-    // Check if maximum recursion depth has been reached
-    if recursions >= MAX_RECURSIONS {
-        println!("Maximum recursion depth reached on adding item");
-        return;
-    }
+    let mut shuffled_words = combined_words;
+    shuffled_words.shuffle(&mut rng);
 
-    // Query with OpenAI API
-    let response = query_ai(
-        &format!("u:Create 3 one word items to be used in a 20 questions game, such as Phone Bird Crystal, first letter capitalised, return compact one line JSON with keys item1 item2 item3, previous items were {items_history:?} don't repeat and aim for variety, British English, categories are [plant, animal, object], difficulty 3/10"),
-        100, 2.0
-    ).await;
-    if let Ok(message) = response {
-        // Parse response
-        if let Ok(items_response) = serde_json::from_str::<ItemsResponse>(&message) {
-            // Iterate and add items that aren't in history
-            for item in [items_response.item1, items_response.item2, items_response.item3] {
-                if item.len() < 3 {
-                    continue;
-                }
-                if item.contains(' ') {
-                    continue;
-                }
-                if !items_history.contains(&item) {
-                    // Add item to history
-                    items_history.push(item.clone());
-
-                    // Send request to lobby with ureq
-                    let _result = add_item_to_lobby_queue(lobby_id.clone(), item.clone()).await;
-                }
-            }
-        } else {
-            // Try again
-            add_item_to_queue(lobby_id, items_history, recursions + 1).await;
-        }
-    } else {
-        // Try again
-        add_item_to_queue(lobby_id, items_history, recursions + 1).await;
-    }
-}
-
-pub async fn add_item_to_lobby_queue(lobby_id: String, item_name: String) -> Result<()> {
-    with_lobby_mut(&lobby_id, |lobby| {
-        if !lobby.items_history.contains(&item_name) {
-            lobby.items_queue.insert(0, item_name.clone());
-            return Ok(());
-        }
-        Err(anyhow::anyhow!("Item already in history"))
-    })
-    .await
+    lobby.items_queue = shuffled_words.into_iter().take(lobby.settings.item_count).cloned().collect();
 }
 
 pub fn add_item_to_lobby(lobby: &mut Lobby) {
@@ -137,8 +98,7 @@ pub async fn ask_top_question(lobby_id: String) -> Result<()> {
 
     let items_str = items.iter().map(|item| item.name.as_str()).collect::<Vec<&str>>().join(", ");
 
-    // Query with OpenAI API
-    // Get 3 answers for each item to pick the most common answer
+    // Query with OpenAI API - Get 3 answers for each item to pick the most common answer
     let mut answers_choices: Vec<Vec<Answer>> = Vec::new();
     let mut successful_attempts = 0;
     let mut total_attempts = 0;
@@ -227,7 +187,41 @@ pub async fn ask_top_question(lobby_id: String) -> Result<()> {
         }
         Ok(())
     })
-    .await
+    .await?;
+
+    test_game_over(lobby_id).await
+}
+
+pub async fn test_game_over(lobby_id: String) -> Result<()> {
+    with_lobby_mut(&lobby_id, |lobby| {
+        if lobby.started && lobby.items.is_empty() {
+            lobby.started = false;
+
+            // Find winner, player with max score, or if tied multiple players, or if 0 score no winner
+            let mut max_score = 0;
+            let mut winners = Vec::new();
+            for player in lobby.players.values() {
+                match player.score.cmp(&max_score) {
+                    std::cmp::Ordering::Greater => {
+                        max_score = player.score;
+                        winners.clear();
+                        winners.push(player.name.clone());
+                    }
+                    std::cmp::Ordering::Equal => {
+                        winners.push(player.name.clone());
+                    }
+                    std::cmp::Ordering::Less => {}
+                }
+            }
+
+            for player in lobby.players.values_mut() {
+                player.messages.push(PlayerMessage::Winner(winners.clone()));
+            }
+        }
+        Ok(())
+    })
+    .await?;
+    Ok(())
 }
 
 pub async fn player_guess_item(lobby_id: String, player_name: String, item_choice: usize, guess: String) -> Result<()> {

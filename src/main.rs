@@ -34,8 +34,6 @@ pub const PLAYER_NAME_PATTERN: &str = "^[a-zA-Z0-9 ]+$"; // Alphanumeric and spa
 
 #[tokio::main]
 async fn main() {
-    lobby_utils::init();
-
     // Get the server IP from an environment variable or default to localhost
     let addr: std::net::SocketAddr = ([0, 0, 0, 0], SERVER_PORT).into();
     let server_ip = env::var("SERVER_IP").unwrap_or_else(|_| "127.0.0.1".to_string());
