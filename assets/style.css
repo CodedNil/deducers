@@ -156,3 +156,7 @@ p {
 .table-body-box.maybe {
   background-color: rgb(140, 80, 0);
 }
+
+.table-body-box.unknown {
+  background-color: rgb(80, 80, 80);
+}

@@ -103,7 +103,7 @@ pub async fn ask_top_question(lobby_id: String) -> Result<()> {
     let mut successful_attempts = 0;
     let mut total_attempts = 0;
 
-    let prompt = format!("u:For each item in this list '{items_str}', answer the question '{question_text}', return compact one line JSON with key answers which is a list of yes, no or maybe, this is a 20 questions game, British English");
+    let prompt = format!("u:For each item in this list '{items_str}', answer the question '{question_text}', return compact one line JSON with key answers which is a list of yes, no, maybe or unknown, this is a 20 questions game, British English");
     while successful_attempts < 3 && total_attempts < 3 {
         let mut futures = Vec::new();
         for _ in 0..3 {
@@ -144,7 +144,7 @@ pub async fn ask_top_question(lobby_id: String) -> Result<()> {
         let most_common_answer = answer_frequency
             .into_iter()
             .max_by(|a, b| a.1.cmp(&b.1))
-            .map_or(Answer::Maybe, |(ans, _)| ans);
+            .map_or(Answer::Unknown, |(ans, _)| ans);
 
         answers.push(most_common_answer);
     }
@@ -157,7 +157,7 @@ pub async fn ask_top_question(lobby_id: String) -> Result<()> {
         // Ask question against each item
         let mut remove_items = Vec::new();
         for (index, item) in &mut lobby.items.iter_mut().enumerate() {
-            let answer = answers.get(index).unwrap_or(&Answer::Maybe).clone();
+            let answer = answers.get(index).unwrap_or(&Answer::Unknown).clone();
             item.questions.push(Question {
                 player: question_player.clone(),
                 id: question_id,

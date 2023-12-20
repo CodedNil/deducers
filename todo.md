@@ -17,7 +17,7 @@ Quizmaster rewrite:
     -   [x] Quizmaster mode, where host picks the items and answers questions
         -   [x] Refresh button which refreshes all items in list, and individually per item
         -   [x] Edit items in list for custom item submissions
-        -   [x] When user asks question it adds to answer queue for host to answer (requires unknown answer choice)
+        -   [x] When user asks question it adds to answer queue for host to answer
 
 SUBTLEX-UK database of word frequencies https://www.tandfonline.com/doi/suppl/10.1080/17470218.2013.850521
 WordNet database of word categories https://wordnet.princeton.edu/download/current-version

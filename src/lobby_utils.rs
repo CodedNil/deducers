@@ -89,6 +89,7 @@ pub enum Answer {
     Yes,
     No,
     Maybe,
+    Unknown,
 }
 
 impl Answer {
@@ -97,6 +98,7 @@ impl Answer {
             "yes" => Some(Self::Yes),
             "no" => Some(Self::No),
             "maybe" => Some(Self::Maybe),
+            "unknown" => Some(Self::Unknown),
             _ => None,
         }
     }
@@ -162,7 +164,7 @@ pub async fn create_lobby(lobby_id: &str, key_player: String) -> Result<()> {
             items_queue: Vec::new(),
             questions_counter: 0,
             settings: LobbySettings {
-                item_count: 10,
+                item_count: 1,
                 difficulty: Difficulty::Easy,
             },
         },
