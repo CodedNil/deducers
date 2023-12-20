@@ -1,7 +1,7 @@
 use crate::{
     backend::openai::query_ai,
     backend::parse_words::WORD_SETS,
-    lobby_utils::{with_lobby_mut, with_player_mut, Answer, Difficulty, Item, Lobby, PlayerMessage, Question},
+    lobby_utils::{with_lobby_mut, with_player_mut, Answer, Difficulty, Item, Lobby, PlayerMessage, Question, QueuedQuestionQuizmaster},
 };
 use anyhow::Result;
 use futures::future::join_all;
@@ -64,6 +64,7 @@ pub async fn ask_top_question(lobby_id: String) -> Result<()> {
     let (mut question_text, mut question_player, mut question_anonymous) = (String::new(), String::new(), false);
     let mut question_id = 0;
     let mut items = Vec::new();
+    let mut is_quizmaster = false;
 
     with_lobby_mut(&lobby_id, |lobby| {
         let question = lobby
@@ -95,9 +96,27 @@ pub async fn ask_top_question(lobby_id: String) -> Result<()> {
             lobby.questions_queue_countdown = lobby.settings.submit_question_every_x_seconds as f64;
         }
 
+        is_quizmaster = lobby.settings.player_controlled;
+
         Ok(())
     })
     .await?;
+
+    // If quizmaster end here and add to the quizmasters queue
+    if is_quizmaster {
+        let items_str = items.iter().map(|item| item.name.clone()).collect::<Vec<String>>();
+        with_lobby_mut(&lobby_id, |lobby| {
+            lobby.quizmaster_queue.push(QueuedQuestionQuizmaster {
+                question: question_text.clone(),
+                player: question_player.clone(),
+                anonymous: question_anonymous,
+                items: items_str,
+            });
+            Ok(())
+        })
+        .await?;
+        return Ok(());
+    }
 
     let items_str = items.iter().map(|item| item.name.as_str()).collect::<Vec<&str>>().join(", ");
 

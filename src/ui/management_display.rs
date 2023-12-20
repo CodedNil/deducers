@@ -1,4 +1,4 @@
-use super::gameview::AlertPopup;
+use super::{gameview::AlertPopup, quizmaster};
 use crate::{
     backend::{
         items::player_guess_item,
@@ -35,7 +35,7 @@ pub fn render<'a>(
     }
 
     if player_name == &lobby.key_player && lobby.settings.player_controlled {
-        return cx.render(rsx! { div { align_self: "center", font_size: "larger", "Quizmaster WIP" } });
+        return quizmaster::render(cx, player_name, lobby_id, lobby);
     }
 
     cx.render(rsx! {

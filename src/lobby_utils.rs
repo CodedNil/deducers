@@ -25,6 +25,7 @@ pub struct Lobby {
     pub questions_queue: Vec<QueuedQuestion>,
     pub questions_queue_waiting: bool,
     pub questions_queue_countdown: f64,
+    pub quizmaster_queue: Vec<QueuedQuestionQuizmaster>,
     pub items: Vec<Item>,
     pub items_history: Vec<String>,
     pub items_queue: Vec<String>,
@@ -163,6 +164,14 @@ pub struct QueuedQuestion {
     pub votes: usize,
 }
 
+#[derive(Clone, Debug)]
+pub struct QueuedQuestionQuizmaster {
+    pub player: String,
+    pub question: String,
+    pub anonymous: bool,
+    pub items: Vec<String>,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Item {
     pub name: String,
@@ -255,6 +264,17 @@ pub async fn create_lobby(lobby_id: &str, key_player: String) -> Result<()> {
             questions_queue: Vec::new(),
             questions_queue_waiting: true,
             questions_queue_countdown: 0.0,
+            quizmaster_queue: vec![QueuedQuestionQuizmaster {
+                player: "dan".to_string(),
+                question: "Is it a fruit?".to_string(),
+                anonymous: false,
+                items: vec![
+                    "Apple".to_string(),
+                    "Pear".to_string(),
+                    "Pineapple".to_string(),
+                    "Strawberry".to_string(),
+                ],
+            }],
             items: Vec::new(),
             items_history: Vec::new(),
             items_queue: select_lobby_words(&LobbySettings::default().difficulty, LobbySettings::default().item_count),

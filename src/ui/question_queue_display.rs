@@ -1,13 +1,10 @@
-use crate::{
-    backend::question_queue::vote_question,
-    lobby_utils::{Lobby, QueuedQuestion},
-};
+use crate::{backend::question_queue::vote_question, lobby_utils::Lobby};
 use dioxus::prelude::*;
 
 pub fn render<'a>(cx: Scope<'a>, player_name: &'a String, lobby_id: &'a String, lobby: &Lobby) -> Element<'a> {
-    let questions = lobby.questions_queue.iter().collect::<Vec<&QueuedQuestion>>();
+    let questions = lobby.questions_queue.clone();
     // Sorting the questions by score and name
-    let mut sorted_questions = questions.clone();
+    let mut sorted_questions = questions;
     sorted_questions.sort_by(|a, b| {
         if a.votes == b.votes {
             a.question.cmp(&b.question)
