@@ -9,9 +9,9 @@ pub fn render<'a>(
     lobby_settings_open: &'a UseState<bool>,
     player_name: &'a str,
     lobby_id: &'a str,
-    lobby: &Lobby,
+    lobby: &'a Lobby,
 ) -> Element<'a> {
-    let advanced_settings: &UseState<bool> = use_state(cx, || false);
+    let advanced_settings_toggle: &UseState<bool> = use_state(cx, || false);
     let player_controlled = lobby.settings.player_controlled;
     let game_time = calculate_game_time(lobby.settings.item_count, lobby.settings.submit_question_every_x_seconds);
 
@@ -34,11 +34,14 @@ pub fn render<'a>(
                     "Advanced options: "
                     input {
                         r#type: "checkbox",
-                        checked: "{advanced_settings}",
+                        checked: "{advanced_settings_toggle}",
                         oninput: move |e| {
-                            advanced_settings.set(e.value.parse::<bool>().unwrap_or(false));
+                            advanced_settings_toggle.set(e.value.parse::<bool>().unwrap_or(false));
                         }
                     }
+                }
+                if *advanced_settings_toggle.get() {
+                    advanced_settings(cx, player_name, lobby_id, lobby)
                 }
             }
             button {
@@ -287,5 +290,88 @@ fn item_settings<'a>(cx: Scope<'a>, player_name: &'a str, lobby_id: &'a str, lob
                 button { background_color: "rgb(20, 100, 20)", r#type: "submit", "+" }
             }
         }
+    }
+}
+
+struct SettingDetail {
+    key: String,
+    min: usize,
+    max: usize,
+}
+
+impl SettingDetail {
+    fn new(key: &str, min: usize, max: usize) -> Self {
+        Self {
+            key: key.to_string(),
+            min,
+            max,
+        }
+    }
+
+    fn display_name(&self) -> String {
+        self.key
+            .split('_')
+            .map(|word| word.chars().next().unwrap().to_uppercase().to_string() + &word.chars().skip(1).collect::<String>())
+            .collect::<Vec<String>>()
+            .join(" ")
+    }
+}
+
+fn advanced_settings<'a>(cx: Scope<'a>, player_name: &'a str, lobby_id: &'a str, lobby: &'a Lobby) -> LazyNodes<'a, 'a> {
+    let settings = vec![
+        SettingDetail::new("starting_coins", 1, 100),
+        SettingDetail::new("coin_every_x_seconds", 1, 20),
+        SettingDetail::new("submit_question_every_x_seconds", 1, 30),
+        SettingDetail::new("add_item_every_x_questions", 1, 20),
+        SettingDetail::new("submit_question_cost", 1, 100),
+        SettingDetail::new("anonymous_question_cost", 1, 100),
+        SettingDetail::new("guess_item_cost", 1, 100),
+        SettingDetail::new("question_min_votes", 1, 20),
+        SettingDetail::new("score_to_coins_ratio", 1, 100),
+    ];
+
+    rsx! {
+        settings.into_iter().map(|setting| {
+            let setting_value = match setting.key.as_str() {
+                "starting_coins" => Some(lobby.settings.starting_coins),
+                "coin_every_x_seconds" => Some(lobby.settings.coin_every_x_seconds),
+                "submit_question_every_x_seconds" => Some(lobby.settings.submit_question_every_x_seconds),
+                "add_item_every_x_questions" => Some(lobby.settings.add_item_every_x_questions),
+                "submit_question_cost" => Some(lobby.settings.submit_question_cost),
+                "anonymous_question_cost" => Some(lobby.settings.anonymous_question_cost),
+                "guess_item_cost" => Some(lobby.settings.guess_item_cost),
+                "question_min_votes" => Some(lobby.settings.question_min_votes),
+                "score_to_coins_ratio" => Some(lobby.settings.score_to_coins_ratio),
+                _ => None,
+            };
+            setting_value.map_or_else(|| rsx! { div {} }, |setting_value|
+                rsx! {
+                    label {
+                        "{setting.display_name()}: "
+                        input {
+                            r#type: "number",
+                            min: "{setting.min}",
+                            max: "{setting.max}",
+                            value: "{setting_value}",
+                            width: "50px",
+                            oninput: move |e| {
+                                let lobby_id = lobby_id.to_string();
+                                let player_name = player_name.to_string();
+                                let count = e.value.parse::<usize>().unwrap_or(1);
+                                let key = setting.key.clone();
+                                cx.spawn(async move {
+                                    let _result = alter_lobby_settings(
+                                            lobby_id,
+                                            player_name,
+                                            AlterLobbySetting::Advanced(key, count)
+                                        )
+                                        .await;
+                                });
+                            }
+                        }
+                    }
+                }
+            )
+        })
     }
 }

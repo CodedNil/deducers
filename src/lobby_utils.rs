@@ -126,6 +126,8 @@ pub enum AlterLobbySetting {
     RemoveItem(String),
     RefreshItem(String),
     RefreshAllItems,
+
+    Advanced(String, usize),
 }
 
 #[derive(Clone, Debug)]
@@ -388,6 +390,7 @@ pub async fn disconnect_player(lobby_id: String, player_name: String) -> Result<
     .await
 }
 
+#[allow(clippy::too_many_lines)]
 pub async fn alter_lobby_settings(lobby_id: String, player_name: String, setting: AlterLobbySetting) -> Result<()> {
     with_lobby_mut(&lobby_id, |lobby| {
         if player_name != lobby.key_player {
@@ -469,6 +472,40 @@ pub async fn alter_lobby_settings(lobby_id: String, player_name: String, setting
             AlterLobbySetting::RefreshAllItems => {
                 lobby.items_queue = select_lobby_words(&lobby.settings.difficulty, lobby.settings.item_count);
             }
+            AlterLobbySetting::Advanced(key, value) => match key.as_str() {
+                "starting_coins" => {
+                    lobby.settings.starting_coins = value;
+                }
+                "coin_every_x_seconds" => {
+                    lobby.settings.coin_every_x_seconds = value;
+                }
+                "submit_question_every_x_seconds" => {
+                    lobby.settings.submit_question_every_x_seconds = value;
+                }
+                "add_item_every_x_questions" => {
+                    lobby.settings.add_item_every_x_questions = value;
+                }
+
+                "submit_question_cost" => {
+                    lobby.settings.submit_question_cost = value;
+                }
+                "anonymous_question_cost" => {
+                    lobby.settings.anonymous_question_cost = value;
+                }
+                "guess_item_cost" => {
+                    lobby.settings.guess_item_cost = value;
+                }
+                "question_min_votes" => {
+                    lobby.settings.question_min_votes = value;
+                }
+
+                "score_to_coins_ratio" => {
+                    lobby.settings.score_to_coins_ratio = value;
+                }
+                _ => {
+                    return Err(anyhow!("Invalid advanced setting key"));
+                }
+            },
         }
 
         Ok(())
