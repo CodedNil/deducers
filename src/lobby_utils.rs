@@ -260,10 +260,12 @@ pub async fn get_lobby_info() -> Result<Vec<LobbyInfo>> {
     let lobbys_lock = LOBBYS.lock().await;
     let mut lobby_infos = Vec::new();
     for (id, lobby) in &lobbys_lock.clone() {
-        lobby_infos.push(LobbyInfo {
-            id: id.clone(),
-            players_count: lobby.players.len(),
-        });
+        if !lobby.started {
+            lobby_infos.push(LobbyInfo {
+                id: id.clone(),
+                players_count: lobby.players.len(),
+            });
+        }
     }
     Ok(lobby_infos)
 }
@@ -296,33 +298,7 @@ pub async fn create_lobby(lobby_id: &str, key_player: String) -> Result<()> {
             questions_queue: Vec::new(),
             questions_queue_waiting: true,
             questions_queue_countdown: 0.0,
-            quizmaster_queue: vec![QueuedQuestionQuizmaster {
-                player: "dan".to_string(),
-                question: "Is it a fruit?".to_string(),
-                anonymous: false,
-                items: vec![
-                    QuizmasterItem {
-                        name: "Apple".to_string(),
-                        id: 1,
-                        answer: Answer::Maybe,
-                    },
-                    QuizmasterItem {
-                        name: "Banana".to_string(),
-                        id: 2,
-                        answer: Answer::Maybe,
-                    },
-                    QuizmasterItem {
-                        name: "Orange".to_string(),
-                        id: 3,
-                        answer: Answer::Maybe,
-                    },
-                    QuizmasterItem {
-                        name: "Pear".to_string(),
-                        id: 4,
-                        answer: Answer::Maybe,
-                    },
-                ],
-            }],
+            quizmaster_queue: Vec::new(),
             items: Vec::new(),
             items_history: Vec::new(),
             items_queue: select_lobby_words(&LobbySettings::default().difficulty, LobbySettings::default().item_count),

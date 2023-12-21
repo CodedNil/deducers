@@ -64,7 +64,6 @@ struct AskQuestionResponse {
 #[allow(clippy::too_many_lines, clippy::cast_precision_loss)]
 pub async fn ask_top_question(lobby_id: String) -> Result<()> {
     let (mut question_text, mut question_player, mut question_anonymous) = (String::new(), String::new(), false);
-    let mut question_id = 0;
     let mut items = Vec::new();
     let mut is_quizmaster = false;
 
@@ -88,9 +87,7 @@ pub async fn ask_top_question(lobby_id: String) -> Result<()> {
         items = lobby.items.clone();
 
         // Remove question from queue
-        question_id = lobby.questions_counter;
         lobby.questions_queue.retain(|q| q.question != question_text);
-        lobby.questions_counter += 1;
 
         // Reset queue waiting if needed
         if !lobby.questions_queue.iter().any(|q| q.votes >= lobby.settings.question_min_votes) {
@@ -185,6 +182,9 @@ pub async fn ask_top_question(lobby_id: String) -> Result<()> {
             return Err(anyhow::anyhow!("Failed to get answers for question '{question_text}'"));
         }
 
+        let question_id = lobby.questions_counter;
+        lobby.questions_counter += 1;
+
         // Ask question against each item
         let mut remove_items = Vec::new();
         for (index, item) in &mut lobby.items.iter_mut().enumerate() {
@@ -246,6 +246,65 @@ pub async fn quizmaster_change_answer(
             .and_then(|q| q.items.iter_mut().find(|i| i.id == item_id))
             .map(|i| i.answer = new_answer)
             .ok_or_else(|| anyhow::anyhow!("Question or item not found"))
+    })
+    .await
+}
+
+pub async fn quizmaster_submit(lobby_id: String, player_name: String, question: String) -> Result<()> {
+    with_lobby_mut(&lobby_id, |lobby| {
+        if !lobby.started {
+            return Err(anyhow::anyhow!("Lobby not started"));
+        }
+        let player = lobby.players.get(&player_name).ok_or_else(|| anyhow::anyhow!("Player not found"))?;
+        if !player.quizmaster {
+            return Err(anyhow::anyhow!("Only quizmaster can use this"));
+        }
+
+        let question_index = lobby
+            .quizmaster_queue
+            .iter()
+            .position(|q| q.question == question)
+            .ok_or_else(|| anyhow::anyhow!("Question not found"))?;
+        let question = lobby.quizmaster_queue.remove(question_index);
+
+        let question_id = lobby.questions_counter;
+        lobby.questions_counter += 1;
+
+        let mut remove_items = Vec::new();
+        for quizmaster_item in question.items.clone() {
+            let item = lobby.items.iter_mut().find(|i| i.id == quizmaster_item.id);
+            if let Some(item) = item {
+                item.questions.push(Question {
+                    player: question.player.clone(),
+                    id: question_id,
+                    question: question.question.clone(),
+                    answer: quizmaster_item.answer,
+                    anonymous: question.anonymous,
+                });
+
+                // If item has 20 questions, remove the item
+                if item.questions.len() >= 20 {
+                    remove_items.push(item.clone());
+                    for player_n in lobby.players.values_mut() {
+                        player_n.messages.push(PlayerMessage::ItemRemoved(item.id, item.name.clone()));
+                    }
+                }
+            }
+        }
+
+        if !remove_items.is_empty() {
+            lobby.items.retain(|i| !remove_items.contains(i));
+        }
+
+        if lobby.questions_counter % lobby.settings.add_item_every_x_questions == 0 {
+            add_item_to_lobby(lobby);
+        }
+
+        for player in lobby.players.values_mut() {
+            player.messages.push(PlayerMessage::QuestionAsked);
+        }
+
+        Ok(())
     })
     .await
 }

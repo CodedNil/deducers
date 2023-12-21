@@ -1,5 +1,5 @@
 use crate::{
-    backend::items::quizmaster_change_answer,
+    backend::items::{quizmaster_change_answer, quizmaster_submit},
     lobby_utils::{Answer, Lobby},
 };
 use dioxus::prelude::*;
@@ -28,7 +28,16 @@ pub fn render<'a>(cx: Scope<'a>, player_name: &'a str, lobby_id: &'a str, lobby:
                         gap: "5px",
                         div { class: "table-body-box", "{question.player}" }
                         div { class: "table-body-box", flex: "1", "{question.question}" }
-                        button { background_color: "rgb(20, 100, 20)", "Submit" }
+                        button { 
+                            onclick: move |_| {
+                                let lobby_id = lobby_id.to_string();
+                                let player_name = player_name.to_string();
+                                let question = question_string.clone();
+                                cx.spawn(async move {
+                                    let _response = quizmaster_submit(lobby_id, player_name, question).await;
+                                });
+                            },
+                            background_color: "rgb(20, 100, 20)", "Submit" }
                     }
                     div {
                         display: "flex",
