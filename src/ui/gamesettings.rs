@@ -13,7 +13,11 @@ pub fn render<'a>(
 ) -> Element<'a> {
     let advanced_settings_toggle: &UseState<bool> = use_state(cx, || false);
     let player_controlled = lobby.settings.player_controlled;
-    let game_time = calculate_game_time(lobby.settings.item_count, lobby.settings.submit_question_every_x_seconds);
+    let game_time = calculate_game_time(
+        lobby.settings.item_count,
+        lobby.settings.submit_question_every_x_seconds,
+        lobby.settings.add_item_every_x_questions,
+    );
 
     let settings_open = if player_name == lobby.key_player {
         *lobby_settings_open.get()
@@ -24,24 +28,60 @@ pub fn render<'a>(
     cx.render(rsx! {
         div { class: "dialog floating", display: "flex", gap: "20px", top: if settings_open { "50%" } else { "-100%" },
             label { font_weight: "bold", font_size: "larger", "Lobby Settings" }
+            label { font_size: "large", "Estimated game length {game_time}" }
             div { display: "flex", flex_direction: "column", gap: "5px",
                 standard_settings(cx, player_name, lobby_id, lobby),
-                "Estimated game length {game_time}"
-                if player_controlled {
-                    item_settings(cx, player_name, lobby_id, lobby)
-                }
-                label {
-                    "Advanced options: "
-                    input {
-                        r#type: "checkbox",
-                        checked: "{advanced_settings_toggle}",
-                        oninput: move |e| {
-                            advanced_settings_toggle.set(e.value.parse::<bool>().unwrap_or(false));
+                div {
+                    class: "table-header-box",
+                    display: "flex",
+                    flex_direction: "column",
+                    gap: "5px",
+                    text_transform: "none",
+                    padding: "10px",
+                    label {
+                        "Host as Quizmaster: "
+                        input {
+                            r#type: "checkbox",
+                            checked: "{player_controlled}",
+                            oninput: move |e| {
+                                let lobby_id = lobby_id.to_string();
+                                let player_name = player_name.to_string();
+                                let checked = e.value.parse::<bool>().unwrap_or(false);
+                                cx.spawn(async move {
+                                    let _result = alter_lobby_settings(
+                                            lobby_id,
+                                            player_name,
+                                            AlterLobbySetting::PlayerControlled(checked),
+                                        )
+                                        .await;
+                                });
+                            }
                         }
                     }
+                    if player_controlled {
+                        item_settings(cx, player_name, lobby_id, lobby)
+                    }
                 }
-                if *advanced_settings_toggle.get() {
-                    advanced_settings(cx, player_name, lobby_id, lobby)
+                div {
+                    class: "table-header-box",
+                    display: "flex",
+                    flex_direction: "column",
+                    gap: "5px",
+                    text_transform: "none",
+                    padding: "10px",
+                    label {
+                        "Advanced options: "
+                        input {
+                            r#type: "checkbox",
+                            checked: "{advanced_settings_toggle}",
+                            oninput: move |e| {
+                                advanced_settings_toggle.set(e.value.parse::<bool>().unwrap_or(false));
+                            }
+                        }
+                    }
+                    if *advanced_settings_toggle.get() {
+                        advanced_settings(cx, player_name, lobby_id, lobby)
+                    }
                 }
             }
             button {
@@ -57,18 +97,22 @@ pub fn render<'a>(
 
 // Function to estimate game time in seconds
 #[allow(clippy::cast_precision_loss, clippy::cast_possible_truncation, clippy::cast_sign_loss)]
-fn calculate_game_time(items_count: usize, every_x_seconds: usize) -> String {
+fn calculate_game_time(items_count: usize, question_every_x_seconds: usize, item_every_x_questions: usize) -> String {
     // Initial items are added at the start, so we subtract them from the total count
     let remaining_items = if items_count > 2 { items_count - 2 } else { 0 };
 
     // Calculate the number of questions after which all items are added
-    let final_item_added_at_question = if items_count > 2 { remaining_items * 5 } else { 0 };
+    let final_item_added_at_question = if items_count > 2 {
+        remaining_items * item_every_x_questions
+    } else {
+        0
+    };
 
     // Total questions required to remove all items (20 questions per item)
     let total_questions_to_complete = 20 + final_item_added_at_question;
 
     // Calculate total game time in seconds
-    let game_time = total_questions_to_complete * every_x_seconds;
+    let game_time = total_questions_to_complete * question_every_x_seconds;
 
     if game_time < 60 {
         // If less than a minute, display just in seconds
@@ -162,26 +206,6 @@ fn standard_settings<'a>(cx: Scope<'a>, player_name: &'a str, lobby_id: &'a str,
                     }
                 }
             }}
-        }
-        label {
-            "Host as Quizmaster: "
-            input {
-                r#type: "checkbox",
-                checked: "{player_controlled}",
-                oninput: move |e| {
-                    let lobby_id = lobby_id.to_string();
-                    let player_name = player_name.to_string();
-                    let checked = e.value.parse::<bool>().unwrap_or(false);
-                    cx.spawn(async move {
-                        let _result = alter_lobby_settings(
-                                lobby_id,
-                                player_name,
-                                AlterLobbySetting::PlayerControlled(checked),
-                            )
-                            .await;
-                    });
-                }
-            }
         }
     }
 }
@@ -353,7 +377,7 @@ fn advanced_settings<'a>(cx: Scope<'a>, player_name: &'a str, lobby_id: &'a str,
                             min: "{setting.min}",
                             max: "{setting.max}",
                             value: "{setting_value}",
-                            width: "50px",
+                            max_width: "50px",
                             oninput: move |e| {
                                 let lobby_id = lobby_id.to_string();
                                 let player_name = player_name.to_string();

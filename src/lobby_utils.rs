@@ -1,8 +1,8 @@
 #![allow(clippy::missing_errors_doc, clippy::future_not_send, clippy::significant_drop_tightening)]
 use crate::{
     backend::items::{add_item_to_lobby, ask_top_question, select_lobby_words},
-    IDLE_KICK_TIME, ITEM_NAME_PATTERN, LOBBY_ID_PATTERN, MAX_CHAT_LENGTH, MAX_CHAT_MESSAGES, MAX_LOBBY_ID_LENGTH, MAX_LOBBY_ITEMS,
-    MAX_PLAYER_NAME_LENGTH, PLAYER_NAME_PATTERN,
+    IDLE_KICK_TIME, ITEM_NAME_PATTERN, LOBBY_ID_PATTERN, MAX_CHAT_LENGTH, MAX_CHAT_MESSAGES, MAX_ITEM_NAME_LENGTH, MAX_LOBBY_ID_LENGTH,
+    MAX_LOBBY_ITEMS, MAX_PLAYER_NAME_LENGTH, PLAYER_NAME_PATTERN,
 };
 use anyhow::{anyhow, Result};
 use once_cell::sync::Lazy;
@@ -437,8 +437,22 @@ pub async fn alter_lobby_settings(lobby_id: String, player_name: String, setting
                 lobby.settings.player_controlled = player_controlled;
             }
             AlterLobbySetting::AddItem(item) => {
+                // If item is empty, pick a random unique word from the difficulty
+                if item.is_empty() {
+                    let mut new_word = select_lobby_words(&lobby.settings.difficulty, 1).pop().unwrap();
+                    while lobby.items_queue.contains(&new_word) {
+                        new_word = select_lobby_words(&lobby.settings.difficulty, 1).pop().unwrap();
+                    }
+                    lobby.items_queue.push(new_word);
+                    lobby.settings.item_count = lobby.items_queue.len();
+                    return Ok(());
+                }
+                // Else check if the item is valid and add it to the queue
                 if !regex::Regex::new(ITEM_NAME_PATTERN).unwrap().is_match(&item) {
                     return Err(anyhow!("Item name must be alphabetic"));
+                }
+                if item.len() < 3 || item.len() > MAX_ITEM_NAME_LENGTH {
+                    return Err(anyhow!("Item name must be between 3 and {MAX_ITEM_NAME_LENGTH} characters long"));
                 }
                 if lobby.items_queue.contains(&item) {
                     return Err(anyhow!("Item '{item}' already exists in the lobby"));
