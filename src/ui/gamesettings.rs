@@ -32,12 +32,7 @@ pub fn render<'a>(
             div { display: "flex", flex_direction: "column", gap: "5px",
                 standard_settings(cx, player_name, lobby_id, lobby),
                 div {
-                    class: "table-header-box",
-                    display: "flex",
-                    flex_direction: "column",
-                    gap: "5px",
-                    text_transform: "none",
-                    padding: "10px",
+                    class: "dark-box",
                     label {
                         "Host as Quizmaster: "
                         input {
@@ -63,12 +58,7 @@ pub fn render<'a>(
                     }
                 }
                 div {
-                    class: "table-header-box",
-                    display: "flex",
-                    flex_direction: "column",
-                    gap: "5px",
-                    text_transform: "none",
-                    padding: "10px",
+                    class: "dark-box",
                     label {
                         "Advanced options: "
                         input {
@@ -217,7 +207,7 @@ fn item_settings<'a>(cx: Scope<'a>, player_name: &'a str, lobby_id: &'a str, lob
 
     rsx! {
         div { display: "flex", flex_direction: "column", gap: "5px",
-            div { class: "table-header-box",
+            div {
                 "Items "
                 button {
                     padding: "2px",

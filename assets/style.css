@@ -84,6 +84,17 @@ select:active {
   box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.12), inset 0 1px 2px rgba(0, 0, 0, 0.24);
 }
 
+.dark-box {
+  background-color: rgb(25, 25, 40);
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 10px;
+  border-radius: 4px;
+  font-weight: bold;
+  text-align: center;
+}
+
 .dialog {
   background-color: rgb(40, 40, 60);
   padding: 20px;

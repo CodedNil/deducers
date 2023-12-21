@@ -97,6 +97,17 @@ select {
     }
 }
 
+.dark-box {
+    background-color: $secondary_color;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    padding: 10px;
+    border-radius: 4px;
+    font-weight: bold;
+    text-align: center;
+}
+
 .dialog {
     background-color: $background_color;
     padding: 20px;

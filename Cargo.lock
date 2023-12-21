@@ -92,17 +92,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "async-recursion"
-version = "1.0.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5fd55a5ba1179988837d24ab4c7cc8ed6efdeff578ede0416b4225a5fca35bd0"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
-]
-
-[[package]]
 name = "async-task"
 version = "4.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -402,7 +391,6 @@ name = "deducers"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "async-recursion",
  "axum",
  "csv",
  "dioxus",
