@@ -18,6 +18,7 @@ pub fn render<'a>(
         lobby.settings.submit_question_every_x_seconds,
         lobby.settings.add_item_every_x_questions,
     );
+    let add_item_submission: &UseState<String> = use_state(cx, String::new);
 
     let settings_open = if player_name == lobby.key_player {
         *lobby_settings_open.get()
@@ -53,7 +54,7 @@ pub fn render<'a>(
                         }
                     }
                     if player_controlled {
-                        item_settings(cx, player_name, lobby_id, lobby)
+                        item_settings(cx, player_name, lobby_id, lobby, add_item_submission)
                     }
                 }
                 div { class: "dark-box",
@@ -199,8 +200,15 @@ fn standard_settings<'a>(cx: Scope<'a>, player_name: &'a str, lobby_id: &'a str,
 }
 
 #[allow(clippy::too_many_lines, clippy::cast_possible_wrap)]
-fn item_settings<'a>(cx: Scope<'a>, player_name: &'a str, lobby_id: &'a str, lobby: &Lobby) -> LazyNodes<'a, 'a> {
-    let add_submission: &UseState<String> = use_state(cx, String::new);
+fn item_settings<'a>(
+    cx: Scope<'a>,
+    player_name: &'a str,
+    lobby_id: &'a str,
+    lobby: &Lobby,
+    add_item_submission: &UseState<String>,
+) -> LazyNodes<'a, 'a> {
+    let add_item_submission1 = add_item_submission.clone();
+    let add_item_submission2 = add_item_submission.clone();
     let server_items = lobby.items_queue.clone();
 
     rsx! {
@@ -279,7 +287,7 @@ fn item_settings<'a>(cx: Scope<'a>, player_name: &'a str, lobby_id: &'a str, lob
                 onsubmit: move |_| {
                     let lobby_id = lobby_id.to_string();
                     let player_name = player_name.to_string();
-                    let submission = add_submission.get().clone();
+                    let submission = add_item_submission1.get().clone();
                     cx.spawn(async move {
                         let _result = alter_lobby_settings(
                                 lobby_id,
@@ -296,7 +304,7 @@ fn item_settings<'a>(cx: Scope<'a>, player_name: &'a str, lobby_id: &'a str, lob
                     pattern: ITEM_NAME_PATTERN,
                     "data-clear-on-submit": "true",
                     oninput: move |e| {
-                        add_submission.set(e.value.clone());
+                        add_item_submission2.set(e.value.clone());
                     }
                 }
                 button { background_color: "rgb(20, 100, 20)", r#type: "submit", "+" }
