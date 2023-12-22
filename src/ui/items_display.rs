@@ -5,7 +5,7 @@ use dioxus::prelude::*;
 struct TempQuestion {
     id: usize,
     question: String,
-    anonymous: bool,
+    masked: bool,
 }
 
 pub fn render<'a>(cx: Scope<'a>, player_name: &String, lobby: &Lobby) -> Element<'a> {
@@ -13,7 +13,7 @@ pub fn render<'a>(cx: Scope<'a>, player_name: &String, lobby: &Lobby) -> Element
     let mut active_questions = vec![];
     for item in &lobby.items {
         for question in &item.questions {
-            let question_string = if question.anonymous {
+            let question_string = if question.masked {
                 let question_player_name = lobby
                     .items
                     .iter()
@@ -25,7 +25,7 @@ pub fn render<'a>(cx: Scope<'a>, player_name: &String, lobby: &Lobby) -> Element
                 if question_player_name == *player_name {
                     question.question.clone()
                 } else {
-                    format!("ANONYMOUS - {question_player_name}")
+                    format!("MASKED - {question_player_name}")
                 }
             } else {
                 question.question.clone()
@@ -34,7 +34,7 @@ pub fn render<'a>(cx: Scope<'a>, player_name: &String, lobby: &Lobby) -> Element
             let structed = TempQuestion {
                 id: question.id,
                 question: question_string,
-                anonymous: question.anonymous,
+                masked: question.masked,
             };
             if !active_questions.contains(&structed) {
                 active_questions.push(structed);

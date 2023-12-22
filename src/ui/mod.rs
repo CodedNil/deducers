@@ -6,3 +6,4 @@ pub mod leaderboard_display;
 pub mod management_display;
 pub mod question_queue_display;
 pub mod quizmaster;
+pub mod tutorial;

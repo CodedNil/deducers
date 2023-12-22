@@ -2,7 +2,7 @@ use crate::{
     lobby_utils::{
         connect_player, disconnect_player, get_current_time, get_lobby_info, get_state, start_lobby, Lobby, LobbyInfo, PlayerMessage,
     },
-    ui::{gamesettings, gameview},
+    ui::{gamesettings, gameview, tutorial},
     LOBBY_ID_PATTERN, MAX_LOBBY_ID_LENGTH, MAX_PLAYER_NAME_LENGTH, PLAYER_NAME_PATTERN,
 };
 use anyhow::Error;
@@ -88,6 +88,8 @@ pub fn app(cx: Scope) -> Element {
     let lobby_settings_open: &UseState<bool> = use_state(cx, || true);
 
     let error_message: &UseState<ErrorDialog> = use_state(cx, ErrorDialog::default);
+
+    let tutorial_open: &UseState<bool> = use_state(cx, || false);
 
     // Hide the item reveal message after 5 seconds
     let item_reveal_message: &UseState<ItemRevealMessage> = use_state(cx, ItemRevealMessage::default);
@@ -335,6 +337,12 @@ pub fn app(cx: Scope) -> Element {
                         }
                     }
                 }
+                button {
+                    onclick: move |_| {
+                        tutorial_open.set(true);
+                    },
+                    "Learn How To Play"
+                }
                 form {
                     class: "dialog",
                     onsubmit: move |_| {
@@ -381,7 +389,8 @@ pub fn app(cx: Scope) -> Element {
                     }
                 }
             }
-            render_error_dialog
+            render_error_dialog,
+            tutorial::render(tutorial_open)
         })
     }
 }

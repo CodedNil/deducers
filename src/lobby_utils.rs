@@ -45,7 +45,7 @@ pub struct LobbySettings {
     pub add_item_every_x_questions: usize,
 
     pub submit_question_cost: usize,
-    pub anonymous_question_cost: usize,
+    pub masked_question_cost: usize,
     pub guess_item_cost: usize,
     pub question_min_votes: usize,
 
@@ -65,7 +65,7 @@ impl Default for LobbySettings {
             add_item_every_x_questions: 5,
 
             submit_question_cost: 4,
-            anonymous_question_cost: 8,
+            masked_question_cost: 8,
             guess_item_cost: 3,
             question_min_votes: 2,
 
@@ -163,7 +163,7 @@ pub struct ChatMessage {
 pub struct QueuedQuestion {
     pub player: String,
     pub question: String,
-    pub anonymous: bool,
+    pub masked: bool,
     pub votes: usize,
     pub voters: Vec<String>,
 }
@@ -172,7 +172,7 @@ pub struct QueuedQuestion {
 pub struct QueuedQuestionQuizmaster {
     pub player: String,
     pub question: String,
-    pub anonymous: bool,
+    pub masked: bool,
     pub items: Vec<QuizmasterItem>,
     pub voters: Vec<String>,
 }
@@ -197,7 +197,7 @@ pub struct Question {
     pub id: usize,
     pub question: String,
     pub answer: Answer,
-    pub anonymous: bool,
+    pub masked: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
@@ -506,8 +506,8 @@ pub async fn alter_lobby_settings(lobby_id: String, player_name: String, setting
                 "submit_question_cost" => {
                     lobby.settings.submit_question_cost = value;
                 }
-                "anonymous_question_cost" => {
-                    lobby.settings.anonymous_question_cost = value;
+                "masked_question_cost" => {
+                    lobby.settings.masked_question_cost = value;
                 }
                 "guess_item_cost" => {
                     lobby.settings.guess_item_cost = value;

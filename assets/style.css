@@ -115,6 +115,10 @@ select:active {
   transition: top 0.5s;
 }
 
+.dialog.tutorial {
+  align-items: normal;
+}
+
 .dialog.error {
   background-color: rgb(100, 20, 20);
 }

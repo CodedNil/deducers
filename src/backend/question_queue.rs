@@ -6,12 +6,12 @@ use crate::{
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
-pub async fn submit_question(lobby_id: String, player_name: String, question: String, anonymous: bool) -> Result<()> {
+pub async fn submit_question(lobby_id: String, player_name: String, question: String, masked: bool) -> Result<()> {
     let mut total_cost = 0;
     let mut is_quizmaster = false;
     with_lobby(&lobby_id, |lobby| {
-        total_cost = if anonymous {
-            lobby.settings.submit_question_cost + lobby.settings.anonymous_question_cost
+        total_cost = if masked {
+            lobby.settings.submit_question_cost + lobby.settings.masked_question_cost
         } else {
             lobby.settings.submit_question_cost
         };
@@ -79,7 +79,7 @@ pub async fn submit_question(lobby_id: String, player_name: String, question: St
             question,
             votes: 0,
             voters: Vec::new(),
-            anonymous,
+            masked,
         });
         Ok(())
     })
@@ -113,7 +113,7 @@ async fn validate_question(question: &str, use_ai: bool) -> ValidateQuestionResp
     if !use_ai {
         return ValidateQuestionResponse {
             suitable: true,
-            reasoning: "".to_string(),
+            reasoning: String::new(),
         };
     }
 

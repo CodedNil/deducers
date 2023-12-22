@@ -63,7 +63,7 @@ struct AskQuestionResponse {
 
 #[allow(clippy::too_many_lines, clippy::cast_precision_loss)]
 pub async fn ask_top_question(lobby_id: String) -> Result<()> {
-    let (mut question_text, mut question_player, mut question_anonymous) = (String::new(), String::new(), false);
+    let (mut question_text, mut question_player, mut question_masked) = (String::new(), String::new(), false);
     let mut question_voters = Vec::new();
     let mut items = Vec::new();
     let mut is_quizmaster = false;
@@ -84,7 +84,7 @@ pub async fn ask_top_question(lobby_id: String) -> Result<()> {
 
         question_text = question.question.clone();
         question_player = question.player.clone();
-        question_anonymous = question.anonymous;
+        question_masked = question.masked;
         question_voters = question.voters.clone();
         items = lobby.items.clone();
 
@@ -117,7 +117,7 @@ pub async fn ask_top_question(lobby_id: String) -> Result<()> {
             lobby.quizmaster_queue.push(QueuedQuestionQuizmaster {
                 question: question_text.clone(),
                 player: question_player.clone(),
-                anonymous: question_anonymous,
+                masked: question_masked,
                 items: items_list,
                 voters: question_voters,
             });
@@ -197,7 +197,7 @@ pub async fn ask_top_question(lobby_id: String) -> Result<()> {
                 id: question_id,
                 question: question_text.clone(),
                 answer,
-                anonymous: question_anonymous,
+                masked: question_masked,
             });
 
             // If item has 20 questions, remove the item
@@ -282,7 +282,7 @@ pub async fn quizmaster_submit(lobby_id: String, player_name: String, question: 
                     id: question_id,
                     question: question.question.clone(),
                     answer: quizmaster_item.answer,
-                    anonymous: question.anonymous,
+                    masked: question.masked,
                 });
 
                 // If item has 20 questions, remove the item
@@ -391,6 +391,12 @@ pub async fn player_guess_item(lobby_id: String, player_name: String, item_choic
                     .messages
                     .push(PlayerMessage::ItemGuessed(player_name.clone(), item_id, item_name.clone()));
             }
+
+            // If lobby items is empty but theres still items in the item_queue, add another item
+            if lobby.items.is_empty() && !lobby.items_queue.is_empty() {
+                add_item_to_lobby(lobby);
+            }
+
             Ok(())
         })
         .await?;

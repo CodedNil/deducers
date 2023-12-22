@@ -47,8 +47,8 @@ pub fn render<'a>(cx: Scope<'a>, player_name: &'a String, lobby_id: &'a String, 
                 "table-body-box"
             };
             let question_string = question.question.clone();
-            let question_text = if question.anonymous && question.player != *player_name {
-                "ANONYMOUS".to_string()
+            let question_text = if question.masked && question.player != *player_name {
+                "MASKED".to_string()
             } else {
                 question.question.clone()
             };

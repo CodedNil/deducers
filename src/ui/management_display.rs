@@ -18,13 +18,13 @@ pub fn render<'a>(
     alert_popup: &'a UseState<AlertPopup>,
 ) -> Element<'a> {
     let question_submission: &UseState<String> = use_state(cx, String::new);
-    let question_anonymous: &UseState<bool> = use_state(cx, || false);
+    let question_masked: &UseState<bool> = use_state(cx, || false);
     let guess_item_submission: &UseState<String> = use_state(cx, String::new);
     let guess_item_key: &UseState<usize> = use_state(cx, || 1);
 
     let submit_cost = lobby.settings.submit_question_cost
-        + if *question_anonymous.get() {
-            lobby.settings.anonymous_question_cost
+        + if *question_masked.get() {
+            lobby.settings.masked_question_cost
         } else {
             0
         };
@@ -46,15 +46,15 @@ pub fn render<'a>(
             onsubmit: move |_| {
                 let (lobby_id, player_name) = (lobby_id.to_string(), player_name.clone());
                 let input = question_submission.get().clone();
-                let anon = question_anonymous.clone();
+                let masked = question_masked.clone();
                 let alert_popup = alert_popup.clone();
                 cx.spawn(async move {
                     if let Err(error)
-                        = submit_question(lobby_id, player_name, input, *anon.get()).await
+                        = submit_question(lobby_id, player_name, input, *masked.get()).await
                     {
                         alert_popup.set(AlertPopup::error(&error));
                     } else {
-                        anon.set(false);
+                        masked.set(false);
                     }
                 });
             },
@@ -74,12 +74,12 @@ pub fn render<'a>(
         div { display: "flex", gap: "5px", justify_content: "center",
             input {
                 r#type: "checkbox",
-                checked: "{question_anonymous}",
+                checked: "{question_masked}",
                 onclick: move |_| {
-                    question_anonymous.set(!question_anonymous.get());
+                    question_masked.set(!question_masked.get());
                 }
             }
-            "Anonymous +{lobby.settings.anonymous_question_cost}🪙"
+            "Masked +{lobby.settings.masked_question_cost}🪙"
         }
         div { display: "flex", gap: "5px",
             button {
