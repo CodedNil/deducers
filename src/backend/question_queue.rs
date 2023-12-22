@@ -44,11 +44,9 @@ pub async fn submit_question(lobby_id: String, player_name: String, question: St
     .await?;
 
     // Validate the question
-    if !is_quizmaster {
-        let validate_response = validate_question(&question).await;
-        if !validate_response.suitable {
-            return Err(anyhow::anyhow!("{}", validate_response.reasoning));
-        }
+    let validate_response = validate_question(&question, !is_quizmaster).await;
+    if !validate_response.suitable {
+        return Err(anyhow::anyhow!("{}", validate_response.reasoning));
     }
 
     // Add question mark if missing, and capitalise first letter
@@ -95,7 +93,7 @@ struct ValidateQuestionResponse {
     reasoning: String,
 }
 
-async fn validate_question(question: &str) -> ValidateQuestionResponse {
+async fn validate_question(question: &str, use_ai: bool) -> ValidateQuestionResponse {
     let trimmed = question.trim();
     let length = trimmed.len();
 
@@ -109,6 +107,13 @@ async fn validate_question(question: &str) -> ValidateQuestionResponse {
         return ValidateQuestionResponse {
             suitable,
             reasoning: reasoning.to_string(),
+        };
+    }
+
+    if !use_ai {
+        return ValidateQuestionResponse {
+            suitable: true,
+            reasoning: "".to_string(),
         };
     }
 
