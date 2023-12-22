@@ -8,12 +8,14 @@ use serde::{Deserialize, Serialize};
 
 pub async fn submit_question(lobby_id: String, player_name: String, question: String, anonymous: bool) -> Result<()> {
     let mut total_cost = 0;
+    let mut is_quizmaster = false;
     with_lobby(&lobby_id, |lobby| {
         total_cost = if anonymous {
             lobby.settings.submit_question_cost + lobby.settings.anonymous_question_cost
         } else {
             lobby.settings.submit_question_cost
         };
+        is_quizmaster = lobby.settings.player_controlled;
         Ok(())
     })
     .await?;
@@ -42,9 +44,11 @@ pub async fn submit_question(lobby_id: String, player_name: String, question: St
     .await?;
 
     // Validate the question
-    let validate_response = validate_question(&question).await;
-    if !validate_response.suitable {
-        return Err(anyhow::anyhow!("{}", validate_response.reasoning));
+    if !is_quizmaster {
+        let validate_response = validate_question(&question).await;
+        if !validate_response.suitable {
+            return Err(anyhow::anyhow!("{}", validate_response.reasoning));
+        }
     }
 
     // Add question mark if missing, and capitalise first letter
@@ -76,6 +80,7 @@ pub async fn submit_question(lobby_id: String, player_name: String, question: St
             player: player_name.clone(),
             question,
             votes: 0,
+            voters: Vec::new(),
             anonymous,
         });
         Ok(())
@@ -149,6 +154,7 @@ pub async fn vote_question(lobby_id: String, player_name: String, question: Stri
             // Deduct coins and increment vote count
             player.coins -= 1;
             queued_question.votes += 1;
+            queued_question.voters.push(player_name.clone());
             return Ok(());
         }
         Err(anyhow::anyhow!("Question not found in queue"))

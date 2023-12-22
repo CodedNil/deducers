@@ -5,6 +5,7 @@ use crate::{
     ui::{gamesettings, gameview},
     LOBBY_ID_PATTERN, MAX_LOBBY_ID_LENGTH, MAX_PLAYER_NAME_LENGTH, PLAYER_NAME_PATTERN,
 };
+use anyhow::Error;
 use dioxus::prelude::*;
 use std::{
     sync::{Arc, Mutex},
@@ -51,6 +52,31 @@ struct SoundsQueue {
     sound: String,
 }
 
+#[derive(Default)]
+pub struct AlertPopup {
+    pub shown: bool,
+    expiry: f64,
+    pub message: String,
+}
+
+impl AlertPopup {
+    pub fn message(message: String) -> Self {
+        Self {
+            shown: true,
+            expiry: get_current_time() + 5.0,
+            message,
+        }
+    }
+
+    pub fn error(error: &Error) -> Self {
+        Self {
+            shown: true,
+            expiry: get_current_time() + 5.0,
+            message: error.to_string(),
+        }
+    }
+}
+
 #[allow(clippy::too_many_lines, clippy::cast_possible_wrap)]
 pub fn app(cx: Scope) -> Element {
     let player_name: &UseState<String> = use_state(cx, String::new);
@@ -87,11 +113,17 @@ pub fn app(cx: Scope) -> Element {
         sounds_to_play.set(new_sounds_to_play_vec);
     }
 
+    let alert_popup: &UseState<AlertPopup> = use_state(cx, AlertPopup::default);
+    if alert_popup.get().shown && alert_popup.get().expiry < get_current_time() {
+        alert_popup.set(AlertPopup::default());
+    }
+
     // Process players messages
     let process_messages = {
         move |messages: Vec<PlayerMessage>,
               sounds_to_play: &UseState<Vec<SoundsQueue>>,
-              item_reveal_message: &UseState<ItemRevealMessage>| {
+              item_reveal_message: &UseState<ItemRevealMessage>,
+              alert_popup: &UseState<AlertPopup>| {
             let mut new_sounds = Vec::new();
             for message in messages {
                 let sound = match message {
@@ -141,6 +173,10 @@ pub fn app(cx: Scope) -> Element {
                         });
                         "guess_correct"
                     }
+                    PlayerMessage::QuestionRejected(message) => {
+                        alert_popup.set(AlertPopup::message(format!("Question '{message}' rejected by quizmaster")));
+                        "guess_incorrect"
+                    }
                 };
                 new_sounds.push(SoundsQueue {
                     expiry: get_current_time() + 5.0,
@@ -175,6 +211,7 @@ pub fn app(cx: Scope) -> Element {
         let error_message = error_message.clone();
         let sounds_to_play = sounds_to_play.clone();
         let item_reveal_message = item_reveal_message.clone();
+        let alert_popup = alert_popup.clone();
         async move {
             loop {
                 if *new_cancel_signal.lock().unwrap() {
@@ -184,7 +221,7 @@ pub fn app(cx: Scope) -> Element {
                 if *is_connected.get() {
                     match get_state(lobby_id.get().to_string(), player_name.get().to_string()).await {
                         Ok((lobby, messages)) => {
-                            process_messages(messages.clone(), &sounds_to_play, &item_reveal_message);
+                            process_messages(messages.clone(), &sounds_to_play, &item_reveal_message, &alert_popup);
                             lobby_state.set(Some(lobby));
                         }
                         Err(error) => {
@@ -248,7 +285,7 @@ pub fn app(cx: Scope) -> Element {
                 .collect::<Vec<String>>()
                 .join(",");
             cx.render(rsx! {
-                gameview::render(cx, player_name, lobby_id, lobby, disconnect, start, lobby_settings_open),
+                gameview::render(cx, player_name, lobby_id, lobby, disconnect, start, lobby_settings_open, alert_popup),
                 render_error_dialog,
                 item_reveal_message.render(),
                 rsx! { gamesettings::render(cx, lobby_settings_open, player_name, lobby_id, lobby) },

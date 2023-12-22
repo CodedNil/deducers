@@ -64,6 +64,7 @@ struct AskQuestionResponse {
 #[allow(clippy::too_many_lines, clippy::cast_precision_loss)]
 pub async fn ask_top_question(lobby_id: String) -> Result<()> {
     let (mut question_text, mut question_player, mut question_anonymous) = (String::new(), String::new(), false);
+    let mut question_voters = Vec::new();
     let mut items = Vec::new();
     let mut is_quizmaster = false;
 
@@ -84,6 +85,7 @@ pub async fn ask_top_question(lobby_id: String) -> Result<()> {
         question_text = question.question.clone();
         question_player = question.player.clone();
         question_anonymous = question.anonymous;
+        question_voters = question.voters.clone();
         items = lobby.items.clone();
 
         // Remove question from queue
@@ -117,6 +119,7 @@ pub async fn ask_top_question(lobby_id: String) -> Result<()> {
                 player: question_player.clone(),
                 anonymous: question_anonymous,
                 items: items_list,
+                voters: question_voters,
             });
             Ok(())
         })
@@ -302,6 +305,40 @@ pub async fn quizmaster_submit(lobby_id: String, player_name: String, question: 
 
         for player in lobby.players.values_mut() {
             player.messages.push(PlayerMessage::QuestionAsked);
+        }
+
+        Ok(())
+    })
+    .await
+}
+
+pub async fn quizmaster_reject(lobby_id: String, player_name: String, question: String) -> Result<()> {
+    with_lobby_mut(&lobby_id, |lobby| {
+        if !lobby.started {
+            return Err(anyhow::anyhow!("Lobby not started"));
+        }
+        let player = lobby.players.get(&player_name).ok_or_else(|| anyhow::anyhow!("Player not found"))?;
+        if !player.quizmaster {
+            return Err(anyhow::anyhow!("Only quizmaster can use this"));
+        }
+
+        let question_index = lobby
+            .quizmaster_queue
+            .iter()
+            .position(|q| q.question == question)
+            .ok_or_else(|| anyhow::anyhow!("Question not found"))?;
+        let question = lobby.quizmaster_queue.remove(question_index);
+
+        // Refund the voters
+        for voter in question.voters {
+            if let Some(player) = lobby.players.get_mut(&voter) {
+                player.coins += 1;
+            }
+        }
+        // Refund the question submitter and send them a message
+        if let Some(player) = lobby.players.get_mut(&question.player) {
+            player.coins += lobby.settings.submit_question_cost;
+            player.messages.push(PlayerMessage::QuestionRejected(question.question));
         }
 
         Ok(())

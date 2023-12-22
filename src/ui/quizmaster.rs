@@ -1,5 +1,5 @@
 use crate::{
-    backend::items::{quizmaster_change_answer, quizmaster_submit},
+    backend::items::{quizmaster_change_answer, quizmaster_submit, quizmaster_reject},
     lobby_utils::{Answer, Lobby},
 };
 use dioxus::prelude::*;
@@ -15,7 +15,8 @@ pub fn render<'a>(cx: Scope<'a>, player_name: &'a str, lobby_id: &'a str, lobby:
             }
         }
         questions.iter().map(|question| {
-            let question_string = question.question.clone();
+            let question_string1 = question.question.clone();
+            let question_string2 = question.question.clone();
             rsx! {
                 div {
                     class: "table-header-box",
@@ -32,19 +33,29 @@ pub fn render<'a>(cx: Scope<'a>, player_name: &'a str, lobby_id: &'a str, lobby:
                             onclick: move |_| {
                                 let lobby_id = lobby_id.to_string();
                                 let player_name = player_name.to_string();
-                                let question = question_string.clone();
+                                let question = question_string1.clone();
                                 cx.spawn(async move {
                                     let _response = quizmaster_submit(lobby_id, player_name, question).await;
                                 });
                             },
                             background_color: "rgb(20, 100, 20)", "Submit" }
+                        button { 
+                            onclick: move |_| {
+                                let lobby_id = lobby_id.to_string();
+                                let player_name = player_name.to_string();
+                                let question = question_string2.clone();
+                                cx.spawn(async move {
+                                    let _response = quizmaster_reject(lobby_id, player_name, question).await;
+                                });
+                            },
+                            background_color: "rgb(100, 20, 20)", "Reject" }
                     }
                     div {
                         display: "flex",
                         gap: "5px",
                         question.items.iter().map(|item| {
-                            let question_string1 = question_string.clone();
-                            let question_string2 = question_string.clone();
+                            let question_string1 = question_string1.clone();
+                            let question_string2 = question_string2.clone();
                             let item1 = item.clone();
                             rsx! {
                                 button {

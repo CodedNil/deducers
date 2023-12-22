@@ -1,4 +1,4 @@
-use super::{gameview::AlertPopup, quizmaster};
+use super::{connection::AlertPopup, quizmaster};
 use crate::{
     backend::{
         items::player_guess_item,

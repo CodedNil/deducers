@@ -31,8 +31,7 @@ pub fn render<'a>(
             label { font_size: "large", "Estimated game length {game_time}" }
             div { display: "flex", flex_direction: "column", gap: "5px",
                 standard_settings(cx, player_name, lobby_id, lobby),
-                div {
-                    class: "dark-box",
+                div { class: "dark-box",
                     label {
                         "Host as Quizmaster: "
                         input {
@@ -57,8 +56,7 @@ pub fn render<'a>(
                         item_settings(cx, player_name, lobby_id, lobby)
                     }
                 }
-                div {
-                    class: "dark-box",
+                div { class: "dark-box",
                     label {
                         "Advanced options: "
                         input {

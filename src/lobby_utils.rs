@@ -134,6 +134,7 @@ pub enum AlterLobbySetting {
 pub enum PlayerMessage {
     ItemAdded,
     QuestionAsked,
+    QuestionRejected(String),
     GameStart,
     CoinGiven,
     ItemGuessed(String, usize, String),
@@ -164,6 +165,7 @@ pub struct QueuedQuestion {
     pub question: String,
     pub anonymous: bool,
     pub votes: usize,
+    pub voters: Vec<String>,
 }
 
 #[derive(Clone, Debug)]
@@ -172,6 +174,7 @@ pub struct QueuedQuestionQuizmaster {
     pub question: String,
     pub anonymous: bool,
     pub items: Vec<QuizmasterItem>,
+    pub voters: Vec<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

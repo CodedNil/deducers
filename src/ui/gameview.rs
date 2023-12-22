@@ -1,29 +1,12 @@
+use super::connection::AlertPopup;
 use crate::{
-    lobby_utils::{add_chat_message, get_current_time, Lobby},
+    lobby_utils::{add_chat_message, Lobby},
     ui::{items_display, leaderboard_display, management_display, question_queue_display},
     MAX_CHAT_LENGTH,
 };
-use anyhow::Error;
 use dioxus::prelude::*;
 
-#[derive(Default)]
-pub struct AlertPopup {
-    shown: bool,
-    expiry: f64,
-    message: String,
-}
-
-impl AlertPopup {
-    pub fn error(error: &Error) -> Self {
-        Self {
-            shown: true,
-            expiry: get_current_time() + 5.0,
-            message: error.to_string(),
-        }
-    }
-}
-
-#[allow(clippy::too_many_lines, clippy::cast_possible_wrap)]
+#[allow(clippy::too_many_lines, clippy::cast_possible_wrap, clippy::too_many_arguments)]
 pub fn render<'a>(
     cx: Scope<'a>,
     player_name: &'a String,
@@ -32,11 +15,8 @@ pub fn render<'a>(
     disconnect: Box<dyn Fn() + 'a>,
     start: Box<dyn Fn() + 'a>,
     lobby_settings_open: &'a UseState<bool>,
+    alert_popup: &'a UseState<AlertPopup>,
 ) -> Element<'a> {
-    let alert_popup: &UseState<AlertPopup> = use_state(cx, AlertPopup::default);
-    if alert_popup.get().shown && alert_popup.get().expiry < get_current_time() {
-        alert_popup.set(AlertPopup::default());
-    }
     let chat_submission: &UseState<String> = use_state(cx, String::new);
 
     cx.render(rsx! {
