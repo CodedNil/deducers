@@ -1,3 +1,4 @@
+#![allow(clippy::missing_errors_doc)]
 use anyhow::Result;
 use rsass::{compile_scss_path, output::Format};
 use serde::Deserialize;
@@ -30,9 +31,9 @@ const HARD_CUTOFF: i32 = 50;
 
 #[derive(Debug)]
 pub struct WordSets {
-    pub easy_words: HashSet<String>,
-    pub medium_words: HashSet<String>,
-    pub hard_words: HashSet<String>,
+    pub easy: HashSet<String>,
+    pub medium: HashSet<String>,
+    pub hard: HashSet<String>,
 }
 
 fn parse_words() -> Result<()> {
@@ -43,21 +44,21 @@ fn parse_words() -> Result<()> {
 
     // Gather words that are in both lists
     let word_sets = WordSets {
-        easy_words: subtlex_result.easy_words.intersection(&wordnet_result).cloned().collect(),
-        medium_words: subtlex_result.medium_words.intersection(&wordnet_result).cloned().collect(),
-        hard_words: subtlex_result.hard_words.intersection(&wordnet_result).cloned().collect(),
+        easy: subtlex_result.easy.intersection(&wordnet_result).cloned().collect(),
+        medium: subtlex_result.medium.intersection(&wordnet_result).cloned().collect(),
+        hard: subtlex_result.hard.intersection(&wordnet_result).cloned().collect(),
     };
-    println!("cargo:warning=Easy words count: {:?}", word_sets.easy_words.len());
-    println!("cargo:warning=Medium words count: {:?}", word_sets.medium_words.len());
-    println!("cargo:warning=Hard words count: {:?}", word_sets.hard_words.len());
+    println!("cargo:warning=Easy words count: {:?}", word_sets.easy.len());
+    println!("cargo:warning=Medium words count: {:?}", word_sets.medium.len());
+    println!("cargo:warning=Hard words count: {:?}", word_sets.hard.len());
     println!("cargo:warning=Intersection time: {:?}", start_time.elapsed());
 
     // Write words to file
     let file_path = "src/backend/words.txt";
     let mut file = BufWriter::new(File::create(file_path)?);
-    write_word_set(&mut file, "easy_words", &word_sets.easy_words)?;
-    write_word_set(&mut file, "medium_words", &word_sets.medium_words)?;
-    write_word_set(&mut file, "hard_words", &word_sets.hard_words)?;
+    write_word_set(&mut file, "easy_words", &word_sets.easy)?;
+    write_word_set(&mut file, "medium_words", &word_sets.medium)?;
+    write_word_set(&mut file, "hard_words", &word_sets.hard)?;
     file.flush()?;
     println!("cargo:warning=Total time: {:?}", start_time.elapsed());
     Ok(())
@@ -98,45 +99,34 @@ pub fn parse_subtlex() -> Result<WordSets> {
         .delimiter(b';')
         .from_path("data/subtlex.csv")?;
 
-    let mut easy_words = HashSet::new();
-    let mut medium_words = HashSet::new();
-    let mut hard_words = HashSet::new();
-
-    for result in rdr.deserialize() {
-        match result {
-            Ok(record) => {
-                let record: SubtlexRecord = record;
-                if record.wordtype != "noun" || record.spelling.contains(' ') || record.spelling.len() < 3 {
-                    continue;
-                }
+    let (mut easy, mut medium, mut hard) = (HashSet::new(), HashSet::new(), HashSet::new());
+    for result in rdr.deserialize::<SubtlexRecord>() {
+        if let Ok(record) = result {
+            if record.wordtype == "noun" && !record.spelling.contains(' ') && record.spelling.len() >= 3 {
                 if record.frequency >= EASY_CUTOFF {
-                    easy_words.insert(record.spelling);
+                    easy.insert(record.spelling);
                 } else if record.frequency >= MEDIUM_CUTOFF {
-                    medium_words.insert(record.spelling);
+                    medium.insert(record.spelling);
                 } else if record.frequency >= HARD_CUTOFF {
-                    hard_words.insert(record.spelling);
+                    hard.insert(record.spelling);
                 }
             }
-            Err(err) => println!("Error reading line {err:?}"),
+        } else if let Err(err) = result {
+            println!("Error reading line {err:?}");
         }
     }
 
-    Ok(WordSets {
-        easy_words,
-        medium_words,
-        hard_words,
-    })
+    Ok(WordSets { easy, medium, hard })
 }
 
 pub fn parse_wordnet() -> Result<HashSet<String>> {
-    let base_path = Path::new("data").join("wordnet");
-    let files = read_dir(base_path)?
+    let words = read_dir(Path::new("data").join("wordnet"))?
         .filter_map(Result::ok)
         .map(|entry| entry.path())
-        .filter(|path| path.is_file());
-
-    let words = files.filter_map(|path| parse_wordnet_file(&path).ok()).flatten().collect();
-
+        .filter(|path| path.is_file())
+        .filter_map(|path| parse_wordnet_file(&path).ok())
+        .flatten()
+        .collect();
     Ok(words)
 }
 
@@ -148,7 +138,6 @@ fn parse_wordnet_file(path: &Path) -> Result<HashSet<String>> {
             words.insert(word);
         }
     }
-
     Ok(words)
 }
 
