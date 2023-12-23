@@ -1,52 +1,13 @@
 use crate::{
     backend::openai::query_ai,
-    backend::parse_words::WORD_SETS,
     lobby_utils::{
-        with_lobby_mut, with_player_mut, Answer, Difficulty, Item, Lobby, PlayerMessage, Question, QueuedQuestionQuizmaster, QuizmasterItem,
+        with_lobby_mut, with_player_mut, Answer, Item, Lobby, PlayerMessage, Question, QueuedQuestionQuizmaster, QuizmasterItem,
     },
 };
-use anyhow::Result;
+use anyhow::{bail, Result};
 use futures::future::join_all;
-use rand::seq::SliceRandom;
 use serde::Deserialize;
-use std::collections::{HashMap, HashSet};
-
-pub fn select_lobby_words(difficulty: &Difficulty, count: usize) -> Vec<String> {
-    let mut rng = rand::thread_rng();
-
-    let combined_words = match difficulty {
-        Difficulty::Easy => WORD_SETS.easy_words.iter().collect::<Vec<_>>(),
-        Difficulty::Medium => [&WORD_SETS.easy_words, &WORD_SETS.medium_words]
-            .iter()
-            .flat_map(|set| set.iter())
-            .collect::<Vec<_>>(),
-        Difficulty::Hard => [&WORD_SETS.easy_words, &WORD_SETS.medium_words, &WORD_SETS.hard_words]
-            .iter()
-            .flat_map(|set| set.iter())
-            .collect::<Vec<_>>(),
-    };
-
-    let mut shuffled_words = combined_words;
-    shuffled_words.shuffle(&mut rng);
-
-    shuffled_words.into_iter().take(count).cloned().collect()
-}
-
-pub fn select_lobby_words_unique(current_words: &[String], difficulty: &Difficulty, count: usize) -> Vec<String> {
-    let mut unique_new_words = HashSet::new();
-    let mut additional_items_needed = count;
-    while additional_items_needed > 0 {
-        for word in select_lobby_words(difficulty, additional_items_needed) {
-            if !current_words.contains(&word) && unique_new_words.insert(word) {
-                additional_items_needed -= 1;
-            }
-            if additional_items_needed == 0 {
-                break;
-            }
-        }
-    }
-    unique_new_words.into_iter().collect()
-}
+use std::collections::HashMap;
 
 pub fn add_item_to_lobby(lobby: &mut Lobby) {
     if !lobby.started {
@@ -92,10 +53,7 @@ pub async fn ask_top_question(lobby_id: String) -> Result<()> {
             .ok_or_else(|| anyhow::anyhow!("No questions in queue"))?;
 
         if question.votes < lobby.settings.question_min_votes {
-            return Err(anyhow::anyhow!(
-                "Question needs at least {} votes",
-                lobby.settings.question_min_votes
-            ));
+            bail!("Question needs at least {} votes", lobby.settings.question_min_votes);
         }
 
         question_text = question.question.clone();
@@ -197,7 +155,7 @@ pub async fn ask_top_question(lobby_id: String) -> Result<()> {
 
     with_lobby_mut(&lobby_id, |lobby| {
         if answers.len() != lobby.items.len() {
-            return Err(anyhow::anyhow!("Failed to get answers for question '{question_text}'"));
+            bail!("Failed to get answers for question '{question_text}'");
         }
 
         let question_id = lobby.questions_counter;
@@ -250,11 +208,11 @@ pub async fn quizmaster_change_answer(
 ) -> Result<()> {
     with_lobby_mut(&lobby_id, |lobby| {
         if !lobby.started {
-            return Err(anyhow::anyhow!("Lobby not started"));
+            bail!("Lobby not started");
         }
         let player = lobby.players.get(&player_name).ok_or_else(|| anyhow::anyhow!("Player not found"))?;
         if !player.quizmaster {
-            return Err(anyhow::anyhow!("Only quizmaster can use this"));
+            bail!("Only quizmaster can use this");
         }
 
         lobby
@@ -271,11 +229,11 @@ pub async fn quizmaster_change_answer(
 pub async fn quizmaster_submit(lobby_id: String, player_name: String, question: String) -> Result<()> {
     with_lobby_mut(&lobby_id, |lobby| {
         if !lobby.started {
-            return Err(anyhow::anyhow!("Lobby not started"));
+            bail!("Lobby not started");
         }
         let player = lobby.players.get(&player_name).ok_or_else(|| anyhow::anyhow!("Player not found"))?;
         if !player.quizmaster {
-            return Err(anyhow::anyhow!("Only quizmaster can use this"));
+            bail!("Only quizmaster can use this");
         }
 
         let question_index = lobby
@@ -330,11 +288,11 @@ pub async fn quizmaster_submit(lobby_id: String, player_name: String, question: 
 pub async fn quizmaster_reject(lobby_id: String, player_name: String, question: String) -> Result<()> {
     with_lobby_mut(&lobby_id, |lobby| {
         if !lobby.started {
-            return Err(anyhow::anyhow!("Lobby not started"));
+            bail!("Lobby not started");
         }
         let player = lobby.players.get(&player_name).ok_or_else(|| anyhow::anyhow!("Player not found"))?;
         if !player.quizmaster {
-            return Err(anyhow::anyhow!("Only quizmaster can use this"));
+            bail!("Only quizmaster can use this");
         }
 
         let question_index = lobby
@@ -365,25 +323,25 @@ pub async fn player_guess_item(lobby_id: String, player_name: String, item_choic
     let mut found_item = None;
     with_player_mut(&lobby_id, &player_name, |lobby, player| {
         if !lobby.started {
-            return Err(anyhow::anyhow!("Lobby not started"));
+            bail!("Lobby not started");
         }
         if player.quizmaster {
-            return Err(anyhow::anyhow!("Quizmaster cannot engage"));
+            bail!("Quizmaster cannot engage");
         }
 
         let Some(item) = lobby.items.iter().find(|i| i.id == item_choice) else {
-            return Err(anyhow::anyhow!("Item not found"));
+            bail!("Item not found");
         };
         found_item = Some(item.clone());
 
         if player.coins < lobby.settings.guess_item_cost {
-            return Err(anyhow::anyhow!("Insufficient coins to guess"));
+            bail!("Insufficient coins to guess");
         }
         player.coins -= lobby.settings.guess_item_cost;
 
         if item.name.to_lowercase() != guess.to_lowercase() {
             player.messages.push(PlayerMessage::GuessIncorrect);
-            return Err(anyhow::anyhow!("Incorrect guess"));
+            bail!("Incorrect guess");
         }
 
         // Add score to player based on how many questions the item had remaining

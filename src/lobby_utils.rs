@@ -1,6 +1,9 @@
 #![allow(clippy::missing_errors_doc, clippy::future_not_send, clippy::significant_drop_tightening)]
 use crate::{
-    backend::items::{add_item_to_lobby, ask_top_question, select_lobby_words, select_lobby_words_unique},
+    backend::{
+        items::{add_item_to_lobby, ask_top_question},
+        parse_words::{select_lobby_words, select_lobby_words_unique},
+    },
     IDLE_KICK_TIME, ITEM_NAME_PATTERN, LOBBY_ID_PATTERN, MAX_CHAT_LENGTH, MAX_CHAT_MESSAGES, MAX_ITEM_NAME_LENGTH, MAX_LOBBY_ID_LENGTH,
     MAX_LOBBY_ITEMS, MAX_PLAYER_NAME_LENGTH, PLAYER_NAME_PATTERN,
 };

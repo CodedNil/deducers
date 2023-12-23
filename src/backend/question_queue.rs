@@ -3,7 +3,7 @@ use crate::{
     lobby_utils::{with_lobby, with_lobby_mut, with_player, with_player_mut, QueuedQuestion},
     MAX_QUESTION_LENGTH,
 };
-use anyhow::Result;
+use anyhow::{bail, Result};
 use serde::{Deserialize, Serialize};
 
 pub async fn submit_question(lobby_id: String, player_name: String, question: String, masked: bool) -> Result<()> {
@@ -22,13 +22,13 @@ pub async fn submit_question(lobby_id: String, player_name: String, question: St
 
     with_player(&lobby_id, &player_name, |lobby, player| {
         if !lobby.started {
-            return Err(anyhow::anyhow!("Lobby not started"));
+            bail!("Lobby not started");
         }
         if player.coins < total_cost {
-            return Err(anyhow::anyhow!("Insufficient coins to submit question"));
+            bail!("Insufficient coins to submit question");
         }
         if player.quizmaster {
-            return Err(anyhow::anyhow!("Quizmaster cannot engage"));
+            bail!("Quizmaster cannot engage");
         }
 
         // Check if question already exists in the queue
@@ -37,7 +37,7 @@ pub async fn submit_question(lobby_id: String, player_name: String, question: St
             .iter()
             .any(|queued_question| queued_question.question == question)
         {
-            return Err(anyhow::anyhow!("Question already exists in queue"));
+            bail!("Question already exists in queue");
         }
         Ok(())
     })
@@ -46,7 +46,7 @@ pub async fn submit_question(lobby_id: String, player_name: String, question: St
     // Validate the question
     let validate_response = validate_question(&question, !is_quizmaster).await;
     if !validate_response.suitable {
-        return Err(anyhow::anyhow!("{}", validate_response.reasoning));
+        bail!("{}", validate_response.reasoning);
     }
 
     // Add question mark if missing, and capitalise first letter
@@ -71,7 +71,7 @@ pub async fn submit_question(lobby_id: String, player_name: String, question: St
 
         // Deduct coins and add question to queue
         if player.coins < total_cost {
-            return Err(anyhow::anyhow!("Insufficient coins to submit question"));
+            bail!("Insufficient coins to submit question");
         }
         player.coins -= total_cost;
         lobby.questions_queue.push(QueuedQuestion {
@@ -143,17 +143,17 @@ pub async fn vote_question(lobby_id: String, player_name: String, question: Stri
             .ok_or_else(|| anyhow::anyhow!("Player '{player_name}' not found"))?;
 
         if !lobby.started {
-            return Err(anyhow::anyhow!("Lobby not started"));
+            bail!("Lobby not started");
         }
         if player.quizmaster {
-            return Err(anyhow::anyhow!("Quizmaster cannot engage"));
+            bail!("Quizmaster cannot engage");
         }
 
         // Check if question exists in the queue
         if let Some(queued_question) = lobby.questions_queue.iter_mut().find(|q| q.question == question) {
             // Check if player has enough coins
             if player.coins < 1 {
-                return Err(anyhow::anyhow!("Insufficient coins to vote"));
+                bail!("Insufficient coins to vote");
             }
 
             // Deduct coins and increment vote count
@@ -170,14 +170,13 @@ pub async fn vote_question(lobby_id: String, player_name: String, question: Stri
 pub async fn convert_score(lobby_id: String, player_name: String) -> Result<()> {
     with_player_mut(&lobby_id, &player_name, |lobby, player| {
         if !lobby.started {
-            return Err(anyhow::anyhow!("Lobby not started"));
+            bail!("Lobby not started");
         }
-
         if player.score < 1 {
-            return Err(anyhow::anyhow!("Insufficient score to convert"));
+            bail!("Insufficient score to convert");
         }
         if player.quizmaster {
-            return Err(anyhow::anyhow!("Quizmaster cannot engage"));
+            bail!("Quizmaster cannot engage");
         }
 
         player.score -= 1;
