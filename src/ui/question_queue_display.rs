@@ -24,10 +24,10 @@ pub fn render<'a>(cx: Scope<'a>, player_name: &'a String, lobby_id: &'a String, 
         }
     };
 
-    let top_text = if lobby.questions_queue_waiting {
-        format!("Top Question Submitted After {} Votes", lobby.settings.question_min_votes)
-    } else {
+    let top_text = if lobby.question_queue_active() {
         format!("Top Question Submitted in {} Seconds", lobby.questions_queue_countdown.round())
+    } else {
+        format!("Top Question Submitted After {} Votes", lobby.settings.question_min_votes)
     };
 
     cx.render(rsx! {

@@ -1,20 +1,15 @@
 #![allow(clippy::missing_errors_doc, clippy::future_not_send, clippy::significant_drop_tightening)]
 use crate::{
-    backend::items::{add_item_to_lobby, ask_top_question, select_lobby_words},
+    backend::items::{add_item_to_lobby, ask_top_question, select_lobby_words, select_lobby_words_unique},
     IDLE_KICK_TIME, ITEM_NAME_PATTERN, LOBBY_ID_PATTERN, MAX_CHAT_LENGTH, MAX_CHAT_MESSAGES, MAX_ITEM_NAME_LENGTH, MAX_LOBBY_ID_LENGTH,
     MAX_LOBBY_ITEMS, MAX_PLAYER_NAME_LENGTH, PLAYER_NAME_PATTERN,
 };
 use anyhow::{anyhow, Result};
 use once_cell::sync::Lazy;
-use std::{
-    cmp::Ordering,
-    collections::{HashMap, HashSet},
-    fmt::Display,
-    sync::Arc,
-};
+use std::{cmp::Ordering, collections::HashMap, fmt::Display, sync::Arc};
 use tokio::sync::Mutex;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct Lobby {
     pub started: bool,
     pub elapsed_time: f64,
@@ -23,7 +18,6 @@ pub struct Lobby {
     pub players: HashMap<String, Player>,
     pub chat_messages: Vec<ChatMessage>,
     pub questions_queue: Vec<QueuedQuestion>,
-    pub questions_queue_waiting: bool,
     pub questions_queue_countdown: f64,
     pub quizmaster_queue: Vec<QueuedQuestionQuizmaster>,
     pub items: Vec<Item>,
@@ -31,6 +25,12 @@ pub struct Lobby {
     pub items_queue: Vec<String>,
     pub questions_counter: usize,
     pub settings: LobbySettings,
+}
+
+impl Lobby {
+    pub fn question_queue_active(&self) -> bool {
+        self.questions_queue.iter().any(|q| q.votes >= self.settings.question_min_votes)
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -78,10 +78,10 @@ impl Display for LobbySettings {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "Item Count: {}, Difficulty: {}, Player Controlled: {}",
+            "{} Items, {}, {}",
             self.item_count,
             self.difficulty,
-            if self.player_controlled { "Yes" } else { "No" }
+            if self.player_controlled { "Quizmaster" } else { "AI Controlled" }
         )
     }
 }
@@ -126,7 +126,6 @@ pub enum AlterLobbySetting {
     RemoveItem(String),
     RefreshItem(String),
     RefreshAllItems,
-
     Advanced(String, usize),
 }
 
@@ -143,7 +142,7 @@ pub enum PlayerMessage {
     Winner(Vec<String>),
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct Player {
     pub name: String,
     pub last_contact: f64,
@@ -294,21 +293,11 @@ pub async fn create_lobby(lobby_id: &str, key_player: String) -> Result<()> {
     lobbys_lock.insert(
         lobby_id.to_string(),
         Lobby {
-            started: false,
-            elapsed_time: 0.0,
             last_update: get_current_time(),
             key_player: key_player.clone(),
-            players: HashMap::new(),
-            chat_messages: Vec::new(),
-            questions_queue: Vec::new(),
-            questions_queue_waiting: true,
-            questions_queue_countdown: 0.0,
-            quizmaster_queue: Vec::new(),
-            items: Vec::new(),
-            items_history: Vec::new(),
             items_queue: select_lobby_words(&LobbySettings::default().difficulty, LobbySettings::default().item_count),
-            questions_counter: 0,
             settings: LobbySettings::default(),
+            ..Default::default()
         },
     );
     println!("Lobby '{lobby_id}' created by key player '{key_player}'");
@@ -372,10 +361,7 @@ pub async fn connect_player(lobby_id: String, player_name: String) -> Result<()>
         lobby.players.entry(player_name.clone()).or_insert(Player {
             name: player_name.clone(),
             last_contact: get_current_time(),
-            quizmaster: false,
-            score: 0,
-            coins: 0,
-            messages: Vec::new(),
+            ..Default::default()
         });
 
         println!("Player '{player_name}' connected to lobby '{lobby_id}'");
@@ -409,23 +395,11 @@ pub async fn alter_lobby_settings(lobby_id: String, player_name: String, setting
                 // Expand or shrink the items queue to match the new item count
                 match lobby.items_queue.len().cmp(&item_count) {
                     Ordering::Less => {
-                        let mut additional_items_needed = item_count - lobby.items_queue.len();
-                        let mut unique_new_words = HashSet::new();
-
-                        while additional_items_needed > 0 {
-                            let new_words = select_lobby_words(&lobby.settings.difficulty, additional_items_needed);
-
-                            for word in new_words {
-                                if !lobby.items_queue.contains(&word) && unique_new_words.insert(word) {
-                                    additional_items_needed -= 1;
-                                }
-                                if additional_items_needed == 0 {
-                                    break;
-                                }
-                            }
-                        }
-
-                        lobby.items_queue.extend(unique_new_words);
+                        lobby.items_queue.extend(select_lobby_words_unique(
+                            &lobby.items_queue,
+                            &lobby.settings.difficulty,
+                            item_count,
+                        ));
                     }
                     Ordering::Greater => {
                         lobby.items_queue.truncate(item_count);
@@ -442,11 +416,11 @@ pub async fn alter_lobby_settings(lobby_id: String, player_name: String, setting
             AlterLobbySetting::AddItem(item) => {
                 // If item is empty, pick a random unique word from the difficulty
                 if item.is_empty() {
-                    let mut new_word = select_lobby_words(&lobby.settings.difficulty, 1).pop().unwrap();
-                    while lobby.items_queue.contains(&new_word) {
-                        new_word = select_lobby_words(&lobby.settings.difficulty, 1).pop().unwrap();
-                    }
-                    lobby.items_queue.push(new_word);
+                    lobby.items_queue.push(
+                        select_lobby_words_unique(&lobby.items_queue, &lobby.settings.difficulty, 1)
+                            .pop()
+                            .unwrap(),
+                    );
                     lobby.settings.item_count = lobby.items_queue.len();
                     return Ok(());
                 }
@@ -479,10 +453,9 @@ pub async fn alter_lobby_settings(lobby_id: String, player_name: String, setting
             AlterLobbySetting::RefreshItem(item) => {
                 let index = lobby.items_queue.iter().position(|i| i.to_lowercase() == item.to_lowercase());
                 if let Some(index) = index {
-                    let mut new_word = select_lobby_words(&lobby.settings.difficulty, 1).pop().unwrap();
-                    while lobby.items_queue.contains(&new_word) {
-                        new_word = select_lobby_words(&lobby.settings.difficulty, 1).pop().unwrap();
-                    }
+                    let new_word = select_lobby_words_unique(&lobby.items_queue, &lobby.settings.difficulty, 1)
+                        .pop()
+                        .unwrap();
                     lobby.items_queue[index] = new_word;
                 }
             }
@@ -502,7 +475,6 @@ pub async fn alter_lobby_settings(lobby_id: String, player_name: String, setting
                 "add_item_every_x_questions" => {
                     lobby.settings.add_item_every_x_questions = value;
                 }
-
                 "submit_question_cost" => {
                     lobby.settings.submit_question_cost = value;
                 }
@@ -515,7 +487,6 @@ pub async fn alter_lobby_settings(lobby_id: String, player_name: String, setting
                 "question_min_votes" => {
                     lobby.settings.question_min_votes = value;
                 }
-
                 "score_to_coins_ratio" => {
                     lobby.settings.score_to_coins_ratio = value;
                 }
@@ -651,8 +622,7 @@ pub async fn lobby_loop() -> Result<()> {
                 }
 
                 // If lobby has a queued question with at least QUESTION_MIN_VOTES votes, tick it down, else reset
-                if lobby.questions_queue.iter().any(|q| q.votes >= lobby.settings.question_min_votes) {
-                    lobby.questions_queue_waiting = false;
+                if lobby.question_queue_active() {
                     lobby.questions_queue_countdown -= elapsed_time_update;
                     if lobby.questions_queue_countdown <= 0.0 {
                         lobby.questions_queue_countdown += lobby.settings.submit_question_every_x_seconds as f64;
@@ -662,7 +632,6 @@ pub async fn lobby_loop() -> Result<()> {
                         });
                     }
                 } else {
-                    lobby.questions_queue_waiting = true;
                     lobby.questions_queue_countdown = lobby.settings.submit_question_every_x_seconds as f64;
                 }
 
