@@ -1,4 +1,4 @@
-#![allow(clippy::missing_errors_doc, clippy::future_not_send, clippy::significant_drop_tightening)]
+#![allow(clippy::significant_drop_tightening)]
 use crate::{
     backend::{
         items::{add_item_to_lobby, ask_top_question},
@@ -318,6 +318,7 @@ pub fn create_lobby(lobby_id: &str, player_name: &str) -> Result<()> {
     );
     drop(lobbys_lock);
     println!("Lobby '{lobby_id}' created by key player '{player_name}'");
+
     // If lobby_id is debug, create a loaded lobby
     if lobby_id == "debug" {
         println!("Creating debug lobby");
