@@ -1,6 +1,6 @@
 use super::connection::AlertPopup;
 use crate::{
-    lobby_utils::{add_chat_message, Lobby},
+    lobby_utils::{add_chat_message, start_lobby, Lobby},
     ui::{items_display, leaderboard_display, management_display, question_queue_display},
     MAX_CHAT_LENGTH,
 };
@@ -13,7 +13,6 @@ pub fn render<'a>(
     lobby_id: &'a str,
     lobby: &Lobby,
     disconnect: Box<dyn Fn() + 'a>,
-    start: Box<dyn Fn() + 'a>,
     lobby_settings_open: &'a UseState<bool>,
     alert_popup: &'a UseState<AlertPopup>,
 ) -> Element<'a> {
@@ -51,7 +50,11 @@ pub fn render<'a>(
                             if lobby.key_player == *player_name && !lobby.started {
                                 rsx! { button { onclick: move |_| {
                                     lobby_settings_open.set(false);
-                                    start();
+                                    let player_name = player_name.to_string();
+                                    let lobby_id = lobby_id.to_string();
+                                    cx.spawn(async move {
+                                        let _result = start_lobby(&lobby_id, &player_name).await;
+                                    });
                                 }, "Start" } }
                             }
                             if lobby.key_player == *player_name && !lobby.started {

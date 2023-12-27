@@ -1,7 +1,5 @@
 use crate::{
-    lobby_utils::{
-        connect_player, disconnect_player, get_current_time, get_lobby_info, get_state, start_lobby, Lobby, LobbyInfo, PlayerMessage,
-    },
+    lobby_utils::{connect_player, disconnect_player, get_current_time, get_lobby_info, get_state, Lobby, PlayerMessage},
     ui::{gamesettings, gameview, tutorial},
     LOBBY_ID_PATTERN, MAX_LOBBY_ID_LENGTH, MAX_PLAYER_NAME_LENGTH, PLAYER_NAME_PATTERN,
 };
@@ -79,17 +77,17 @@ impl AlertPopup {
 
 #[allow(clippy::too_many_lines, clippy::cast_possible_wrap)]
 pub fn app(cx: Scope) -> Element {
-    let player_name: &UseState<String> = use_state(cx, String::new);
-    let lobby_id: &UseState<String> = use_state(cx, String::new);
-    let is_connected: &UseState<bool> = use_state(cx, || false);
+    let player_name = use_state(cx, String::new);
+    let lobby_id = use_state(cx, String::new);
+    let is_connected = use_state(cx, || false);
 
-    let lobby_state: &UseState<Option<Lobby>> = use_state(cx, || None::<Lobby>);
-    let lobby_info: &UseState<Vec<LobbyInfo>> = use_state(cx, Vec::new);
-    let lobby_settings_open: &UseState<bool> = use_state(cx, || true);
+    let lobby_state = use_state(cx, || None::<Lobby>);
+    let lobby_info = use_state(cx, Vec::new);
+    let lobby_settings_open = use_state(cx, || true);
 
-    let error_message: &UseState<ErrorDialog> = use_state(cx, ErrorDialog::default);
+    let error_message = use_state(cx, ErrorDialog::default);
 
-    let tutorial_open: &UseState<bool> = use_state(cx, || false);
+    let tutorial_open = use_state(cx, || false);
 
     // Hide the item reveal message after 5 seconds
     let item_reveal_message: &UseState<ItemRevealMessage> = use_state(cx, ItemRevealMessage::default);
@@ -160,11 +158,11 @@ pub fn app(cx: Scope) -> Element {
                     }
                     PlayerMessage::Winner(players) => {
                         let win_message = if players.len() > 1 {
-                            format!("The tied winners are {players}!", players = players.join(", "))
+                            format!("The tied winners are {}!", players.join(", "))
                         } else if players.is_empty() {
                             String::from("The game has ended with no winner!")
                         } else {
-                            format!("The winner is {players}!", players = players.join(", "))
+                            format!("The winner is {}!", players[0])
                         };
                         item_reveal_message.set(ItemRevealMessage {
                             show: true,
@@ -254,15 +252,6 @@ pub fn app(cx: Scope) -> Element {
         });
     });
 
-    let start = Box::new(move || {
-        let player_name = player_name.clone();
-        let lobby_id = lobby_id.clone();
-
-        cx.spawn(async move {
-            let _result = start_lobby(&lobby_id.get().clone(), &player_name.get().clone()).await;
-        });
-    });
-
     let render_error_dialog = rsx! {
         div { class: "dialog floating error", top: if error_message.get().show { "50%" } else { "-100%" },
             "{error_message.get().str}"
@@ -287,7 +276,7 @@ pub fn app(cx: Scope) -> Element {
                 .collect::<Vec<String>>()
                 .join(",");
             cx.render(rsx! {
-                gameview::render(cx, player_name, lobby_id, lobby, disconnect, start, lobby_settings_open, alert_popup),
+                gameview::render(cx, player_name, lobby_id, lobby, disconnect, lobby_settings_open, alert_popup),
                 render_error_dialog,
                 item_reveal_message.render(),
                 rsx! { gamesettings::render(cx, lobby_settings_open, player_name, lobby_id, lobby) },

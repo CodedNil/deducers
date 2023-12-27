@@ -3,6 +3,7 @@ use crate::{
     ITEM_NAME_PATTERN, MAX_ITEM_NAME_LENGTH, MAX_LOBBY_ITEMS,
 };
 use dioxus::prelude::*;
+use std::{collections::HashMap, rc::Rc};
 
 pub fn render<'a>(
     cx: Scope<'a>,
@@ -26,12 +27,22 @@ pub fn render<'a>(
         false
     };
 
+    let alter_setting = {
+        move |setting: AlterLobbySetting| {
+            let lobby_id = lobby_id.to_string();
+            let player_name = player_name.to_string();
+            cx.spawn(async move {
+                let _result = alter_lobby_settings(&lobby_id, &player_name, setting).await;
+            });
+        }
+    };
+
     cx.render(rsx! {
         div { class: "dialog floating", display: "flex", gap: "20px", top: if settings_open { "50%" } else { "-100%" },
             label { font_weight: "bold", font_size: "larger", "Lobby Settings" }
             label { font_size: "large", "Estimated game length {game_time}" }
             div { display: "flex", flex_direction: "column", gap: "5px",
-                standard_settings(cx, player_name, lobby_id, lobby),
+                standard_settings(lobby, alter_setting),
                 div { class: "dark-box",
                     label {
                         "Host as Quizmaster: "
@@ -39,22 +50,14 @@ pub fn render<'a>(
                             r#type: "checkbox",
                             checked: "{player_controlled}",
                             oninput: move |e| {
-                                let lobby_id = lobby_id.to_string();
-                                let player_name = player_name.to_string();
-                                let checked = e.value.parse::<bool>().unwrap_or(false);
-                                cx.spawn(async move {
-                                    let _result = alter_lobby_settings(
-                                            &lobby_id,
-                                            &player_name,
-                                            AlterLobbySetting::PlayerControlled(checked),
-                                        )
-                                        .await;
-                                });
+                                alter_setting(
+                                    AlterLobbySetting::PlayerControlled(e.value.parse::<bool>().unwrap_or(false)),
+                                );
                             }
                         }
                     }
                     if player_controlled {
-                        item_settings(cx, player_name, lobby_id, lobby, add_item_submission)
+                        item_settings(lobby, add_item_submission, alter_setting)
                     }
                 }
                 div { class: "dark-box",
@@ -69,7 +72,7 @@ pub fn render<'a>(
                         }
                     }
                     if *advanced_settings_toggle.get() {
-                        advanced_settings(cx, player_name, lobby_id, lobby)
+                        advanced_settings(lobby, alter_setting)
                     }
                 }
             }
@@ -114,64 +117,48 @@ fn calculate_game_time(items_count: usize, question_every_x_seconds: usize, item
     }
 }
 
-#[allow(clippy::too_many_lines, clippy::cast_possible_wrap)]
-fn standard_settings<'a>(cx: Scope<'a>, player_name: &'a str, lobby_id: &'a str, lobby: &Lobby) -> LazyNodes<'a, 'a> {
+#[allow(clippy::cast_possible_wrap)]
+fn standard_settings<'a>(lobby: &Lobby, alter_setting: impl Fn(AlterLobbySetting) + 'a) -> LazyNodes<'a, 'a> {
     let difficulty = lobby.settings.difficulty.clone();
     let item_count = lobby.settings.item_count;
     let player_controlled = lobby.settings.player_controlled;
+    let alter_setting = Rc::new(alter_setting);
     rsx! {
         div { display: "flex", gap: "5px",
             "Difficulty:"
             button {
                 class: if difficulty == Difficulty::Easy { "highlighted" } else { "" },
-                onclick: move |_| {
-                    let lobby_id = lobby_id.to_string();
-                    let player_name = player_name.to_string();
-                    cx.spawn(async move {
-                        let _result = alter_lobby_settings(
-                                &lobby_id,
-                                &player_name,
-                                AlterLobbySetting::Difficulty(Difficulty::Easy),
-                            )
-                            .await;
-                    });
+                onclick: {
+                    let alter_setting = alter_setting.clone();
+                    move |_| {
+                        alter_setting(AlterLobbySetting::Difficulty(Difficulty::Easy));
+                    }
                 },
                 "Easy"
             }
             button {
                 class: if difficulty == Difficulty::Medium { "highlighted" } else { "" },
-                onclick: move |_| {
-                    let lobby_id = lobby_id.to_string();
-                    let player_name = player_name.to_string();
-                    cx.spawn(async move {
-                        let _result = alter_lobby_settings(
-                                &lobby_id,
-                                &player_name,
-                                AlterLobbySetting::Difficulty(Difficulty::Medium),
-                            )
-                            .await;
-                    });
+                onclick: {
+                    let alter_setting = alter_setting.clone();
+                    move |_| {
+                        alter_setting(AlterLobbySetting::Difficulty(Difficulty::Medium));
+                    }
                 },
                 "Medium"
             }
             button {
                 class: if difficulty == Difficulty::Hard { "highlighted" } else { "" },
-                onclick: move |_| {
-                    let lobby_id = lobby_id.to_string();
-                    let player_name = player_name.to_string();
-                    cx.spawn(async move {
-                        let _result = alter_lobby_settings(
-                                &lobby_id,
-                                &player_name,
-                                AlterLobbySetting::Difficulty(Difficulty::Hard),
-                            )
-                            .await;
-                    });
+                onclick: {
+                    let alter_setting = alter_setting.clone();
+                    move |_| {
+                        alter_setting(AlterLobbySetting::Difficulty(Difficulty::Hard));
+                    }
                 },
                 "Hard"
             }
         }
         if !player_controlled {
+            let alter_setting = alter_setting.clone();
             rsx! { label {
                 "Item Count: "
                 input {
@@ -180,37 +167,28 @@ fn standard_settings<'a>(cx: Scope<'a>, player_name: &'a str, lobby_id: &'a str,
                     max: MAX_LOBBY_ITEMS as i64,
                     value: "{item_count}",
                     width: "50px",
-                    oninput: move |e| {
-                        let lobby_id = lobby_id.to_string();
-                        let player_name = player_name.to_string();
-                        let count = e.value.parse::<usize>().unwrap_or(1);
-                        cx.spawn(async move {
-                            let _result = alter_lobby_settings(
-                                    &lobby_id,
-                                    &player_name,
-                                    AlterLobbySetting::ItemCount(count),
-                                )
-                                .await;
-                        });
-                    }
+                    oninput: {
+                        let alter_setting = alter_setting.clone();
+                        move |e| {
+                            alter_setting(AlterLobbySetting::ItemCount(e.value.parse::<usize>().unwrap_or(1)));
+                        }
+                    },
                 }
             }}
         }
     }
 }
 
-#[allow(clippy::too_many_lines, clippy::cast_possible_wrap)]
+#[allow(clippy::cast_possible_wrap)]
 fn item_settings<'a>(
-    cx: Scope<'a>,
-    player_name: &'a str,
-    lobby_id: &'a str,
     lobby: &Lobby,
     add_item_submission: &UseState<String>,
+    alter_setting: impl Fn(AlterLobbySetting) + 'a,
 ) -> LazyNodes<'a, 'a> {
     let add_item_submission1 = add_item_submission.clone();
     let add_item_submission2 = add_item_submission.clone();
     let server_items = lobby.items_queue.clone();
-
+    let alter_setting = Rc::new(alter_setting);
     rsx! {
         div { display: "flex", flex_direction: "column", gap: "5px",
             div {
@@ -219,24 +197,18 @@ fn item_settings<'a>(
                     padding: "2px",
                     padding_top: "0px",
                     background_color: "rgb(20, 100, 150)",
-                    onclick: move |_| {
-                        let lobby_id = lobby_id.to_string();
-                        let player_name = player_name.to_string();
-                        cx.spawn(async move {
-                            let _result = alter_lobby_settings(
-                                    &lobby_id,
-                                    &player_name,
-                                    AlterLobbySetting::RefreshAllItems,
-                                )
-                                .await;
-                        });
+                    onclick: {
+                        let alter_setting = alter_setting.clone();
+                        move |_| {
+                            alter_setting(AlterLobbySetting::RefreshAllItems);
+                        }
                     },
                     "↻"
                 }
             }
             server_items.into_iter().map(|item| {
                 let item1 = item.clone();
-                let item2 = item.clone();
+                let alter_setting = alter_setting.clone();
                 rsx! {
                     div { display: "flex", flex_direction: "row", gap: "5px",
                         class: "table-body-box",
@@ -245,36 +217,22 @@ fn item_settings<'a>(
                             padding: "2px",
                             padding_top: "0px",
                             background_color: "rgb(20, 100, 150)",
-                            onclick: move |_| {
-                                let lobby_id = lobby_id.to_string();
-                                let player_name = player_name.to_string();
-                                let item = item1.clone();
-                                cx.spawn(async move {
-                                    let _result = alter_lobby_settings(
-                                            &lobby_id,
-                                            &player_name,
-                                            AlterLobbySetting::RefreshItem(item),
-                                        )
-                                        .await;
-                                });
+                            onclick: {
+                                let alter_setting = alter_setting.clone();
+                                move |_| {
+                                    alter_setting(AlterLobbySetting::RefreshItem(item.clone()));
+                                }
                             },
                             "↻"
                         }
                         button {
                             class: "smallbutton",
                             background_color: "rgb(100, 20, 20)",
-                            onclick: move |_| {
-                                let lobby_id = lobby_id.to_string();
-                                let player_name = player_name.to_string();
-                                let item = item2.clone();
-                                cx.spawn(async move {
-                                    let _result = alter_lobby_settings(
-                                            &lobby_id,
-                                            &player_name,
-                                            AlterLobbySetting::RemoveItem(item),
-                                        )
-                                        .await;
-                                });
+                            onclick: {
+                                let alter_setting = alter_setting.clone();
+                                move |_| {
+                                    alter_setting(AlterLobbySetting::RemoveItem(item1.clone()));
+                                }
                             },
                             "-"
                         }
@@ -284,18 +242,12 @@ fn item_settings<'a>(
             form {
                 display: "flex",
                 gap: "5px",
-                onsubmit: move |_| {
-                    let lobby_id = lobby_id.to_string();
-                    let player_name = player_name.to_string();
+                onsubmit: {
+                    let alter_setting = alter_setting.clone();
                     let submission = add_item_submission1.get().clone();
-                    cx.spawn(async move {
-                        let _result = alter_lobby_settings(
-                                &lobby_id,
-                                &player_name,
-                                AlterLobbySetting::AddItem(submission),
-                            )
-                            .await;
-                    });
+                    move |_| {
+                        alter_setting(AlterLobbySetting::AddItem(submission.clone()));
+                    }
                 },
                 input {
                     r#type: "text",
@@ -315,6 +267,7 @@ fn item_settings<'a>(
 
 struct SettingDetail {
     key: String,
+    display_name: String,
     min: usize,
     max: usize,
 }
@@ -323,21 +276,19 @@ impl SettingDetail {
     fn new(key: &str, min: usize, max: usize) -> Self {
         Self {
             key: key.to_string(),
+            display_name: key
+                .split('_')
+                .map(|word| word.chars().next().unwrap().to_uppercase().to_string() + &word.chars().skip(1).collect::<String>())
+                .collect::<Vec<String>>()
+                .join(" "),
             min,
             max,
         }
     }
-
-    fn display_name(&self) -> String {
-        self.key
-            .split('_')
-            .map(|word| word.chars().next().unwrap().to_uppercase().to_string() + &word.chars().skip(1).collect::<String>())
-            .collect::<Vec<String>>()
-            .join(" ")
-    }
 }
 
-fn advanced_settings<'a>(cx: Scope<'a>, player_name: &'a str, lobby_id: &'a str, lobby: &'a Lobby) -> LazyNodes<'a, 'a> {
+fn advanced_settings<'a>(lobby: &'a Lobby, alter_setting: impl Fn(AlterLobbySetting) + 'a) -> LazyNodes<'a, 'a> {
+    let alter_setting = Rc::new(alter_setting);
     let settings = vec![
         SettingDetail::new("starting_coins", 1, 100),
         SettingDetail::new("coin_every_x_seconds", 1, 20),
@@ -350,43 +301,38 @@ fn advanced_settings<'a>(cx: Scope<'a>, player_name: &'a str, lobby_id: &'a str,
         SettingDetail::new("score_to_coins_ratio", 1, 100),
     ];
 
+    let setting_values: HashMap<&str, usize> = [
+        ("starting_coins", lobby.settings.starting_coins),
+        ("coin_every_x_seconds", lobby.settings.coin_every_x_seconds),
+        ("submit_question_every_x_seconds", lobby.settings.submit_question_every_x_seconds),
+        ("add_item_every_x_questions", lobby.settings.add_item_every_x_questions),
+        ("submit_question_cost", lobby.settings.submit_question_cost),
+        ("masked_question_cost", lobby.settings.masked_question_cost),
+        ("guess_item_cost", lobby.settings.guess_item_cost),
+        ("question_min_votes", lobby.settings.question_min_votes),
+        ("score_to_coins_ratio", lobby.settings.score_to_coins_ratio),
+    ]
+    .iter()
+    .copied()
+    .collect();
+
     rsx! {
         settings.into_iter().map(|setting| {
-            let setting_value = match setting.key.as_str() {
-                "starting_coins" => Some(lobby.settings.starting_coins),
-                "coin_every_x_seconds" => Some(lobby.settings.coin_every_x_seconds),
-                "submit_question_every_x_seconds" => Some(lobby.settings.submit_question_every_x_seconds),
-                "add_item_every_x_questions" => Some(lobby.settings.add_item_every_x_questions),
-                "submit_question_cost" => Some(lobby.settings.submit_question_cost),
-                "masked_question_cost" => Some(lobby.settings.masked_question_cost),
-                "guess_item_cost" => Some(lobby.settings.guess_item_cost),
-                "question_min_votes" => Some(lobby.settings.question_min_votes),
-                "score_to_coins_ratio" => Some(lobby.settings.score_to_coins_ratio),
-                _ => None,
-            };
-            setting_value.map_or_else(|| rsx! { div {} }, |setting_value|
+            let alter_setting = alter_setting.clone();
+            setting_values.get(setting.key.as_str()).map_or_else(|| rsx! { div {} }, |&setting_value|
                 rsx! {
                     label {
-                        "{setting.display_name()}: "
+                        "{setting.display_name}: "
                         input {
                             r#type: "number",
                             min: "{setting.min}",
                             max: "{setting.max}",
                             value: "{setting_value}",
                             max_width: "50px",
-                            oninput: move |e| {
-                                let lobby_id = lobby_id.to_string();
-                                let player_name = player_name.to_string();
-                                let count = e.value.parse::<usize>().unwrap_or(1);
-                                let key = setting.key.clone();
-                                cx.spawn(async move {
-                                    let _result = alter_lobby_settings(
-                                            &lobby_id,
-                                            &player_name,
-                                            AlterLobbySetting::Advanced(key, count)
-                                        )
-                                        .await;
-                                });
+                            oninput: {
+                                move |e| {
+                                    alter_setting(AlterLobbySetting::Advanced(setting.key.clone(), e.value.parse::<usize>().unwrap_or(1)));
+                                }
                             }
                         }
                     }
