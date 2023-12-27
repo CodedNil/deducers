@@ -50,11 +50,7 @@ pub fn render<'a>(
                             if lobby.key_player == *player_name && !lobby.started {
                                 rsx! { button { onclick: move |_| {
                                     lobby_settings_open.set(false);
-                                    let player_name = player_name.to_string();
-                                    let lobby_id = lobby_id.to_string();
-                                    cx.spawn(async move {
-                                        let _result = start_lobby(&lobby_id, &player_name).await;
-                                    });
+                                    let _result = start_lobby(lobby_id, player_name);
                                 }, "Start" } }
                             }
                             if lobby.key_player == *player_name && !lobby.started {
@@ -112,12 +108,7 @@ pub fn render<'a>(
                         display: "flex",
                         gap: "5px",
                         onsubmit: move |_| {
-                            let lobby_id = lobby_id.to_string();
-                            let player_name = player_name.to_string();
-                            let submission = chat_submission.get().clone();
-                            cx.spawn(async move {
-                                let _result = add_chat_message(&lobby_id, &player_name, submission).await;
-                            });
+                            let _result = add_chat_message(lobby_id, player_name, chat_submission);
                         },
                         input {
                             placeholder: "Message",

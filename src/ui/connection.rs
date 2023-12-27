@@ -3,7 +3,6 @@ use crate::{
     ui::{gamesettings, gameview, tutorial},
     LOBBY_ID_PATTERN, MAX_LOBBY_ID_LENGTH, MAX_PLAYER_NAME_LENGTH, PLAYER_NAME_PATTERN,
 };
-use anyhow::Error;
 use dioxus::prelude::*;
 use std::{
     sync::{Arc, Mutex},
@@ -63,14 +62,6 @@ impl AlertPopup {
             shown: true,
             expiry: get_current_time() + 5.0,
             message,
-        }
-    }
-
-    pub fn error(error: &Error) -> Self {
-        Self {
-            shown: true,
-            expiry: get_current_time() + 5.0,
-            message: error.to_string(),
         }
     }
 }
@@ -219,7 +210,7 @@ pub fn app(cx: Scope) -> Element {
                 }
 
                 if *is_connected.get() {
-                    match get_state(&lobby_id.get().clone(), &player_name.get().clone()).await {
+                    match get_state(&lobby_id.get().clone(), &player_name.get().clone()) {
                         Ok((lobby, messages)) => {
                             process_messages(messages.clone(), &sounds_to_play, &item_reveal_message, &alert_popup);
                             lobby_state.set(Some(lobby));
@@ -233,8 +224,8 @@ pub fn app(cx: Scope) -> Element {
                             break;
                         }
                     }
-                } else if let Ok(lobbys) = get_lobby_info().await {
-                    lobby_info.set(lobbys);
+                } else {
+                    lobby_info.set(get_lobby_info());
                 }
                 tokio::time::sleep(Duration::from_millis(500)).await;
             }
@@ -246,10 +237,7 @@ pub fn app(cx: Scope) -> Element {
         let lobby_id = lobby_id.clone();
         is_connected.set(false);
         lobby_state.set(None);
-
-        cx.spawn(async move {
-            let _result = disconnect_player(&lobby_id.get().clone(), &player_name.get().clone()).await;
-        });
+        let _result = disconnect_player(&lobby_id.get().clone(), &player_name.get().clone());
     });
 
     let render_error_dialog = rsx! {
@@ -302,24 +290,16 @@ pub fn app(cx: Scope) -> Element {
                             button {
                                 onclick: move |_| {
                                     lobby_id.set(lobby.id.clone());
-                                    let player_name = player_name.clone();
-                                    let lobby_id = lobby.id.clone();
-                                    let is_connected = is_connected.clone();
-                                    let error_message = error_message.clone();
                                     lobby_state.set(None);
-                                    cx.spawn(async move {
-                                        if let Err(error)
-                                            = connect_player(&lobby_id.clone(), &player_name.get().clone()).await
-                                        {
-                                            error_message
-                                                .set(ErrorDialog {
-                                                    show: true,
-                                                    str: format!("Failed to connect to lobby: {error}"),
-                                                });
-                                        } else {
-                                            is_connected.set(true);
-                                        }
-                                    });
+                                    if let Err(error) = connect_player(lobby_id, player_name) {
+                                        error_message
+                                            .set(ErrorDialog {
+                                                show: true,
+                                                str: format!("Failed to connect to lobby: {error}"),
+                                            });
+                                    } else {
+                                        is_connected.set(true);
+                                    }
                                 },
                                 "Join"
                             }
@@ -335,24 +315,16 @@ pub fn app(cx: Scope) -> Element {
                 form {
                     class: "dialog",
                     onsubmit: move |_| {
-                        let player_name = player_name.clone();
-                        let lobby_id = lobby_id.clone();
-                        let is_connected = is_connected.clone();
-                        let error_message = error_message.clone();
                         lobby_state.set(None);
-                        cx.spawn(async move {
-                            if let Err(error)
-                                = connect_player(&lobby_id.get().clone(), &player_name.get().clone()).await
-                            {
-                                error_message
-                                    .set(ErrorDialog {
-                                        show: true,
-                                        str: format!("Failed to connect to lobby: {error}"),
-                                    });
-                            } else {
-                                is_connected.set(true);
-                            }
-                        });
+                        if let Err(error) = connect_player(lobby_id, player_name) {
+                            error_message
+                                .set(ErrorDialog {
+                                    show: true,
+                                    str: format!("Failed to connect to lobby: {error}"),
+                                });
+                        } else {
+                            is_connected.set(true);
+                        }
                     },
                     input {
                         r#type: "text",

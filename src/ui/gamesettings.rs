@@ -31,9 +31,7 @@ pub fn render<'a>(
         move |setting: AlterLobbySetting| {
             let lobby_id = lobby_id.to_string();
             let player_name = player_name.to_string();
-            cx.spawn(async move {
-                let _result = alter_lobby_settings(&lobby_id, &player_name, setting).await;
-            });
+            let _result = alter_lobby_settings(&lobby_id, &player_name, setting);
         }
     };
 

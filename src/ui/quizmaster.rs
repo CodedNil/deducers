@@ -31,22 +31,12 @@ pub fn render<'a>(cx: Scope<'a>, player_name: &'a str, lobby_id: &'a str, lobby:
                         div { class: "table-body-box", flex: "1", "{question.question}" }
                         button {
                             onclick: move |_| {
-                                let lobby_id = lobby_id.to_string();
-                                let player_name = player_name.to_string();
-                                let question = question_string1.clone();
-                                cx.spawn(async move {
-                                    let _response = quizmaster_submit(&lobby_id, &player_name, question).await;
-                                });
+                                let _response = quizmaster_submit(lobby_id, player_name, &question_string1);
                             },
                             background_color: "rgb(20, 100, 20)", "Submit" }
                         button {
                             onclick: move |_| {
-                                let lobby_id = lobby_id.to_string();
-                                let player_name = player_name.to_string();
-                                let question = question_string2.clone();
-                                cx.spawn(async move {
-                                    let _response = quizmaster_reject(&lobby_id, &player_name, question).await;
-                                });
+                                let _response = quizmaster_reject(lobby_id, player_name, &question_string2);
                             },
                             background_color: "rgb(100, 20, 20)", "Reject" }
                     }
@@ -54,9 +44,8 @@ pub fn render<'a>(cx: Scope<'a>, player_name: &'a str, lobby_id: &'a str, lobby:
                         display: "flex",
                         gap: "5px",
                         question.items.iter().map(|item| {
-                            let question_string1 = question_string1.clone();
-                            let question_string2 = question_string2.clone();
-                            let item1 = item.clone();
+                            let item = item.clone();
+                            let question_string = question_string1.clone();
                             rsx! {
                                 button {
                                     class: "table-body-box {item.answer.to_string().to_lowercase()}",
@@ -65,13 +54,7 @@ pub fn render<'a>(cx: Scope<'a>, player_name: &'a str, lobby_id: &'a str, lobby:
                                     flex_direction: "column",
                                     gap: "5px",
                                     onclick: move |_| {
-                                        let lobby_id = lobby_id.to_string();
-                                        let player_name = player_name.to_string();
-                                        let question = question_string1.clone();
-                                        let new_answer = item1.answer.next();
-                                        cx.spawn(async move {
-                                            let _response = quizmaster_change_answer(&lobby_id, &player_name, question, item1.id, new_answer).await;
-                                        });
+                                        let _response = quizmaster_change_answer(lobby_id, player_name, &question_string, item.id, item.answer.next());
                                     },
                                     div {
                                         "{item.name}: {item.answer.to_string()}"
@@ -80,19 +63,13 @@ pub fn render<'a>(cx: Scope<'a>, player_name: &'a str, lobby_id: &'a str, lobby:
                                         display: "flex",
                                         width: "100%",
                                         Answer::variants().iter().map(|answer| {
-                                            let question_string2 = question_string2.clone();
+                                            let question_string = question_string.clone();
                                             let answer = answer.clone();
                                             rsx! {
                                                 button {
                                                     class: "table-body-box {answer.to_string().to_lowercase()} smallanswerbutton",
                                                     onclick: move |_| {
-                                                        let lobby_id = lobby_id.to_string();
-                                                        let player_name = player_name.to_string();
-                                                        let question = question_string2.clone();
-                                                        let new_answer = answer.clone();
-                                                        cx.spawn(async move {
-                                                            let _response = quizmaster_change_answer(&lobby_id, &player_name, question, item1.id, new_answer).await;
-                                                        });
+                                                        let _response = quizmaster_change_answer(lobby_id, player_name, &question_string, item.id, answer.clone());
                                                     },
                                                 }
                                             }

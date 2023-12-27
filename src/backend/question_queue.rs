@@ -17,8 +17,7 @@ pub async fn submit_question(lobby_id: &str, player_name: &str, question: String
         };
         is_quizmaster = lobby.settings.player_controlled;
         Ok(())
-    })
-    .await?;
+    })?;
 
     with_player(lobby_id, player_name, |lobby, player| {
         if !lobby.started {
@@ -40,8 +39,7 @@ pub async fn submit_question(lobby_id: &str, player_name: &str, question: String
             bail!("Question already exists in queue");
         }
         Ok(())
-    })
-    .await?;
+    })?;
 
     // Validate the question
     let validate_response = validate_question(&question, !is_quizmaster).await;
@@ -83,7 +81,6 @@ pub async fn submit_question(lobby_id: &str, player_name: &str, question: String
         });
         Ok(())
     })
-    .await
 }
 
 // Helper function to validate a question
@@ -135,7 +132,7 @@ async fn validate_question(question: &str, use_ai: bool) -> ValidateQuestionResp
     }
 }
 
-pub async fn vote_question(lobby_id: &str, player_name: &str, question: String) -> Result<()> {
+pub fn vote_question(lobby_id: &str, player_name: &str, question: &String) -> Result<()> {
     with_lobby_mut(lobby_id, |lobby| {
         let player = lobby
             .players
@@ -150,7 +147,7 @@ pub async fn vote_question(lobby_id: &str, player_name: &str, question: String) 
         }
 
         // Check if question exists in the queue
-        if let Some(queued_question) = lobby.questions_queue.iter_mut().find(|q| q.question == question) {
+        if let Some(queued_question) = lobby.questions_queue.iter_mut().find(|q| &q.question == question) {
             // Check if player has enough coins
             if player.coins < 1 {
                 bail!("Insufficient coins to vote");
@@ -164,10 +161,9 @@ pub async fn vote_question(lobby_id: &str, player_name: &str, question: String) 
         }
         Err(anyhow::anyhow!("Question not found in queue"))
     })
-    .await
 }
 
-pub async fn convert_score(lobby_id: &str, player_name: &str) -> Result<()> {
+pub fn convert_score(lobby_id: &str, player_name: &str) -> Result<()> {
     with_player_mut(lobby_id, player_name, |lobby, player| {
         if !lobby.started {
             bail!("Lobby not started");
@@ -183,5 +179,4 @@ pub async fn convert_score(lobby_id: &str, player_name: &str) -> Result<()> {
         player.coins += lobby.settings.score_to_coins_ratio;
         Ok(())
     })
-    .await
 }

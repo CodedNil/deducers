@@ -9,8 +9,12 @@ use crate::{
 };
 use anyhow::{anyhow, Result};
 use once_cell::sync::Lazy;
-use std::{cmp::Ordering, collections::HashMap, fmt::Display, sync::Arc};
-use tokio::sync::Mutex;
+use std::{
+    cmp::Ordering,
+    collections::HashMap,
+    fmt::Display,
+    sync::{Arc, Mutex},
+};
 
 #[derive(Clone, Debug, Default)]
 pub struct Lobby {
@@ -258,11 +262,11 @@ impl Display for Answer {
 
 static LOBBYS: Lazy<Arc<Mutex<HashMap<String, Lobby>>>> = Lazy::new(|| Arc::new(Mutex::new(HashMap::new())));
 
-pub async fn with_lobby<F, T>(lobby_id: &str, f: F) -> Result<T>
+pub fn with_lobby<F, T>(lobby_id: &str, f: F) -> Result<T>
 where
     F: FnOnce(&Lobby) -> Result<T>,
 {
-    let lobbys_lock = LOBBYS.lock().await;
+    let lobbys_lock = LOBBYS.lock().unwrap();
     let lobby = lobbys_lock.get(lobby_id).ok_or_else(|| anyhow!("Lobby '{lobby_id}' not found"))?;
     f(lobby)
 }
@@ -272,8 +276,8 @@ pub struct LobbyInfo {
     pub players_count: usize,
 }
 
-pub async fn get_lobby_info() -> Result<Vec<LobbyInfo>> {
-    let lobbys_lock = LOBBYS.lock().await;
+pub fn get_lobby_info() -> Vec<LobbyInfo> {
+    let lobbys_lock = LOBBYS.lock().unwrap();
     let mut lobby_infos = Vec::new();
     for (id, lobby) in &lobbys_lock.clone() {
         if !lobby.started {
@@ -283,22 +287,22 @@ pub async fn get_lobby_info() -> Result<Vec<LobbyInfo>> {
             });
         }
     }
-    Ok(lobby_infos)
+    lobby_infos
 }
 
-pub async fn with_lobby_mut<F, T>(lobby_id: &str, f: F) -> Result<T>
+pub fn with_lobby_mut<F, T>(lobby_id: &str, f: F) -> Result<T>
 where
     F: FnOnce(&mut Lobby) -> Result<T>,
 {
-    let mut lobbys_lock = LOBBYS.lock().await;
+    let mut lobbys_lock = LOBBYS.lock().unwrap();
     let lobby = lobbys_lock
         .get_mut(lobby_id)
         .ok_or_else(|| anyhow!("Lobby '{lobby_id}' not found"))?;
     f(lobby)
 }
 
-pub async fn create_lobby(lobby_id: &str, player_name: &str) -> Result<()> {
-    let mut lobbys_lock = LOBBYS.lock().await;
+pub fn create_lobby(lobby_id: &str, player_name: &str) -> Result<()> {
+    let mut lobbys_lock = LOBBYS.lock().unwrap();
     if lobbys_lock.contains_key(lobby_id) {
         return Err(anyhow!("Lobby '{lobby_id}' already exists"));
     }
@@ -317,7 +321,7 @@ pub async fn create_lobby(lobby_id: &str, player_name: &str) -> Result<()> {
     // If lobby_id is debug, create a loaded lobby
     if lobby_id == "debug" {
         println!("Creating debug lobby");
-        start_lobby(lobby_id, player_name).await?;
+        start_lobby(lobby_id, player_name)?;
         with_lobby_mut(lobby_id, |lobby| {
             for _ in 0..10 {
                 lobby.chat_messages.push(ChatMessage {
@@ -367,13 +371,12 @@ pub async fn create_lobby(lobby_id: &str, player_name: &str) -> Result<()> {
                 }
             }
             Ok(())
-        })
-        .await?;
+        })?;
     }
     Ok(())
 }
 
-pub async fn with_player<F, T>(lobby_id: &str, player_name: &str, f: F) -> Result<T>
+pub fn with_player<F, T>(lobby_id: &str, player_name: &str, f: F) -> Result<T>
 where
     F: FnOnce(&Lobby, &Player) -> Result<T>,
 {
@@ -384,10 +387,9 @@ where
             .ok_or_else(|| anyhow!("Player '{player_name}' not found"))?;
         f(lobby, player)
     })
-    .await
 }
 
-pub async fn with_player_mut<F, T>(lobby_id: &str, player_name: &str, f: F) -> Result<T>
+pub fn with_player_mut<F, T>(lobby_id: &str, player_name: &str, f: F) -> Result<T>
 where
     F: FnOnce(Lobby, &mut Player) -> Result<T>,
 {
@@ -399,10 +401,9 @@ where
             .ok_or_else(|| anyhow!("Player '{player_name}' not found"))?;
         f(lobby_state, player)
     })
-    .await
 }
 
-pub async fn connect_player(lobby_id: &str, player_name: &str) -> Result<()> {
+pub fn connect_player(lobby_id: &str, player_name: &str) -> Result<()> {
     let lobby_id = lobby_id.trim();
     let player_name = player_name.trim();
     if lobby_id.len() < 3 || lobby_id.len() > MAX_LOBBY_ID_LENGTH {
@@ -420,7 +421,7 @@ pub async fn connect_player(lobby_id: &str, player_name: &str) -> Result<()> {
         return Err(anyhow!("Player name must be alphabetic"));
     }
 
-    let _ = create_lobby(lobby_id, player_name).await;
+    let _result = create_lobby(lobby_id, player_name);
 
     with_lobby_mut(lobby_id, |lobby| {
         if lobby.players.contains_key(player_name) {
@@ -436,20 +437,18 @@ pub async fn connect_player(lobby_id: &str, player_name: &str) -> Result<()> {
         println!("Player '{player_name}' connected to lobby '{lobby_id}'");
         Ok(())
     })
-    .await
 }
 
-pub async fn disconnect_player(lobby_id: &str, player_name: &str) -> Result<()> {
+pub fn disconnect_player(lobby_id: &str, player_name: &str) -> Result<()> {
     with_lobby_mut(lobby_id, |lobby| {
         lobby.players.remove(player_name);
         println!("Player '{player_name}' disconnected from lobby '{lobby_id}'");
         Ok(())
     })
-    .await
 }
 
 #[allow(clippy::too_many_lines)]
-pub async fn alter_lobby_settings(lobby_id: &str, player_name: &str, setting: AlterLobbySetting) -> Result<()> {
+pub fn alter_lobby_settings(lobby_id: &str, player_name: &str, setting: AlterLobbySetting) -> Result<()> {
     with_lobby_mut(lobby_id, |lobby| {
         if player_name != lobby.key_player {
             return Err(anyhow!("Only the key player can alter the lobby settings"));
@@ -567,10 +566,9 @@ pub async fn alter_lobby_settings(lobby_id: &str, player_name: &str, setting: Al
 
         Ok(())
     })
-    .await
 }
 
-pub async fn start_lobby(lobby_id: &str, player_name: &str) -> Result<()> {
+pub fn start_lobby(lobby_id: &str, player_name: &str) -> Result<()> {
     with_lobby_mut(lobby_id, |lobby| {
         if lobby.started {
             return Err(anyhow!("Lobby '{lobby_id}' already started"));
@@ -602,43 +600,39 @@ pub async fn start_lobby(lobby_id: &str, player_name: &str) -> Result<()> {
         );
         Ok(())
     })
-    .await
 }
 
-pub async fn kick_player(lobby_id: &str, player_name: &str) -> Result<()> {
+pub fn kick_player(lobby_id: &str, player_name: &str) -> Result<()> {
     with_lobby_mut(lobby_id, |lobby| {
         lobby.players.remove(player_name);
         println!("Lobby '{lobby_id}' player '{player_name}' kicked by key player");
         Ok(())
     })
-    .await
 }
 
-pub async fn add_chat_message(lobby_id: &str, player_name: &str, message: String) -> Result<()> {
+pub fn add_chat_message(lobby_id: &str, player_name: &str, message: &str) -> Result<()> {
     if message.len() > MAX_CHAT_LENGTH {
         return Err(anyhow!("Chat message must be less than {MAX_CHAT_LENGTH} characters long"));
     }
     with_lobby_mut(lobby_id, |lobby| {
         lobby.chat_messages.push(ChatMessage {
             player: player_name.to_string(),
-            message,
+            message: message.to_string(),
         });
         if lobby.chat_messages.len() > MAX_CHAT_MESSAGES {
             lobby.chat_messages.remove(0);
         }
         Ok(())
     })
-    .await
 }
 
-pub async fn get_state(lobby_id: &str, player_name: &str) -> Result<(Lobby, Vec<PlayerMessage>)> {
+pub fn get_state(lobby_id: &str, player_name: &str) -> Result<(Lobby, Vec<PlayerMessage>)> {
     with_player_mut(lobby_id, player_name, |lobby, player| {
         player.last_contact = get_current_time();
         let messages = player.messages.clone();
         player.messages.clear();
         Ok((lobby, messages))
     })
-    .await
 }
 
 pub fn get_current_time() -> f64 {
@@ -651,8 +645,8 @@ pub fn get_time_diff(start: f64) -> f64 {
 }
 
 #[allow(clippy::cast_precision_loss)]
-pub async fn lobby_loop() -> Result<()> {
-    let mut lobbys_lock = LOBBYS.lock().await;
+pub fn lobby_loop() {
+    let mut lobbys_lock = LOBBYS.lock().unwrap();
 
     // Iterate through lobbys to update or remove
     lobbys_lock.retain(|lobby_id, lobby| {
@@ -711,6 +705,4 @@ pub async fn lobby_loop() -> Result<()> {
             true
         }
     });
-
-    Ok(())
 }

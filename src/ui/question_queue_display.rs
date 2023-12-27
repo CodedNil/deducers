@@ -45,12 +45,7 @@ pub fn render<'a>(cx: Scope<'a>, player_name: &'a str, lobby_id: &'a str, lobby:
                         if !(player_name == lobby.key_player && lobby.settings.player_controlled) {
                             rsx! { button {
                                 onclick: move |_| {
-                                    let lobby_id = lobby_id.to_string();
-                                    let player_name = player_name.to_string();
-                                    let question_string = question_string.clone();
-                                    cx.spawn(async move {
-                                        let _result = vote_question(&lobby_id, &player_name, question_string).await;
-                                    });
+                                    let _result = vote_question(lobby_id, player_name, &question_string);
                                 },
                                 padding: "2px",
                                 "🪙"

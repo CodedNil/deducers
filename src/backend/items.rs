@@ -73,8 +73,7 @@ pub async fn ask_top_question(lobby_id: &str) -> Result<()> {
         is_quizmaster = lobby.settings.player_controlled;
 
         Ok(())
-    })
-    .await?;
+    })?;
 
     // If quizmaster end here and add to the quizmasters queue
     if is_quizmaster {
@@ -95,8 +94,7 @@ pub async fn ask_top_question(lobby_id: &str) -> Result<()> {
                 voters: question_voters,
             });
             Ok(())
-        })
-        .await?;
+        })?;
         return Ok(());
     }
 
@@ -193,19 +191,12 @@ pub async fn ask_top_question(lobby_id: &str) -> Result<()> {
             player.messages.push(PlayerMessage::QuestionAsked);
         }
         Ok(())
-    })
-    .await?;
+    })?;
 
-    test_game_over(lobby_id).await
+    test_game_over(lobby_id)
 }
 
-pub async fn quizmaster_change_answer(
-    lobby_id: &str,
-    player_name: &str,
-    question: String,
-    item_id: usize,
-    new_answer: Answer,
-) -> Result<()> {
+pub fn quizmaster_change_answer(lobby_id: &str, player_name: &str, question: &String, item_id: usize, new_answer: Answer) -> Result<()> {
     with_lobby_mut(lobby_id, |lobby| {
         if !lobby.started {
             bail!("Lobby not started");
@@ -218,15 +209,14 @@ pub async fn quizmaster_change_answer(
         lobby
             .quizmaster_queue
             .iter_mut()
-            .find(|q| q.question == question)
+            .find(|q| &q.question == question)
             .and_then(|q| q.items.iter_mut().find(|i| i.id == item_id))
             .map(|i| i.answer = new_answer)
             .ok_or_else(|| anyhow::anyhow!("Question or item not found"))
     })
-    .await
 }
 
-pub async fn quizmaster_submit(lobby_id: &str, player_name: &str, question: String) -> Result<()> {
+pub fn quizmaster_submit(lobby_id: &str, player_name: &str, question: &String) -> Result<()> {
     with_lobby_mut(lobby_id, |lobby| {
         if !lobby.started {
             bail!("Lobby not started");
@@ -239,7 +229,7 @@ pub async fn quizmaster_submit(lobby_id: &str, player_name: &str, question: Stri
         let question_index = lobby
             .quizmaster_queue
             .iter()
-            .position(|q| q.question == question)
+            .position(|q| &q.question == question)
             .ok_or_else(|| anyhow::anyhow!("Question not found"))?;
         let question = lobby.quizmaster_queue.remove(question_index);
 
@@ -282,10 +272,9 @@ pub async fn quizmaster_submit(lobby_id: &str, player_name: &str, question: Stri
 
         Ok(())
     })
-    .await
 }
 
-pub async fn quizmaster_reject(lobby_id: &str, player_name: &str, question: String) -> Result<()> {
+pub fn quizmaster_reject(lobby_id: &str, player_name: &str, question: &String) -> Result<()> {
     with_lobby_mut(lobby_id, |lobby| {
         if !lobby.started {
             bail!("Lobby not started");
@@ -298,7 +287,7 @@ pub async fn quizmaster_reject(lobby_id: &str, player_name: &str, question: Stri
         let question_index = lobby
             .quizmaster_queue
             .iter()
-            .position(|q| q.question == question)
+            .position(|q| &q.question == question)
             .ok_or_else(|| anyhow::anyhow!("Question not found"))?;
         let question = lobby.quizmaster_queue.remove(question_index);
 
@@ -316,10 +305,9 @@ pub async fn quizmaster_reject(lobby_id: &str, player_name: &str, question: Stri
 
         Ok(())
     })
-    .await
 }
 
-pub async fn player_guess_item(lobby_id: &str, player_name: &str, item_choice: usize, guess: String) -> Result<()> {
+pub fn player_guess_item(lobby_id: &str, player_name: &str, item_choice: usize, guess: &str) -> Result<()> {
     let mut found_item = None;
     with_player_mut(lobby_id, player_name, |lobby, player| {
         if !lobby.started {
@@ -348,8 +336,7 @@ pub async fn player_guess_item(lobby_id: &str, player_name: &str, item_choice: u
         let remaining_questions = 20 - item.questions.len();
         player.score += remaining_questions;
         Ok(())
-    })
-    .await?;
+    })?;
 
     if let Some(item) = found_item {
         with_lobby_mut(lobby_id, |lobby| {
@@ -371,15 +358,14 @@ pub async fn player_guess_item(lobby_id: &str, player_name: &str, item_choice: u
             }
 
             Ok(())
-        })
-        .await?;
+        })?;
 
-        return test_game_over(lobby_id).await;
+        return test_game_over(lobby_id);
     }
     Err(anyhow::anyhow!("Failed to find item"))
 }
 
-pub async fn test_game_over(lobby_id: &str) -> Result<()> {
+pub fn test_game_over(lobby_id: &str) -> Result<()> {
     with_lobby_mut(lobby_id, |lobby| {
         if lobby.started && lobby.items.is_empty() {
             lobby.started = false;
@@ -406,7 +392,6 @@ pub async fn test_game_over(lobby_id: &str) -> Result<()> {
             }
         }
         Ok(())
-    })
-    .await?;
+    })?;
     Ok(())
 }

@@ -46,11 +46,7 @@ pub fn render<'a>(cx: Scope<'a>, player_name: &'a str, lobby_id: &'a str, lobby:
                                 "{player.score}",
                                 button {
                                     onclick: move |_| {
-                                        let lobby_id = lobby_id.to_string();
-                                        let row_player = row_player.to_string();
-                                        cx.spawn(async move {
-                                            let _result = kick_player(&lobby_id, &row_player).await;
-                                        });
+                                        let _result = kick_player(lobby_id, &row_player);
                                     },
                                     padding: "2px",
                                     "💥"

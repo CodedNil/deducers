@@ -52,7 +52,7 @@ pub fn render<'a>(
                     if let Err(error)
                         = submit_question(&lobby_id, &player_name, input, *masked.get()).await
                     {
-                        alert_popup.set(AlertPopup::error(&error));
+                        alert_popup.set(AlertPopup::message(error.to_string()));
                     } else {
                         masked.set(false);
                     }
@@ -84,13 +84,9 @@ pub fn render<'a>(
         div { display: "flex", gap: "5px",
             button {
                 onclick: move |_| {
-                    let (lobby_id, player_name) = (lobby_id.to_string(), player_name.to_string());
-                    let alert_popup = alert_popup.clone();
-                    cx.spawn(async move {
-                        if let Err(error) = convert_score(&lobby_id, &player_name).await {
-                            alert_popup.set(AlertPopup::error(&error));
-                        }
-                    });
+                    if let Err(error) = convert_score(lobby_id, player_name) {
+                        alert_popup.set(AlertPopup::message(error.to_string()));
+                    }
                 },
                 flex: "1",
                 "Convert Leaderboard Score To {lobby.settings.score_to_coins_ratio}🪙"
@@ -100,17 +96,15 @@ pub fn render<'a>(
             display: "flex",
             gap: "5px",
             onsubmit: move |_| {
-                let (lobby_id, player_name) = (lobby_id.to_string(), player_name.to_string());
-                let item_choice = *guess_item_key.get();
-                let item_guess = guess_item_submission.get().clone();
-                let alert_popup = alert_popup.clone();
-                cx.spawn(async move {
-                    if let Err(error)
-                        = player_guess_item(&lobby_id, &player_name, item_choice, item_guess).await
-                    {
-                        alert_popup.set(AlertPopup::error(&error));
-                    }
-                });
+                if let Err(error)
+                    = player_guess_item(
+                        lobby_id,
+                        player_name,
+                        *guess_item_key.get(),
+                        guess_item_submission,
+                    ) {
+                    alert_popup.set(AlertPopup::message(error.to_string()));
+                }
             },
             input {
                 r#type: "text",
