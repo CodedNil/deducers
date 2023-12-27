@@ -1,7 +1,7 @@
 use crate::lobby_utils::{kick_player, Lobby, Player};
 use dioxus::prelude::*;
 
-pub fn render<'a>(cx: Scope<'a>, player_name: &String, lobby_id: &'a String, lobby: &Lobby) -> Element<'a> {
+pub fn render<'a>(cx: Scope<'a>, player_name: &'a str, lobby_id: &'a str, lobby: &Lobby) -> Element<'a> {
     let players = lobby.players.values().collect::<Vec<&Player>>();
     // Sorting the players by score and name
     let mut sorted_players = players.clone();
@@ -12,16 +12,6 @@ pub fn render<'a>(cx: Scope<'a>, player_name: &String, lobby_id: &'a String, lob
             b.score.cmp(&a.score)
         }
     });
-
-    let kick_player = {
-        move |row_player: String| {
-            let lobby_id = lobby_id.to_string();
-
-            cx.spawn(async move {
-                let _result = kick_player(lobby_id, row_player).await;
-            });
-        }
-    };
 
     cx.render(rsx! {
         div { class: "table-row",
@@ -56,7 +46,11 @@ pub fn render<'a>(cx: Scope<'a>, player_name: &String, lobby_id: &'a String, lob
                                 "{player.score}",
                                 button {
                                     onclick: move |_| {
-                                        kick_player(row_player.clone());
+                                        let lobby_id = lobby_id.to_string();
+                                        let row_player = row_player.to_string();
+                                        cx.spawn(async move {
+                                            let _result = kick_player(&lobby_id, &row_player).await;
+                                        });
                                     },
                                     padding: "2px",
                                     "💥"

@@ -44,8 +44,8 @@ pub fn render<'a>(
                                 let checked = e.value.parse::<bool>().unwrap_or(false);
                                 cx.spawn(async move {
                                     let _result = alter_lobby_settings(
-                                            lobby_id,
-                                            player_name,
+                                            &lobby_id,
+                                            &player_name,
                                             AlterLobbySetting::PlayerControlled(checked),
                                         )
                                         .await;
@@ -129,8 +129,8 @@ fn standard_settings<'a>(cx: Scope<'a>, player_name: &'a str, lobby_id: &'a str,
                     let player_name = player_name.to_string();
                     cx.spawn(async move {
                         let _result = alter_lobby_settings(
-                                lobby_id,
-                                player_name,
+                                &lobby_id,
+                                &player_name,
                                 AlterLobbySetting::Difficulty(Difficulty::Easy),
                             )
                             .await;
@@ -145,8 +145,8 @@ fn standard_settings<'a>(cx: Scope<'a>, player_name: &'a str, lobby_id: &'a str,
                     let player_name = player_name.to_string();
                     cx.spawn(async move {
                         let _result = alter_lobby_settings(
-                                lobby_id,
-                                player_name,
+                                &lobby_id,
+                                &player_name,
                                 AlterLobbySetting::Difficulty(Difficulty::Medium),
                             )
                             .await;
@@ -161,8 +161,8 @@ fn standard_settings<'a>(cx: Scope<'a>, player_name: &'a str, lobby_id: &'a str,
                     let player_name = player_name.to_string();
                     cx.spawn(async move {
                         let _result = alter_lobby_settings(
-                                lobby_id,
-                                player_name,
+                                &lobby_id,
+                                &player_name,
                                 AlterLobbySetting::Difficulty(Difficulty::Hard),
                             )
                             .await;
@@ -186,8 +186,8 @@ fn standard_settings<'a>(cx: Scope<'a>, player_name: &'a str, lobby_id: &'a str,
                         let count = e.value.parse::<usize>().unwrap_or(1);
                         cx.spawn(async move {
                             let _result = alter_lobby_settings(
-                                    lobby_id,
-                                    player_name,
+                                    &lobby_id,
+                                    &player_name,
                                     AlterLobbySetting::ItemCount(count),
                                 )
                                 .await;
@@ -224,8 +224,8 @@ fn item_settings<'a>(
                         let player_name = player_name.to_string();
                         cx.spawn(async move {
                             let _result = alter_lobby_settings(
-                                    lobby_id,
-                                    player_name,
+                                    &lobby_id,
+                                    &player_name,
                                     AlterLobbySetting::RefreshAllItems,
                                 )
                                 .await;
@@ -251,8 +251,8 @@ fn item_settings<'a>(
                                 let item = item1.clone();
                                 cx.spawn(async move {
                                     let _result = alter_lobby_settings(
-                                            lobby_id,
-                                            player_name,
+                                            &lobby_id,
+                                            &player_name,
                                             AlterLobbySetting::RefreshItem(item),
                                         )
                                         .await;
@@ -269,8 +269,8 @@ fn item_settings<'a>(
                                 let item = item2.clone();
                                 cx.spawn(async move {
                                     let _result = alter_lobby_settings(
-                                            lobby_id,
-                                            player_name,
+                                            &lobby_id,
+                                            &player_name,
                                             AlterLobbySetting::RemoveItem(item),
                                         )
                                         .await;
@@ -290,8 +290,8 @@ fn item_settings<'a>(
                     let submission = add_item_submission1.get().clone();
                     cx.spawn(async move {
                         let _result = alter_lobby_settings(
-                                lobby_id,
-                                player_name,
+                                &lobby_id,
+                                &player_name,
                                 AlterLobbySetting::AddItem(submission),
                             )
                             .await;
@@ -381,8 +381,8 @@ fn advanced_settings<'a>(cx: Scope<'a>, player_name: &'a str, lobby_id: &'a str,
                                 let key = setting.key.clone();
                                 cx.spawn(async move {
                                     let _result = alter_lobby_settings(
-                                            lobby_id,
-                                            player_name,
+                                            &lobby_id,
+                                            &player_name,
                                             AlterLobbySetting::Advanced(key, count)
                                         )
                                         .await;

@@ -6,7 +6,7 @@ body {
 }
 
 button {
-  background-color: rgb(25, 25, 40);
+  background-color: rgb(25, 25, 80);
   border: none;
   color: white;
   border-radius: 4px;
@@ -140,6 +140,9 @@ select:active {
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.24);
   border-radius: 10px;
   padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
 }
 
 .background-box.alert {
@@ -173,6 +176,7 @@ p {
   justify-content: center;
   align-items: center;
   text-align: center;
+  gap: 5px;
 }
 
 .table-body-box.self {
@@ -185,20 +189,4 @@ p {
 
 .table-body-box.winner {
   background-color: rgb(80, 80, 60);
-}
-
-.table-body-box.yes {
-  background-color: rgb(60, 130, 50);
-}
-
-.table-body-box.no {
-  background-color: rgb(130, 50, 50);
-}
-
-.table-body-box.maybe {
-  background-color: rgb(140, 80, 0);
-}
-
-.table-body-box.unknown {
-  background-color: rgb(80, 80, 80);
 }

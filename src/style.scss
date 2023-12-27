@@ -1,7 +1,7 @@
 $background_color: rgb(40, 40, 60);
 $secondary_color: rgb(25, 25, 40);
 $tertiary_color: rgb(60, 60, 80);
-$shadowColor: rgba(black, 0.12);
+$shadow_color: rgba(black, 0.12);
 
 body {
     background-color: rgb(70, 70, 100);
@@ -11,7 +11,7 @@ body {
 }
 
 button {
-    background-color: $secondary_color;
+    background-color: rgb(25, 25, 80);
     border: none;
     color: white;
     border-radius: 4px;
@@ -25,10 +25,10 @@ button {
         background-color: white;
         color: black;
         letter-spacing: 0.5px;
-        box-shadow: inset 0 0 1px white, 0 1px 3px $shadowColor, 0 1px 2px rgba($shadowColor, 0.24);
+        box-shadow: inset 0 0 1px white, 0 1px 3px $shadow_color, 0 1px 2px rgba($shadow_color, 0.24);
     }
     &:active {
-        box-shadow: inset 0 1px 3px $shadowColor, inset 0 1px 2px rgba($shadowColor, 0.24);
+        box-shadow: inset 0 1px 3px $shadow_color, inset 0 1px 2px rgba($shadow_color, 0.24);
     }
 }
 
@@ -68,10 +68,10 @@ input {
         background-color: white;
         color: black;
         letter-spacing: 0.5px;
-        box-shadow: inset 0 0 1px white, 0 1px 3px $shadowColor, 0 1px 2px rgba($shadowColor, 0.24);
+        box-shadow: inset 0 0 1px white, 0 1px 3px $shadow_color, 0 1px 2px rgba($shadow_color, 0.24);
     }
     &:active {
-        box-shadow: inset 0 1px 3px $shadowColor, inset 0 1px 2px rgba($shadowColor, 0.24);
+        box-shadow: inset 0 1px 3px $shadow_color, inset 0 1px 2px rgba($shadow_color, 0.24);
     }
 }
 
@@ -90,10 +90,10 @@ select {
         background-color: white;
         color: black;
         letter-spacing: 0.5px;
-        box-shadow: inset 0 0 1px white, 0 1px 3px $shadowColor, 0 1px 2px rgba($shadowColor, 0.24);
+        box-shadow: inset 0 0 1px white, 0 1px 3px $shadow_color, 0 1px 2px rgba($shadow_color, 0.24);
     }
     &:active {
-        box-shadow: inset 0 1px 3px $shadowColor, inset 0 1px 2px rgba($shadowColor, 0.24);
+        box-shadow: inset 0 1px 3px $shadow_color, inset 0 1px 2px rgba($shadow_color, 0.24);
     }
 }
 
@@ -116,7 +116,7 @@ select {
     flex-direction: column;
     align-items: center;
     gap: 10px;
-    box-shadow: 0 1px 2px rgba($shadowColor, 0.24);
+    box-shadow: 0 1px 2px rgba($shadow_color, 0.24);
 }
 
 .dialog.floating {
@@ -150,9 +150,12 @@ select {
 
 .background-box {
     background-color: $background_color;
-    box-shadow: 0 1px 2px rgba($shadowColor, 0.24);
+    box-shadow: 0 1px 2px rgba($shadow_color, 0.24);
     border-radius: 10px;
     padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
 }
 
 .background-box.alert {
@@ -186,6 +189,7 @@ p {
     justify-content: center;
     align-items: center;
     text-align: center;
+    gap: 5px;
 }
 
 .table-body-box.self {
@@ -198,20 +202,4 @@ p {
 
 .table-body-box.winner {
     background-color: rgb(80, 80, 60);
-}
-
-.table-body-box.yes {
-    background-color: rgb(60, 130, 50);
-}
-
-.table-body-box.no {
-    background-color: rgb(130, 50, 50);
-}
-
-.table-body-box.maybe {
-    background-color: rgb(140, 80, 0);
-}
-
-.table-body-box.unknown {
-    background-color: rgb(80, 80, 80);
 }

@@ -9,8 +9,8 @@ use dioxus::prelude::*;
 #[allow(clippy::too_many_lines, clippy::cast_possible_wrap, clippy::too_many_arguments)]
 pub fn render<'a>(
     cx: Scope<'a>,
-    player_name: &'a String,
-    lobby_id: &'a String,
+    player_name: &'a str,
+    lobby_id: &'a str,
     lobby: &Lobby,
     disconnect: Box<dyn Fn() + 'a>,
     start: Box<dyn Fn() + 'a>,
@@ -25,9 +25,6 @@ pub fn render<'a>(
                 // Items
                 class: "background-box",
                 flex: "1.5",
-                display: "flex",
-                flex_direction: "column",
-                gap: "5px",
                 overflow_y: "auto",
                 items_display::render(cx, player_name, lobby)
             }
@@ -37,7 +34,7 @@ pub fn render<'a>(
                     div {
                         // Lobby info
                         class: "background-box",
-                        display: "flex",
+                        flex_direction: "row",
                         gap: "20px",
                         justify_content: "space-between",
                         align_items: "center",
@@ -69,9 +66,6 @@ pub fn render<'a>(
                     div {
                         // Leaderboard
                         class: "background-box",
-                        display: "flex",
-                        flex_direction: "column",
-                        gap: "5px",
                         leaderboard_display::render(cx, player_name, lobby_id, lobby)
                     }
                 }
@@ -79,18 +73,12 @@ pub fn render<'a>(
                     div {
                         // Management
                         class: "background-box",
-                        display: "flex",
-                        flex_direction: "column",
-                        gap: "5px",
                         management_display::render(cx, player_name, lobby_id, lobby, &alert_popup)
                     }
                     if alert_popup.get().shown {
                         rsx! {
                             div {
                                 class: "background-box alert",
-                                display: "flex",
-                                flex_direction: "column",
-                                gap: "5px",
                                 "{alert_popup.get().message}"
                             }
                         }
@@ -99,18 +87,15 @@ pub fn render<'a>(
                 div {
                     // Item Queue
                     class: "background-box",
-                    display: "flex",
-                    flex_direction: "column",
-                    gap: "5px",
+                    min_height: "200px",
+                    overflow_y: "auto",
                     question_queue_display::render(cx, player_name, lobby_id, lobby)
                 }
                 div {
                     // Chat
                     class: "background-box",
                     flex: "1",
-                    display: "flex",
-                    flex_direction: "column",
-                    gap: "5px",
+                    min_height: "200px",
                     overflow_y: "auto",
                     div { class: "table-header-box", "Chat" }
                     div { flex: "1", display: "flex", flex_direction: "column", gap: "3px", overflow_y: "auto",
@@ -128,7 +113,7 @@ pub fn render<'a>(
                             let player_name = player_name.to_string();
                             let submission = chat_submission.get().clone();
                             cx.spawn(async move {
-                                let _result = add_chat_message(lobby_id, player_name, submission).await;
+                                let _result = add_chat_message(&lobby_id, &player_name, submission).await;
                             });
                         },
                         input {

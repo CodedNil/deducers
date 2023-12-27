@@ -35,7 +35,7 @@ pub fn render<'a>(cx: Scope<'a>, player_name: &'a str, lobby_id: &'a str, lobby:
                                 let player_name = player_name.to_string();
                                 let question = question_string1.clone();
                                 cx.spawn(async move {
-                                    let _response = quizmaster_submit(lobby_id, player_name, question).await;
+                                    let _response = quizmaster_submit(&lobby_id, &player_name, question).await;
                                 });
                             },
                             background_color: "rgb(20, 100, 20)", "Submit" }
@@ -45,7 +45,7 @@ pub fn render<'a>(cx: Scope<'a>, player_name: &'a str, lobby_id: &'a str, lobby:
                                 let player_name = player_name.to_string();
                                 let question = question_string2.clone();
                                 cx.spawn(async move {
-                                    let _response = quizmaster_reject(lobby_id, player_name, question).await;
+                                    let _response = quizmaster_reject(&lobby_id, &player_name, question).await;
                                 });
                             },
                             background_color: "rgb(100, 20, 20)", "Reject" }
@@ -70,7 +70,7 @@ pub fn render<'a>(cx: Scope<'a>, player_name: &'a str, lobby_id: &'a str, lobby:
                                         let question = question_string1.clone();
                                         let new_answer = item1.answer.next();
                                         cx.spawn(async move {
-                                            let _response = quizmaster_change_answer(lobby_id, player_name, question, item1.id, new_answer).await;
+                                            let _response = quizmaster_change_answer(&lobby_id, &player_name, question, item1.id, new_answer).await;
                                         });
                                     },
                                     div {
@@ -91,7 +91,7 @@ pub fn render<'a>(cx: Scope<'a>, player_name: &'a str, lobby_id: &'a str, lobby:
                                                         let question = question_string2.clone();
                                                         let new_answer = answer.clone();
                                                         cx.spawn(async move {
-                                                            let _response = quizmaster_change_answer(lobby_id, player_name, question, item1.id, new_answer).await;
+                                                            let _response = quizmaster_change_answer(&lobby_id, &player_name, question, item1.id, new_answer).await;
                                                         });
                                                     },
                                                 }

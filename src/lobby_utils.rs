@@ -233,6 +233,15 @@ impl Answer {
     pub fn variants() -> Vec<Self> {
         vec![Self::Yes, Self::No, Self::Maybe, Self::Unknown]
     }
+
+    pub const fn to_color(&self) -> &'static str {
+        match self {
+            Self::Yes => "rgb(60, 130, 50)",
+            Self::No => "rgb(130, 50, 50)",
+            Self::Maybe => "rgb(140, 80, 0)",
+            Self::Unknown => "rgb(80, 80, 80)",
+        }
+    }
 }
 
 impl Display for Answer {
@@ -288,7 +297,7 @@ where
     f(lobby)
 }
 
-pub async fn create_lobby(lobby_id: &str, key_player: String) -> Result<()> {
+pub async fn create_lobby(lobby_id: &str, player_name: &str) -> Result<()> {
     let mut lobbys_lock = LOBBYS.lock().await;
     if lobbys_lock.contains_key(lobby_id) {
         return Err(anyhow!("Lobby '{lobby_id}' already exists"));
@@ -297,13 +306,70 @@ pub async fn create_lobby(lobby_id: &str, key_player: String) -> Result<()> {
         lobby_id.to_string(),
         Lobby {
             last_update: get_current_time(),
-            key_player: key_player.clone(),
+            key_player: player_name.to_string(),
             items_queue: select_lobby_words(&LobbySettings::default().difficulty, LobbySettings::default().item_count),
             settings: LobbySettings::default(),
             ..Default::default()
         },
     );
-    println!("Lobby '{lobby_id}' created by key player '{key_player}'");
+    drop(lobbys_lock);
+    println!("Lobby '{lobby_id}' created by key player '{player_name}'");
+    // If lobby_id is debug, create a loaded lobby
+    if lobby_id == "debug" {
+        println!("Creating debug lobby");
+        start_lobby(lobby_id, player_name).await?;
+        with_lobby_mut(lobby_id, |lobby| {
+            for _ in 0..10 {
+                lobby.chat_messages.push(ChatMessage {
+                    player: "debug".to_string(),
+                    message: select_lobby_words(&Difficulty::Easy, 1).pop().unwrap(),
+                });
+            }
+            let questions: Vec<&str> = vec![
+                "Is it a living thing?",
+                "Is it bigger than a breadbox?",
+                "Is it made by humans?",
+                "Can it be found indoors?",
+                "Is it used for communication?",
+                "Is it a type of food?",
+                "Is it electronic?",
+                "Can it move?",
+                "Is it usually colorful?",
+                "Does it make a sound?",
+                "Is it found in nature?",
+                "Is it related to sports?",
+                "Does it have a specific smell?",
+                "Is it heavier than a person?",
+                "Can it be worn?",
+            ];
+            for question in questions {
+                lobby.questions_queue.push(QueuedQuestion {
+                    player: "debug".to_string(),
+                    question: question.to_string(),
+                    votes: rand::random::<usize>() % 6,
+                    voters: Vec::new(),
+                    masked: rand::random::<usize>() % 5 == 0,
+                });
+                let question_id = lobby.questions_counter;
+                lobby.questions_counter += 1;
+                let masked = rand::random::<usize>() % 5 == 0;
+                for item in &mut lobby.items {
+                    item.questions.push(Question {
+                        player: "debug".to_string(),
+                        id: question_id,
+                        question: question.to_string(),
+                        answer: Answer::variants()[rand::random::<usize>() % 4].clone(),
+                        masked,
+                    });
+                }
+                if lobby.questions_counter % lobby.settings.add_item_every_x_questions == 0 {
+                    add_item_to_lobby(lobby);
+                }
+            }
+            Ok(())
+        })
+        .await?;
+    }
     Ok(())
 }
 
@@ -336,9 +402,9 @@ where
     .await
 }
 
-pub async fn connect_player(lobby_id: String, player_name: String) -> Result<()> {
-    let lobby_id = lobby_id.trim().to_string();
-    let player_name = player_name.trim().to_string();
+pub async fn connect_player(lobby_id: &str, player_name: &str) -> Result<()> {
+    let lobby_id = lobby_id.trim();
+    let player_name = player_name.trim();
     if lobby_id.len() < 3 || lobby_id.len() > MAX_LOBBY_ID_LENGTH {
         return Err(anyhow!("Lobby ID must be between 3 and {MAX_LOBBY_ID_LENGTH} characters long"));
     }
@@ -347,22 +413,22 @@ pub async fn connect_player(lobby_id: String, player_name: String) -> Result<()>
             "Player name must be between 3 and {MAX_PLAYER_NAME_LENGTH} characters long"
         ));
     }
-    if !regex::Regex::new(LOBBY_ID_PATTERN).unwrap().is_match(&lobby_id) {
+    if !regex::Regex::new(LOBBY_ID_PATTERN).unwrap().is_match(lobby_id) {
         return Err(anyhow!("Lobby ID must be alphabetic"));
     }
-    if !regex::Regex::new(PLAYER_NAME_PATTERN).unwrap().is_match(&player_name) {
+    if !regex::Regex::new(PLAYER_NAME_PATTERN).unwrap().is_match(player_name) {
         return Err(anyhow!("Player name must be alphabetic"));
     }
 
-    let _ = create_lobby(&lobby_id, player_name.clone()).await;
+    let _ = create_lobby(lobby_id, player_name).await;
 
-    with_lobby_mut(&lobby_id, |lobby| {
-        if lobby.players.contains_key(&player_name) {
+    with_lobby_mut(lobby_id, |lobby| {
+        if lobby.players.contains_key(player_name) {
             return Err(anyhow!("Player '{player_name}' is already connected to lobby '{lobby_id}'"));
         }
 
-        lobby.players.entry(player_name.clone()).or_insert(Player {
-            name: player_name.clone(),
+        lobby.players.entry(player_name.to_string()).or_insert(Player {
+            name: player_name.to_string(),
             last_contact: get_current_time(),
             ..Default::default()
         });
@@ -373,9 +439,9 @@ pub async fn connect_player(lobby_id: String, player_name: String) -> Result<()>
     .await
 }
 
-pub async fn disconnect_player(lobby_id: String, player_name: String) -> Result<()> {
-    with_lobby_mut(&lobby_id, |lobby| {
-        lobby.players.remove(&player_name);
+pub async fn disconnect_player(lobby_id: &str, player_name: &str) -> Result<()> {
+    with_lobby_mut(lobby_id, |lobby| {
+        lobby.players.remove(player_name);
         println!("Player '{player_name}' disconnected from lobby '{lobby_id}'");
         Ok(())
     })
@@ -383,8 +449,8 @@ pub async fn disconnect_player(lobby_id: String, player_name: String) -> Result<
 }
 
 #[allow(clippy::too_many_lines)]
-pub async fn alter_lobby_settings(lobby_id: String, player_name: String, setting: AlterLobbySetting) -> Result<()> {
-    with_lobby_mut(&lobby_id, |lobby| {
+pub async fn alter_lobby_settings(lobby_id: &str, player_name: &str, setting: AlterLobbySetting) -> Result<()> {
+    with_lobby_mut(lobby_id, |lobby| {
         if player_name != lobby.key_player {
             return Err(anyhow!("Only the key player can alter the lobby settings"));
         }
@@ -504,8 +570,8 @@ pub async fn alter_lobby_settings(lobby_id: String, player_name: String, setting
     .await
 }
 
-pub async fn start_lobby(lobby_id: String, player_name: String) -> Result<()> {
-    with_lobby_mut(&lobby_id, |lobby| {
+pub async fn start_lobby(lobby_id: &str, player_name: &str) -> Result<()> {
+    with_lobby_mut(lobby_id, |lobby| {
         if lobby.started {
             return Err(anyhow!("Lobby '{lobby_id}' already started"));
         } else if player_name != lobby.key_player {
@@ -539,22 +605,22 @@ pub async fn start_lobby(lobby_id: String, player_name: String) -> Result<()> {
     .await
 }
 
-pub async fn kick_player(lobby_id: String, player_name: String) -> Result<()> {
-    with_lobby_mut(&lobby_id, |lobby| {
-        lobby.players.remove(&player_name);
+pub async fn kick_player(lobby_id: &str, player_name: &str) -> Result<()> {
+    with_lobby_mut(lobby_id, |lobby| {
+        lobby.players.remove(player_name);
         println!("Lobby '{lobby_id}' player '{player_name}' kicked by key player");
         Ok(())
     })
     .await
 }
 
-pub async fn add_chat_message(lobby_id: String, player_name: String, message: String) -> Result<()> {
+pub async fn add_chat_message(lobby_id: &str, player_name: &str, message: String) -> Result<()> {
     if message.len() > MAX_CHAT_LENGTH {
         return Err(anyhow!("Chat message must be less than {MAX_CHAT_LENGTH} characters long"));
     }
-    with_lobby_mut(&lobby_id, |lobby| {
+    with_lobby_mut(lobby_id, |lobby| {
         lobby.chat_messages.push(ChatMessage {
-            player: player_name.clone(),
+            player: player_name.to_string(),
             message,
         });
         if lobby.chat_messages.len() > MAX_CHAT_MESSAGES {
@@ -565,8 +631,8 @@ pub async fn add_chat_message(lobby_id: String, player_name: String, message: St
     .await
 }
 
-pub async fn get_state(lobby_id: String, player_name: String) -> Result<(Lobby, Vec<PlayerMessage>)> {
-    with_player_mut(&lobby_id, &player_name, |lobby, player| {
+pub async fn get_state(lobby_id: &str, player_name: &str) -> Result<(Lobby, Vec<PlayerMessage>)> {
+    with_player_mut(lobby_id, player_name, |lobby, player| {
         player.last_contact = get_current_time();
         let messages = player.messages.clone();
         player.messages.clear();
@@ -609,7 +675,7 @@ pub async fn lobby_loop() -> Result<()> {
             false
         } else {
             // Update lobby state if lobby is started
-            if lobby.started {
+            if lobby.started && lobby_id != "debug" {
                 let elapsed_time_update = get_time_diff(lobby.last_update);
 
                 // Distribute coins if the elapsed time has crossed a multiple of COINS_EVERY_X_SECONDS
@@ -631,7 +697,7 @@ pub async fn lobby_loop() -> Result<()> {
                         lobby.questions_queue_countdown += lobby.settings.submit_question_every_x_seconds as f64;
                         let lobby_id_clone = lobby_id.clone();
                         tokio::spawn(async move {
-                            let _result = ask_top_question(lobby_id_clone).await;
+                            let _result = ask_top_question(&lobby_id_clone).await;
                         });
                     }
                 } else {

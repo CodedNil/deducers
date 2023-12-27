@@ -12,7 +12,7 @@ use dioxus::prelude::*;
 #[allow(clippy::too_many_lines, clippy::cast_possible_wrap)]
 pub fn render<'a>(
     cx: Scope<'a>,
-    player_name: &'a String,
+    player_name: &'a str,
     lobby_id: &'a str,
     lobby: &Lobby,
     alert_popup: &'a UseState<AlertPopup>,
@@ -34,7 +34,7 @@ pub fn render<'a>(
         return cx.render(rsx! { div { align_self: "center", font_size: "larger", "Waiting for game to start" } });
     }
 
-    if player_name == &lobby.key_player && lobby.settings.player_controlled {
+    if player_name == lobby.key_player && lobby.settings.player_controlled {
         return quizmaster::render(cx, player_name, lobby_id, lobby);
     }
 
@@ -44,13 +44,13 @@ pub fn render<'a>(
             display: "flex",
             gap: "5px",
             onsubmit: move |_| {
-                let (lobby_id, player_name) = (lobby_id.to_string(), player_name.clone());
+                let (lobby_id, player_name) = (lobby_id.to_string(), player_name.to_string());
                 let input = question_submission.get().clone();
                 let masked = question_masked.clone();
                 let alert_popup = alert_popup.clone();
                 cx.spawn(async move {
                     if let Err(error)
-                        = submit_question(lobby_id, player_name, input, *masked.get()).await
+                        = submit_question(&lobby_id, &player_name, input, *masked.get()).await
                     {
                         alert_popup.set(AlertPopup::error(&error));
                     } else {
@@ -84,10 +84,10 @@ pub fn render<'a>(
         div { display: "flex", gap: "5px",
             button {
                 onclick: move |_| {
-                    let (lobby_id, player_name) = (lobby_id.to_string(), player_name.clone());
+                    let (lobby_id, player_name) = (lobby_id.to_string(), player_name.to_string());
                     let alert_popup = alert_popup.clone();
                     cx.spawn(async move {
-                        if let Err(error) = convert_score(lobby_id, player_name).await {
+                        if let Err(error) = convert_score(&lobby_id, &player_name).await {
                             alert_popup.set(AlertPopup::error(&error));
                         }
                     });
@@ -100,13 +100,13 @@ pub fn render<'a>(
             display: "flex",
             gap: "5px",
             onsubmit: move |_| {
-                let (lobby_id, player_name) = (lobby_id.to_string(), player_name.clone());
+                let (lobby_id, player_name) = (lobby_id.to_string(), player_name.to_string());
                 let item_choice = *guess_item_key.get();
                 let item_guess = guess_item_submission.get().clone();
                 let alert_popup = alert_popup.clone();
                 cx.spawn(async move {
                     if let Err(error)
-                        = player_guess_item(lobby_id, player_name, item_choice, item_guess).await
+                        = player_guess_item(&lobby_id, &player_name, item_choice, item_guess).await
                     {
                         alert_popup.set(AlertPopup::error(&error));
                     }

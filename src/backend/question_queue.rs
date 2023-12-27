@@ -6,10 +6,10 @@ use crate::{
 use anyhow::{bail, Result};
 use serde::{Deserialize, Serialize};
 
-pub async fn submit_question(lobby_id: String, player_name: String, question: String, masked: bool) -> Result<()> {
+pub async fn submit_question(lobby_id: &str, player_name: &str, question: String, masked: bool) -> Result<()> {
     let mut total_cost = 0;
     let mut is_quizmaster = false;
-    with_lobby(&lobby_id, |lobby| {
+    with_lobby(lobby_id, |lobby| {
         total_cost = if masked {
             lobby.settings.submit_question_cost + lobby.settings.masked_question_cost
         } else {
@@ -20,7 +20,7 @@ pub async fn submit_question(lobby_id: String, player_name: String, question: St
     })
     .await?;
 
-    with_player(&lobby_id, &player_name, |lobby, player| {
+    with_player(lobby_id, player_name, |lobby, player| {
         if !lobby.started {
             bail!("Lobby not started");
         }
@@ -63,10 +63,10 @@ pub async fn submit_question(lobby_id: String, player_name: String, question: St
     };
 
     // Reacquire lock and add question to queue
-    with_lobby_mut(&lobby_id, |lobby| {
+    with_lobby_mut(lobby_id, |lobby| {
         let player = lobby
             .players
-            .get_mut(&player_name)
+            .get_mut(player_name)
             .ok_or_else(|| anyhow::anyhow!("Player '{player_name}' not found"))?;
 
         // Deduct coins and add question to queue
@@ -75,7 +75,7 @@ pub async fn submit_question(lobby_id: String, player_name: String, question: St
         }
         player.coins -= total_cost;
         lobby.questions_queue.push(QueuedQuestion {
-            player: player_name.clone(),
+            player: player_name.to_string(),
             question,
             votes: 0,
             voters: Vec::new(),
@@ -135,11 +135,11 @@ async fn validate_question(question: &str, use_ai: bool) -> ValidateQuestionResp
     }
 }
 
-pub async fn vote_question(lobby_id: String, player_name: String, question: String) -> Result<()> {
-    with_lobby_mut(&lobby_id, |lobby| {
+pub async fn vote_question(lobby_id: &str, player_name: &str, question: String) -> Result<()> {
+    with_lobby_mut(lobby_id, |lobby| {
         let player = lobby
             .players
-            .get_mut(&player_name)
+            .get_mut(player_name)
             .ok_or_else(|| anyhow::anyhow!("Player '{player_name}' not found"))?;
 
         if !lobby.started {
@@ -159,7 +159,7 @@ pub async fn vote_question(lobby_id: String, player_name: String, question: Stri
             // Deduct coins and increment vote count
             player.coins -= 1;
             queued_question.votes += 1;
-            queued_question.voters.push(player_name.clone());
+            queued_question.voters.push(player_name.to_string());
             return Ok(());
         }
         Err(anyhow::anyhow!("Question not found in queue"))
@@ -167,8 +167,8 @@ pub async fn vote_question(lobby_id: String, player_name: String, question: Stri
     .await
 }
 
-pub async fn convert_score(lobby_id: String, player_name: String) -> Result<()> {
-    with_player_mut(&lobby_id, &player_name, |lobby, player| {
+pub async fn convert_score(lobby_id: &str, player_name: &str) -> Result<()> {
+    with_player_mut(lobby_id, player_name, |lobby, player| {
         if !lobby.started {
             bail!("Lobby not started");
         }

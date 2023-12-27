@@ -221,7 +221,7 @@ pub fn app(cx: Scope) -> Element {
                 }
 
                 if *is_connected.get() {
-                    match get_state(lobby_id.get().to_string(), player_name.get().to_string()).await {
+                    match get_state(&lobby_id.get().clone(), &player_name.get().clone()).await {
                         Ok((lobby, messages)) => {
                             process_messages(messages.clone(), &sounds_to_play, &item_reveal_message, &alert_popup);
                             lobby_state.set(Some(lobby));
@@ -250,7 +250,7 @@ pub fn app(cx: Scope) -> Element {
         lobby_state.set(None);
 
         cx.spawn(async move {
-            let _result = disconnect_player(lobby_id.get().to_string(), player_name.get().to_string()).await;
+            let _result = disconnect_player(&lobby_id.get().clone(), &player_name.get().clone()).await;
         });
     });
 
@@ -259,7 +259,7 @@ pub fn app(cx: Scope) -> Element {
         let lobby_id = lobby_id.clone();
 
         cx.spawn(async move {
-            let _result = start_lobby(lobby_id.get().to_string(), player_name.get().to_string()).await;
+            let _result = start_lobby(&lobby_id.get().clone(), &player_name.get().clone()).await;
         });
     });
 
@@ -306,7 +306,7 @@ pub fn app(cx: Scope) -> Element {
                 gap: "10px",
                 height: "calc(100vh - 40px)",
                 img { src: "/assets/deducers_banner2.png", width: "400px", padding: "20px" }
-                div { class: "background-box", display: "flex", flex_direction: "column", gap: "5px",
+                div { class: "background-box",
                     for lobby in lobby_info.get() {
                         div { display: "flex", flex_direction: "row", align_items: "center", gap: "5px",
                             div { "{lobby.id}: {lobby.players_count} Players" }
@@ -320,7 +320,7 @@ pub fn app(cx: Scope) -> Element {
                                     lobby_state.set(None);
                                     cx.spawn(async move {
                                         if let Err(error)
-                                            = connect_player(lobby_id.clone(), player_name.get().to_string()).await
+                                            = connect_player(&lobby_id.clone(), &player_name.get().clone()).await
                                         {
                                             error_message
                                                 .set(ErrorDialog {
@@ -353,8 +353,7 @@ pub fn app(cx: Scope) -> Element {
                         lobby_state.set(None);
                         cx.spawn(async move {
                             if let Err(error)
-                                = connect_player(lobby_id.get().to_string(), player_name.get().to_string())
-                                    .await
+                                = connect_player(&lobby_id.get().clone(), &player_name.get().clone()).await
                             {
                                 error_message
                                     .set(ErrorDialog {

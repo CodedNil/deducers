@@ -1,14 +1,14 @@
 use crate::lobby_utils::Lobby;
 use dioxus::prelude::*;
 
-#[derive(PartialEq)]
+#[derive(Debug, PartialEq)]
 struct TempQuestion {
     id: usize,
     question: String,
     masked: bool,
 }
 
-pub fn render<'a>(cx: Scope<'a>, player_name: &String, lobby: &Lobby) -> Element<'a> {
+pub fn render<'a>(cx: Scope<'a>, player_name: &str, lobby: &Lobby) -> Element<'a> {
     // Get list of questions that are active
     let mut active_questions = vec![];
     for item in &lobby.items {
@@ -42,24 +42,17 @@ pub fn render<'a>(cx: Scope<'a>, player_name: &String, lobby: &Lobby) -> Element
         }
     }
 
-    let is_quizmaster = player_name == &lobby.key_player && lobby.settings.player_controlled;
+    let is_quizmaster = player_name == lobby.key_player && lobby.settings.player_controlled;
 
     cx.render(rsx! {
         div { class: "table-row",
-            rsx! {
-                div { class: "table-header-box", flex: "1", "Question" }
-                lobby.items.iter().map(|item| {
-                    if is_quizmaster {
-                        rsx! {
-                            div { class: "table-header-box", flex: "unset", text_align: "center", "{item.name}" }
-                        }
-                    } else {
-                        rsx! {
-                            div { class: "table-header-box", width: "20px", flex: "unset", text_align: "center", "{item.id}" }
-                        }
-                    }
-                })
-            }
+            div { class: "table-header-box", flex: "1", "Question" }
+            lobby.items.iter().map(|item| {
+                let (content, width) = if is_quizmaster { (item.name.clone(), "unset") } else { (item.id.to_string(), "20px") };
+                rsx! {
+                    div { class: "table-header-box", width: width, flex: "unset", text_align: "center", content }
+                }
+            })
         }
         (0..20usize).map(|question_index| {
             let num_blanks = 20 - active_questions.len();
@@ -74,24 +67,21 @@ pub fn render<'a>(cx: Scope<'a>, player_name: &String, lobby: &Lobby) -> Element
                     div {
                         class: "table-body-box",
                         flex: "1",
-                        display: "flex",
                         justify_content: "start",
-                        gap: "5px",
                         div { font_weight: "bold", width: "20px", "{question_index + 1}" },
                         div { "{question_string}" }
                     }
                     lobby.items.iter().map(|item| {
-                        let answer_type = if question_index < 20 - num_blanks {
+                        let answer = if question_index < 20 - num_blanks {
                             item.questions.iter()
-                                .find(|answer_question| answer_question.id == question_id)
-                                .map_or(String::new(), |answer_question| answer_question.answer.to_string().to_lowercase())
+                                .find(|answer_question| answer_question.id == question_id).map(|answer_question| answer_question.answer.clone())
                         } else {
-                            String::new()
+                            None
                         };
-                        let class_name = format!("table-body-box {answer_type}").trim().to_string();
-                        let box_fill = if answer_type.is_empty() { "⭐" } else { "" };
+                        let box_fill = if answer.is_none() { "⭐" } else { "" };
+                        let answer_color = answer.map_or("rgb(60, 60, 80)".to_string(), |answer| answer.to_color().to_string());
                         rsx! {
-                            div { class: "{class_name}", width: "20px", flex: "unset", text_align: "center", "{box_fill}" }
+                            div { class: "table-body-box", width: "20px", text_align: "center", background_color: "{answer_color}", box_fill }
                         }
                     })
                 }

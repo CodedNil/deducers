@@ -39,13 +39,13 @@ struct AskQuestionResponse {
 }
 
 #[allow(clippy::too_many_lines, clippy::cast_precision_loss)]
-pub async fn ask_top_question(lobby_id: String) -> Result<()> {
+pub async fn ask_top_question(lobby_id: &str) -> Result<()> {
     let (mut question_text, mut question_player, mut question_masked) = (String::new(), String::new(), false);
     let mut question_voters = Vec::new();
     let mut items = Vec::new();
     let mut is_quizmaster = false;
 
-    with_lobby_mut(&lobby_id, |lobby| {
+    with_lobby_mut(lobby_id, |lobby| {
         let question = lobby
             .questions_queue
             .iter()
@@ -86,7 +86,7 @@ pub async fn ask_top_question(lobby_id: String) -> Result<()> {
                 answer: Answer::Maybe,
             })
             .collect();
-        with_lobby_mut(&lobby_id, |lobby| {
+        with_lobby_mut(lobby_id, |lobby| {
             lobby.quizmaster_queue.push(QueuedQuestionQuizmaster {
                 question: question_text.clone(),
                 player: question_player.clone(),
@@ -153,7 +153,7 @@ pub async fn ask_top_question(lobby_id: String) -> Result<()> {
         answers.push(most_common_answer);
     }
 
-    with_lobby_mut(&lobby_id, |lobby| {
+    with_lobby_mut(lobby_id, |lobby| {
         if answers.len() != lobby.items.len() {
             bail!("Failed to get answers for question '{question_text}'");
         }
@@ -200,17 +200,17 @@ pub async fn ask_top_question(lobby_id: String) -> Result<()> {
 }
 
 pub async fn quizmaster_change_answer(
-    lobby_id: String,
-    player_name: String,
+    lobby_id: &str,
+    player_name: &str,
     question: String,
     item_id: usize,
     new_answer: Answer,
 ) -> Result<()> {
-    with_lobby_mut(&lobby_id, |lobby| {
+    with_lobby_mut(lobby_id, |lobby| {
         if !lobby.started {
             bail!("Lobby not started");
         }
-        let player = lobby.players.get(&player_name).ok_or_else(|| anyhow::anyhow!("Player not found"))?;
+        let player = lobby.players.get(player_name).ok_or_else(|| anyhow::anyhow!("Player not found"))?;
         if !player.quizmaster {
             bail!("Only quizmaster can use this");
         }
@@ -226,12 +226,12 @@ pub async fn quizmaster_change_answer(
     .await
 }
 
-pub async fn quizmaster_submit(lobby_id: String, player_name: String, question: String) -> Result<()> {
-    with_lobby_mut(&lobby_id, |lobby| {
+pub async fn quizmaster_submit(lobby_id: &str, player_name: &str, question: String) -> Result<()> {
+    with_lobby_mut(lobby_id, |lobby| {
         if !lobby.started {
             bail!("Lobby not started");
         }
-        let player = lobby.players.get(&player_name).ok_or_else(|| anyhow::anyhow!("Player not found"))?;
+        let player = lobby.players.get(player_name).ok_or_else(|| anyhow::anyhow!("Player not found"))?;
         if !player.quizmaster {
             bail!("Only quizmaster can use this");
         }
@@ -285,12 +285,12 @@ pub async fn quizmaster_submit(lobby_id: String, player_name: String, question: 
     .await
 }
 
-pub async fn quizmaster_reject(lobby_id: String, player_name: String, question: String) -> Result<()> {
-    with_lobby_mut(&lobby_id, |lobby| {
+pub async fn quizmaster_reject(lobby_id: &str, player_name: &str, question: String) -> Result<()> {
+    with_lobby_mut(lobby_id, |lobby| {
         if !lobby.started {
             bail!("Lobby not started");
         }
-        let player = lobby.players.get(&player_name).ok_or_else(|| anyhow::anyhow!("Player not found"))?;
+        let player = lobby.players.get(player_name).ok_or_else(|| anyhow::anyhow!("Player not found"))?;
         if !player.quizmaster {
             bail!("Only quizmaster can use this");
         }
@@ -319,9 +319,9 @@ pub async fn quizmaster_reject(lobby_id: String, player_name: String, question: 
     .await
 }
 
-pub async fn player_guess_item(lobby_id: String, player_name: String, item_choice: usize, guess: String) -> Result<()> {
+pub async fn player_guess_item(lobby_id: &str, player_name: &str, item_choice: usize, guess: String) -> Result<()> {
     let mut found_item = None;
-    with_player_mut(&lobby_id, &player_name, |lobby, player| {
+    with_player_mut(lobby_id, player_name, |lobby, player| {
         if !lobby.started {
             bail!("Lobby not started");
         }
@@ -352,7 +352,7 @@ pub async fn player_guess_item(lobby_id: String, player_name: String, item_choic
     .await?;
 
     if let Some(item) = found_item {
-        with_lobby_mut(&lobby_id, |lobby| {
+        with_lobby_mut(lobby_id, |lobby| {
             // Remove item
             let item_id = item.id;
             let item_name = item.name.clone();
@@ -362,7 +362,7 @@ pub async fn player_guess_item(lobby_id: String, player_name: String, item_choic
             for player_n in lobby.players.values_mut() {
                 player_n
                     .messages
-                    .push(PlayerMessage::ItemGuessed(player_name.clone(), item_id, item_name.clone()));
+                    .push(PlayerMessage::ItemGuessed(player_name.to_string(), item_id, item_name.clone()));
             }
 
             // If lobby items is empty but theres still items in the item_queue, add another item
@@ -379,8 +379,8 @@ pub async fn player_guess_item(lobby_id: String, player_name: String, item_choic
     Err(anyhow::anyhow!("Failed to find item"))
 }
 
-pub async fn test_game_over(lobby_id: String) -> Result<()> {
-    with_lobby_mut(&lobby_id, |lobby| {
+pub async fn test_game_over(lobby_id: &str) -> Result<()> {
+    with_lobby_mut(lobby_id, |lobby| {
         if lobby.started && lobby.items.is_empty() {
             lobby.started = false;
 
