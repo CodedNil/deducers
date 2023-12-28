@@ -13,27 +13,35 @@ use std::{
 struct ItemRevealMessage {
     show: bool,
     expiry: f64,
-    victory: bool,
-    correct: bool,
     str: String,
+    revealtype: RevealType,
+}
+
+#[derive(PartialEq, Default, Clone)]
+enum RevealType {
+    Victory,
+    Correct,
+    #[default]
+    Incorrect,
 }
 
 impl ItemRevealMessage {
-    fn render(&self) -> LazyNodes<'_, '_> {
-        let item_reveal_correct_class = if self.victory {
-            "victory"
-        } else if self.correct {
-            "correct"
-        } else {
-            "incorrect"
-        };
-        rsx! {
-            div {
-                class: "dialog floating item-reveal {item_reveal_correct_class}",
-                top: if self.show { "20%" } else { "-100%" },
-                "{self.str}"
-            }
+    fn new(expiry: f64, str: String, revealtype: RevealType) -> Self {
+        Self {
+            show: true,
+            expiry: get_current_time() + expiry,
+            str,
+            revealtype,
         }
+    }
+
+    fn render(&self) -> LazyNodes<'_, '_> {
+        let revealtype = match self.revealtype {
+            RevealType::Victory => "victory",
+            RevealType::Correct => "correct",
+            RevealType::Incorrect => "incorrect",
+        };
+        rsx! {div { class: "dialog floating item-reveal {revealtype}", top: if self.show { "20%" } else { "-100%" }, "{self.str}" }}
     }
 }
 
@@ -105,7 +113,7 @@ pub fn tutorial(tutorial_open: &UseState<bool>) -> LazyNodes<'_, '_> {
                 onclick: move |_| {
                     tutorial_open.set(false);
                 },
-                "OK"
+                "Dismiss"
             }
         }
     }
@@ -125,31 +133,28 @@ pub fn app(cx: Scope) -> Element {
 
     let tutorial_open = use_state(cx, || false);
 
-    // Hide the item reveal message after 5 seconds
-    let item_reveal_message: &UseState<ItemRevealMessage> = use_state(cx, ItemRevealMessage::default);
+    let item_reveal_message = use_state(cx, ItemRevealMessage::default);
     if item_reveal_message.get().show && item_reveal_message.get().expiry < get_current_time() {
         item_reveal_message.set(ItemRevealMessage {
             show: false,
             expiry: 0.0,
-            victory: item_reveal_message.get().victory,
-            correct: item_reveal_message.get().correct,
             str: item_reveal_message.get().str.clone(),
+            revealtype: item_reveal_message.get().revealtype.clone(),
         });
     }
 
-    // Remove expired sounds
     let sounds_to_play: &UseState<Vec<SoundsQueue>> = use_state(cx, Vec::new);
-    let sounds_to_play_vec = sounds_to_play.get().clone();
-    let new_sounds_to_play_vec = sounds_to_play_vec
+    let new_sounds_to_play_vec = sounds_to_play
+        .get()
         .iter()
         .filter(|sound| sound.expiry > get_current_time())
         .cloned()
         .collect();
-    if new_sounds_to_play_vec != sounds_to_play_vec {
+    if new_sounds_to_play_vec != *sounds_to_play.get() {
         sounds_to_play.set(new_sounds_to_play_vec);
     }
 
-    let alert_popup: &UseState<AlertPopup> = use_state(cx, AlertPopup::default);
+    let alert_popup = use_state(cx, AlertPopup::default);
     if alert_popup.get().shown && alert_popup.get().expiry < get_current_time() {
         alert_popup.set(AlertPopup::default());
     }
@@ -168,27 +173,23 @@ pub fn app(cx: Scope) -> Element {
                     PlayerMessage::GameStart => "game_start",
                     PlayerMessage::CoinGiven => "coin_added",
                     PlayerMessage::ItemGuessed(player_name, item_id, item_name) => {
-                        if !(item_reveal_message.get().show && item_reveal_message.get().victory) {
-                            item_reveal_message.set(ItemRevealMessage {
-                                show: true,
-                                expiry: get_current_time() + 5.0,
-                                victory: false,
-                                correct: true,
-                                str: format!("{player_name} guessed item {item_id} correctly as {item_name}!"),
-                            });
+                        if !(item_reveal_message.get().show && item_reveal_message.get().revealtype == RevealType::Victory) {
+                            item_reveal_message.set(ItemRevealMessage::new(
+                                5.0,
+                                format!("{player_name} guessed item {item_id} correctly as {item_name}!"),
+                                RevealType::Correct,
+                            ));
                         }
                         "guess_correct"
                     }
                     PlayerMessage::GuessIncorrect => "guess_incorrect",
                     PlayerMessage::ItemRemoved(item_id, item_name) => {
-                        if !(item_reveal_message.get().show && item_reveal_message.get().victory) {
-                            item_reveal_message.set(ItemRevealMessage {
-                                show: true,
-                                expiry: get_current_time() + 5.0,
-                                victory: false,
-                                correct: false,
-                                str: format!("Item {item_id} was removed from the game, it was {item_name}!"),
-                            });
+                        if !(item_reveal_message.get().show && item_reveal_message.get().revealtype == RevealType::Victory) {
+                            item_reveal_message.set(ItemRevealMessage::new(
+                                5.0,
+                                format!("Item {item_id} was removed from the game, it was {item_name}!"),
+                                RevealType::Incorrect,
+                            ));
                         }
                         "guess_incorrect"
                     }
@@ -200,13 +201,7 @@ pub fn app(cx: Scope) -> Element {
                         } else {
                             format!("The winner is {}!", players[0])
                         };
-                        item_reveal_message.set(ItemRevealMessage {
-                            show: true,
-                            expiry: get_current_time() + 30.0,
-                            victory: true,
-                            correct: true,
-                            str: win_message,
-                        });
+                        item_reveal_message.set(ItemRevealMessage::new(30.0, win_message, RevealType::Victory));
                         "guess_correct"
                     }
                     PlayerMessage::QuestionRejected(message) => {
@@ -344,6 +339,7 @@ pub fn app(cx: Scope) -> Element {
                                             });
                                     } else {
                                         is_connected.set(true);
+                                        lobby_settings_open.set(true);
                                     }
                                 },
                                 "Join"
@@ -369,6 +365,7 @@ pub fn app(cx: Scope) -> Element {
                                 });
                         } else {
                             is_connected.set(true);
+                            lobby_settings_open.set(true);
                         }
                     },
                     input {

@@ -9,7 +9,6 @@ struct TempQuestion {
 }
 
 pub fn render<'a>(cx: Scope<'a>, player_name: &str, lobby: &Lobby) -> Element<'a> {
-    // Get list of questions that are active
     let mut active_questions = vec![];
     for item in &lobby.items {
         for question in &item.questions {
@@ -55,12 +54,12 @@ pub fn render<'a>(cx: Scope<'a>, player_name: &str, lobby: &Lobby) -> Element<'a
             })
         }
         (0..20usize).map(|question_index| {
-            let num_blanks = 20 - active_questions.len();
-            let (question_id, question_string) = if question_index < 20 - num_blanks {
+            let is_blank = question_index >= active_questions.len();
+            let (question_id, question_string) = if is_blank {
+                (question_index + 1, String::new())
+            } else {
                 let question = active_questions.get(question_index).unwrap();
                 (question.id, question.question.clone())
-            } else {
-                (question_index + 1, String::new())
             };
             rsx! {
                 div { class: "table-row", flex: "1",
@@ -72,12 +71,9 @@ pub fn render<'a>(cx: Scope<'a>, player_name: &str, lobby: &Lobby) -> Element<'a
                         div { "{question_string}" }
                     }
                     lobby.items.iter().map(|item| {
-                        let answer = if question_index < 20 - num_blanks {
-                            item.questions.iter()
-                                .find(|answer_question| answer_question.id == question_id).map(|answer_question| answer_question.answer.clone())
-                        } else {
-                            None
-                        };
+                        let answer = if is_blank { None } else { item.questions.iter()
+                            .find(|&answer_question| answer_question.id == question_id)
+                            .map(|answer_question| answer_question.answer.clone()) };
                         let box_fill = if answer.is_none() { "⭐" } else { "" };
                         let answer_color = answer.map_or("rgb(60, 60, 80)".to_string(), |answer| answer.to_color().to_string());
                         rsx! {
