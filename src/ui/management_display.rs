@@ -9,7 +9,7 @@ use crate::{
 };
 use dioxus::prelude::*;
 
-#[allow(clippy::too_many_lines, clippy::cast_possible_wrap)]
+#[allow(clippy::cast_possible_wrap)]
 pub fn render<'a>(
     cx: Scope<'a>,
     player_name: &'a str,

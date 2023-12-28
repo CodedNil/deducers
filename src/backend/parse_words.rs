@@ -36,7 +36,7 @@ fn parse_words(contents: &str) -> WordSets {
 pub fn select_lobby_words(difficulty: &Difficulty, count: usize) -> Vec<String> {
     let mut rng = rand::thread_rng();
 
-    let combined_words = match difficulty {
+    let combined_words = match *difficulty {
         Difficulty::Easy => WORD_SETS.easy.iter().collect::<Vec<_>>(),
         Difficulty::Medium => [&WORD_SETS.easy, &WORD_SETS.medium]
             .iter()

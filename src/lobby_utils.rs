@@ -12,8 +12,10 @@ use once_cell::sync::Lazy;
 use std::{
     cmp::Ordering,
     collections::HashMap,
-    fmt::Display,
+    fmt::{Display, Formatter, Result as FmtResult},
+    str::FromStr,
     sync::{Arc, Mutex},
+    time,
 };
 
 #[derive(Clone, Debug, Default)]
@@ -82,7 +84,7 @@ impl Default for LobbySettings {
 }
 
 impl Display for LobbySettings {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
         write!(
             f,
             "{} Items, {}, {}",
@@ -100,7 +102,7 @@ pub enum Difficulty {
     Hard,
 }
 
-impl std::str::FromStr for Difficulty {
+impl FromStr for Difficulty {
     type Err = anyhow::Error;
 
     fn from_str(s: &str) -> Result<Self> {
@@ -114,8 +116,8 @@ impl std::str::FromStr for Difficulty {
 }
 
 impl Display for Difficulty {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let difficulty = match self {
+    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
+        let difficulty = match *self {
             Self::Easy => "Easy",
             Self::Medium => "Medium",
             Self::Hard => "Hard",
@@ -232,7 +234,7 @@ impl Answer {
     }
 
     pub const fn next(&self) -> Self {
-        match self {
+        match *self {
             Self::Maybe => Self::Yes,
             Self::Yes => Self::No,
             Self::No => Self::Unknown,
@@ -245,7 +247,7 @@ impl Answer {
     }
 
     pub const fn to_color(&self) -> &'static str {
-        match self {
+        match *self {
             Self::Yes => "rgb(60, 130, 50)",
             Self::No => "rgb(130, 50, 50)",
             Self::Maybe => "rgb(140, 80, 0)",
@@ -255,8 +257,8 @@ impl Answer {
 }
 
 impl Display for Answer {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let answer = match self {
+    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
+        let answer = match *self {
             Self::Yes => "Yes",
             Self::No => "No",
             Self::Maybe => "Maybe",
@@ -313,10 +315,10 @@ pub fn create_lobby(lobby_id: &str, player_name: &str) -> Result<()> {
         return Err(anyhow!("Lobby '{lobby_id}' already exists"));
     }
     lobbys_lock.insert(
-        lobby_id.to_string(),
+        lobby_id.to_owned(),
         Lobby {
             last_update: get_current_time(),
-            key_player: player_name.to_string(),
+            key_player: player_name.to_owned(),
             items_queue: select_lobby_words(&LobbySettings::default().difficulty, LobbySettings::default().item_count),
             settings: LobbySettings::default(),
             ..Default::default()
@@ -332,7 +334,7 @@ pub fn create_lobby(lobby_id: &str, player_name: &str) -> Result<()> {
         with_lobby_mut(lobby_id, |lobby| {
             for _ in 0..10 {
                 lobby.chat_messages.push(ChatMessage {
-                    player: "debug".to_string(),
+                    player: "debug".to_owned(),
                     message: select_lobby_words(&Difficulty::Easy, 1).pop().unwrap(),
                 });
             }
@@ -355,8 +357,8 @@ pub fn create_lobby(lobby_id: &str, player_name: &str) -> Result<()> {
             ];
             for question in questions {
                 lobby.questions_queue.push(QueuedQuestion {
-                    player: "debug".to_string(),
-                    question: question.to_string(),
+                    player: "debug".to_owned(),
+                    question: question.to_owned(),
                     votes: rand::random::<usize>() % 6,
                     voters: Vec::new(),
                     masked: rand::random::<usize>() % 5 == 0,
@@ -366,9 +368,9 @@ pub fn create_lobby(lobby_id: &str, player_name: &str) -> Result<()> {
                 let masked = rand::random::<usize>() % 5 == 0;
                 for item in &mut lobby.items {
                     item.questions.push(Question {
-                        player: "debug".to_string(),
+                        player: "debug".to_owned(),
                         id: question_id,
-                        text: question.to_string(),
+                        text: question.to_owned(),
                         answer: Answer::variants()[rand::random::<usize>() % 4].clone(),
                         masked,
                     });
@@ -435,8 +437,8 @@ pub fn connect_player(lobby_id: &str, player_name: &str) -> Result<()> {
             return Err(anyhow!("Player '{player_name}' is already connected to lobby '{lobby_id}'"));
         }
 
-        lobby.players.entry(player_name.to_string()).or_insert(Player {
-            name: player_name.to_string(),
+        lobby.players.entry(player_name.to_owned()).or_insert(Player {
+            name: player_name.to_owned(),
             last_contact: get_current_time(),
             ..Default::default()
         });
@@ -454,7 +456,6 @@ pub fn disconnect_player(lobby_id: &str, player_name: &str) -> Result<()> {
     })
 }
 
-#[allow(clippy::too_many_lines)]
 pub fn alter_lobby_settings(lobby_id: &str, player_name: &str, setting: AlterLobbySetting) -> Result<()> {
     with_lobby_mut(lobby_id, |lobby| {
         if player_name != lobby.key_player {
@@ -623,8 +624,8 @@ pub fn add_chat_message(lobby_id: &str, player_name: &str, message: &str) -> Res
     }
     with_lobby_mut(lobby_id, |lobby| {
         lobby.chat_messages.push(ChatMessage {
-            player: player_name.to_string(),
-            message: message.to_string(),
+            player: player_name.to_owned(),
+            message: message.to_owned(),
         });
         if lobby.chat_messages.len() > MAX_CHAT_MESSAGES {
             lobby.chat_messages.remove(0);
@@ -643,8 +644,8 @@ pub fn get_state(lobby_id: &str, player_name: &str) -> Result<(Lobby, Vec<Player
 }
 
 pub fn get_current_time() -> f64 {
-    let now = std::time::SystemTime::now();
-    now.duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs_f64()
+    let now = time::SystemTime::now();
+    now.duration_since(time::UNIX_EPOCH).unwrap_or_default().as_secs_f64()
 }
 
 pub fn get_time_diff(start: f64) -> f64 {

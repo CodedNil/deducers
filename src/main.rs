@@ -1,6 +1,28 @@
+#![warn(clippy::restriction, clippy::nursery, clippy::pedantic, clippy::absolute_paths, clippy::use_debug)]
+#![allow(
+    clippy::too_many_lines,
+    clippy::missing_docs_in_private_items,
+    clippy::implicit_return,
+    clippy::print_stdout,
+    clippy::std_instead_of_core,
+    clippy::unwrap_used,
+    clippy::else_if_without_else,
+    clippy::expect_used,
+    clippy::arithmetic_side_effects,
+    clippy::single_call_fn,
+    clippy::float_arithmetic,
+    clippy::std_instead_of_alloc,
+    clippy::min_ident_chars,
+    clippy::question_mark_used,
+    clippy::single_char_lifetime_names,
+    clippy::shadow_reuse,
+    clippy::shadow_unrelated
+)]
+// single_call_fn shadow_reuse shadow_unrelated
 use crate::ui::connection::app;
 use axum::{extract::ws::WebSocketUpgrade, response::Html, routing::get, Router};
-use std::{env, time::Duration};
+use std::{env, net::SocketAddr, time::Duration};
+use tokio::time::sleep;
 use tower_http::services::ServeDir;
 
 mod backend;
@@ -30,8 +52,8 @@ pub const MAX_CHAT_MESSAGES: usize = 20;
 #[tokio::main]
 async fn main() {
     // Get the server IP from an environment variable or default to localhost
-    let addr: std::net::SocketAddr = ([0, 0, 0, 0], SERVER_PORT).into();
-    let server_ip = env::var("SERVER_IP").unwrap_or_else(|_| "127.0.0.1".to_string());
+    let addr: SocketAddr = ([0, 0, 0, 0], SERVER_PORT).into();
+    let server_ip = env::var("SERVER_IP").unwrap_or_else(|_| "127.0.0.1".to_owned());
     let server_address = format!("{server_ip}:{SERVER_PORT}");
 
     let view = dioxus_liveview::LiveViewPool::new();
@@ -69,7 +91,7 @@ async fn main() {
             "/ws",
             get(move |ws: WebSocketUpgrade| async move {
                 ws.on_upgrade(move |socket| async move {
-                    _ = view.launch(dioxus_liveview::axum_socket(socket), app).await;
+                    view.launch(dioxus_liveview::axum_socket(socket), app).await.unwrap();
                 })
             }),
         )
@@ -80,7 +102,7 @@ async fn main() {
     tokio::spawn(async move {
         loop {
             lobby_utils::lobby_loop();
-            tokio::time::sleep(Duration::from_millis(500)).await;
+            sleep(Duration::from_millis(500)).await;
         }
     });
 

@@ -8,6 +8,7 @@ use std::{
     sync::{Arc, Mutex},
     time::Duration,
 };
+use tokio::time::sleep;
 
 #[derive(Default)]
 struct ItemRevealMessage {
@@ -119,7 +120,7 @@ pub fn tutorial(tutorial_open: &UseState<bool>) -> LazyNodes<'_, '_> {
     }
 }
 
-#[allow(clippy::too_many_lines, clippy::cast_possible_wrap)]
+#[allow(clippy::cast_possible_wrap)]
 pub fn app(cx: Scope) -> Element {
     let player_name = use_state(cx, String::new);
     let lobby_id = use_state(cx, String::new);
@@ -228,10 +229,9 @@ pub fn app(cx: Scope) -> Element {
         let cancel_signal = cancel_signal.clone();
 
         // Set the cancellation signal for the previous loop
-        {
-            let mut cancel = cancel_signal.get().lock().unwrap();
-            *cancel = true;
-        }
+        let mut cancel = cancel_signal.get().lock().unwrap();
+        *cancel = true;
+        drop(cancel);
         let new_cancel_signal = Arc::new(Mutex::new(false));
         cancel_signal.set(new_cancel_signal.clone());
 
@@ -267,7 +267,7 @@ pub fn app(cx: Scope) -> Element {
                 } else {
                     lobby_info.set(get_lobby_info());
                 }
-                tokio::time::sleep(Duration::from_millis(500)).await;
+                sleep(Duration::from_millis(500)).await;
             }
         }
     });

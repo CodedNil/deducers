@@ -7,7 +7,7 @@ use crate::{
 use anyhow::{bail, Result};
 use futures::future::join_all;
 use serde::Deserialize;
-use std::collections::HashMap;
+use std::{cmp::Ordering, collections::HashMap};
 
 pub fn add_item_to_lobby(lobby: &mut Lobby) {
     if !lobby.started {
@@ -38,7 +38,7 @@ struct AskQuestionResponse {
     answers: Vec<String>,
 }
 
-#[allow(clippy::too_many_lines, clippy::cast_precision_loss)]
+#[allow(clippy::cast_precision_loss)]
 pub async fn ask_top_question(lobby_id: &str) -> Result<()> {
     let (mut question_text, mut question_player, mut question_masked) = (String::new(), String::new(), false);
     let mut question_voters = Vec::new();
@@ -375,15 +375,15 @@ pub fn test_game_over(lobby_id: &str) -> Result<()> {
             let mut winners = Vec::new();
             for player in lobby.players.values() {
                 match player.score.cmp(&max_score) {
-                    std::cmp::Ordering::Greater => {
+                    Ordering::Greater => {
                         max_score = player.score;
                         winners.clear();
                         winners.push(player.name.clone());
                     }
-                    std::cmp::Ordering::Equal => {
+                    Ordering::Equal => {
                         winners.push(player.name.clone());
                     }
-                    std::cmp::Ordering::Less => {}
+                    Ordering::Less => {}
                 }
             }
 
