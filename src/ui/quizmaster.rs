@@ -5,8 +5,6 @@ use crate::{
 use dioxus::prelude::*;
 
 pub fn render<'a>(cx: Scope<'a>, player_name: &'a str, lobby_id: &'a str, lobby: &Lobby) -> Element<'a> {
-    let questions = lobby.quizmaster_queue.clone();
-
     cx.render(rsx! {
         div { class: "table-row",
             rsx! {
@@ -14,7 +12,7 @@ pub fn render<'a>(cx: Scope<'a>, player_name: &'a str, lobby_id: &'a str, lobby:
                 div { class: "table-header-box", flex: "3", "Question" }
             }
         }
-        questions.iter().map(|question| {
+        lobby.quizmaster_queue.iter().map(|question| {
             let question_string1 = question.question.clone();
             let question_string2 = question.question.clone();
             rsx! {

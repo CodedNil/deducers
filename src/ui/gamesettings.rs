@@ -40,7 +40,7 @@ pub fn render<'a>(
             label { font_weight: "bold", font_size: "larger", "Lobby Settings" }
             label { font_size: "large", "Estimated game length {game_time}" }
             div { display: "flex", flex_direction: "column", gap: "5px",
-                standard_settings(lobby, alter_setting),
+                standard_settings(cx, lobby, alter_setting),
                 div { class: "dark-box",
                     label {
                         "Host as Quizmaster: "
@@ -55,7 +55,7 @@ pub fn render<'a>(
                         }
                     }
                     if player_controlled {
-                        item_settings(lobby, add_item_submission, alter_setting)
+                        item_settings(cx, lobby, add_item_submission, alter_setting)
                     }
                 }
                 div { class: "dark-box",
@@ -70,7 +70,7 @@ pub fn render<'a>(
                         }
                     }
                     if *advanced_settings_toggle.get() {
-                        advanced_settings(lobby, alter_setting)
+                        advanced_settings(cx, lobby, alter_setting)
                     }
                 }
             }
@@ -116,57 +116,39 @@ fn calculate_game_time(items_count: usize, question_every_x_seconds: usize, item
 }
 
 #[allow(clippy::cast_possible_wrap)]
-fn standard_settings<'a>(lobby: &Lobby, alter_setting: impl Fn(AlterLobbySetting) + 'a) -> LazyNodes<'a, 'a> {
-    let difficulty = lobby.settings.difficulty.clone();
-    let item_count = lobby.settings.item_count;
-    let player_controlled = lobby.settings.player_controlled;
+fn standard_settings<'a>(cx: Scope<'a>, lobby: &Lobby, alter_setting: impl Fn(AlterLobbySetting) + 'a) -> Element<'a> {
     let alter_setting = Rc::new(alter_setting);
-    rsx! {
+    cx.render(rsx! {
         div { display: "flex", gap: "5px",
             "Difficulty:"
-            button {
-                class: if difficulty == Difficulty::Easy { "highlighted" } else { "" },
-                onclick: {
-                    let alter_setting = alter_setting.clone();
-                    move |_| {
-                        alter_setting(AlterLobbySetting::Difficulty(Difficulty::Easy));
+            Difficulty::variants().iter().map(|variant| {
+                let alter_setting = alter_setting.clone();
+                let difficulty = lobby.settings.difficulty.clone();
+                rsx! {
+                    button {
+                        class: if &difficulty == variant { "highlighted" } else { "" },
+                        onclick: {
+                            let alter_setting = alter_setting.clone();
+                            let variant = variant.clone();
+                            move |_| {
+                                alter_setting(AlterLobbySetting::Difficulty(variant.clone()));
+                            }
+                        },
+                        "{variant}"
                     }
-                },
-                "Easy"
-            }
-            button {
-                class: if difficulty == Difficulty::Medium { "highlighted" } else { "" },
-                onclick: {
-                    let alter_setting = alter_setting.clone();
-                    move |_| {
-                        alter_setting(AlterLobbySetting::Difficulty(Difficulty::Medium));
-                    }
-                },
-                "Medium"
-            }
-            button {
-                class: if difficulty == Difficulty::Hard { "highlighted" } else { "" },
-                onclick: {
-                    let alter_setting = alter_setting.clone();
-                    move |_| {
-                        alter_setting(AlterLobbySetting::Difficulty(Difficulty::Hard));
-                    }
-                },
-                "Hard"
-            }
+                }
+            })
         }
-        if !player_controlled {
-            let alter_setting = alter_setting.clone();
+        if !lobby.settings.player_controlled {
             rsx! { label {
                 "Item Count: "
                 input {
                     r#type: "number",
                     min: "1",
                     max: MAX_LOBBY_ITEMS as i64,
-                    value: "{item_count}",
+                    value: "{lobby.settings.item_count}",
                     width: "50px",
                     oninput: {
-                        let alter_setting = alter_setting.clone();
                         move |e| {
                             alter_setting(AlterLobbySetting::ItemCount(e.value.parse::<usize>().unwrap_or(1)));
                         }
@@ -174,20 +156,21 @@ fn standard_settings<'a>(lobby: &Lobby, alter_setting: impl Fn(AlterLobbySetting
                 }
             }}
         }
-    }
+    })
 }
 
 #[allow(clippy::cast_possible_wrap)]
 fn item_settings<'a>(
+    cx: Scope<'a>,
     lobby: &Lobby,
     add_item_submission: &UseState<String>,
     alter_setting: impl Fn(AlterLobbySetting) + 'a,
-) -> LazyNodes<'a, 'a> {
+) -> Element<'a> {
     let add_item_submission1 = add_item_submission.clone();
     let add_item_submission2 = add_item_submission.clone();
     let server_items = lobby.items_queue.clone();
     let alter_setting = Rc::new(alter_setting);
-    rsx! {
+    cx.render(rsx! {
         div { display: "flex", flex_direction: "column", gap: "5px",
             div {
                 "Items "
@@ -260,7 +243,7 @@ fn item_settings<'a>(
                 button { background_color: "rgb(20, 100, 20)", r#type: "submit", "+" }
             }
         }
-    }
+    })
 }
 
 struct SettingDetail {
@@ -285,7 +268,7 @@ impl SettingDetail {
     }
 }
 
-fn advanced_settings<'a>(lobby: &'a Lobby, alter_setting: impl Fn(AlterLobbySetting) + 'a) -> LazyNodes<'a, 'a> {
+fn advanced_settings<'a>(cx: Scope<'a>, lobby: &'a Lobby, alter_setting: impl Fn(AlterLobbySetting) + 'a) -> Element<'a> {
     let alter_setting = Rc::new(alter_setting);
     let settings = vec![
         SettingDetail::new("starting_coins", 1, 100),
@@ -314,7 +297,7 @@ fn advanced_settings<'a>(lobby: &'a Lobby, alter_setting: impl Fn(AlterLobbySett
     .copied()
     .collect();
 
-    rsx! {
+    cx.render(rsx! {
         settings.into_iter().map(|setting| {
             let alter_setting = alter_setting.clone();
             setting_values.get(setting.key.as_str()).map_or_else(|| rsx! { div {} }, |&setting_value|
@@ -337,5 +320,5 @@ fn advanced_settings<'a>(lobby: &'a Lobby, alter_setting: impl Fn(AlterLobbySett
                 }
             )
         })
-    }
+    })
 }

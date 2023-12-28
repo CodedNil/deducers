@@ -124,6 +124,12 @@ impl Display for Difficulty {
     }
 }
 
+impl Difficulty {
+    pub fn variants() -> Vec<Self> {
+        vec![Self::Easy, Self::Medium, Self::Hard]
+    }
+}
+
 #[derive(Clone, Debug)]
 pub enum AlterLobbySetting {
     ItemCount(usize),
