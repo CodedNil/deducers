@@ -56,9 +56,9 @@ fn parse_words() -> Result<()> {
     // Write words to file
     let file_path = "src/backend/words.txt";
     let mut file = BufWriter::new(File::create(file_path)?);
-    write_word_set(&mut file, "easy_words", &word_sets.easy)?;
-    write_word_set(&mut file, "medium_words", &word_sets.medium)?;
-    write_word_set(&mut file, "hard_words", &word_sets.hard)?;
+    write_word_set(&mut file, "easy", &word_sets.easy)?;
+    write_word_set(&mut file, "medium", &word_sets.medium)?;
+    write_word_set(&mut file, "hard", &word_sets.hard)?;
     file.flush()?;
     println!("cargo:warning=Total time: {:?}", start_time.elapsed());
     Ok(())

@@ -207,7 +207,7 @@ pub struct Item {
 pub struct Question {
     pub player: String,
     pub id: usize,
-    pub question: String,
+    pub text: String,
     pub answer: Answer,
     pub masked: bool,
 }
@@ -368,7 +368,7 @@ pub fn create_lobby(lobby_id: &str, player_name: &str) -> Result<()> {
                     item.questions.push(Question {
                         player: "debug".to_string(),
                         id: question_id,
-                        question: question.to_string(),
+                        text: question.to_string(),
                         answer: Answer::variants()[rand::random::<usize>() % 4].clone(),
                         masked,
                     });

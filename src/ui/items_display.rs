@@ -22,12 +22,12 @@ pub fn render<'a>(cx: Scope<'a>, player_name: &str, lobby: &Lobby) -> Element<'a
                     .unwrap_or_default();
 
                 if question_player_name == *player_name {
-                    question.question.clone()
+                    question.text.clone()
                 } else {
                     format!("MASKED - {question_player_name}")
                 }
             } else {
-                question.question.clone()
+                question.text.clone()
             };
 
             let structed = TempQuestion {

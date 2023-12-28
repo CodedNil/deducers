@@ -7,46 +7,42 @@ pub static WORD_SETS: Lazy<WordSets> = Lazy::new(|| parse_words(include_str!("wo
 
 #[derive(Debug)]
 pub struct WordSets {
-    pub easy_words: HashSet<String>,
-    pub medium_words: HashSet<String>,
-    pub hard_words: HashSet<String>,
+    pub easy: HashSet<String>,
+    pub medium: HashSet<String>,
+    pub hard: HashSet<String>,
 }
 
 fn parse_words(contents: &str) -> WordSets {
-    let mut easy_words = HashSet::new();
-    let mut medium_words = HashSet::new();
-    let mut hard_words = HashSet::new();
-    let mut current_set = &mut easy_words;
+    let mut easy = HashSet::new();
+    let mut medium = HashSet::new();
+    let mut hard = HashSet::new();
+    let mut current_set = &mut easy;
 
     for line in contents.lines() {
-        if line.starts_with("[easy_words]") {
-            current_set = &mut easy_words;
-        } else if line.starts_with("[medium_words]") {
-            current_set = &mut medium_words;
-        } else if line.starts_with("[hard_words]") {
-            current_set = &mut hard_words;
+        if line.starts_with("[easy]") {
+            current_set = &mut easy;
+        } else if line.starts_with("[medium]") {
+            current_set = &mut medium;
+        } else if line.starts_with("[hard]") {
+            current_set = &mut hard;
         } else {
             current_set.extend(line.split(',').map(String::from));
         }
     }
 
-    WordSets {
-        easy_words,
-        medium_words,
-        hard_words,
-    }
+    WordSets { easy, medium, hard }
 }
 
 pub fn select_lobby_words(difficulty: &Difficulty, count: usize) -> Vec<String> {
     let mut rng = rand::thread_rng();
 
     let combined_words = match difficulty {
-        Difficulty::Easy => WORD_SETS.easy_words.iter().collect::<Vec<_>>(),
-        Difficulty::Medium => [&WORD_SETS.easy_words, &WORD_SETS.medium_words]
+        Difficulty::Easy => WORD_SETS.easy.iter().collect::<Vec<_>>(),
+        Difficulty::Medium => [&WORD_SETS.easy, &WORD_SETS.medium]
             .iter()
             .flat_map(|set| set.iter())
             .collect::<Vec<_>>(),
-        Difficulty::Hard => [&WORD_SETS.easy_words, &WORD_SETS.medium_words, &WORD_SETS.hard_words]
+        Difficulty::Hard => [&WORD_SETS.easy, &WORD_SETS.medium, &WORD_SETS.hard]
             .iter()
             .flat_map(|set| set.iter())
             .collect::<Vec<_>>(),

@@ -52,9 +52,9 @@ struct Choice {
 // Represents the token usage of a response.
 #[derive(Deserialize, Serialize, Debug)]
 struct Usage {
-    prompt_tokens: usize,
-    completion_tokens: usize,
-    total_tokens: usize,
+    prompt: usize,
+    completion: usize,
+    total: usize,
 }
 
 pub async fn query_ai(prompt: &String, max_tokens: usize, temperature: f32) -> Result<String> {
@@ -122,7 +122,7 @@ pub async fn query_ai(prompt: &String, max_tokens: usize, temperature: f32) -> R
 #[allow(clippy::cast_precision_loss, clippy::suboptimal_flops)]
 fn log_details(prompt: &String, result: &MessageResponse, tokens: &Usage) -> Result<()> {
     // Pricing is input $0.0015 / 1K tokens output $0.002 / 1K tokens
-    let price = ((tokens.prompt_tokens as f32 * 0.0015) + (tokens.completion_tokens as f32 * 0.002)) / 1000.0;
+    let price = ((tokens.prompt as f32 * 0.0015) + (tokens.completion as f32 * 0.002)) / 1000.0;
 
     // Format the log entry.
     let result = format!("{result:?}");
@@ -130,9 +130,9 @@ fn log_details(prompt: &String, result: &MessageResponse, tokens: &Usage) -> Res
         "Prompt: {:} | Result: {:} | Tokens: {}/{}/{} ${}\n",
         &prompt[..100.min(prompt.len())],
         &result[..100.min(result.len())],
-        tokens.prompt_tokens,
-        tokens.completion_tokens,
-        tokens.total_tokens,
+        tokens.prompt,
+        tokens.completion,
+        tokens.total,
         price
     );
 

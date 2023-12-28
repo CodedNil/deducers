@@ -166,7 +166,7 @@ pub async fn ask_top_question(lobby_id: &str) -> Result<()> {
             item.questions.push(Question {
                 player: question_player.clone(),
                 id: question_id,
-                question: question_text.clone(),
+                text: question_text.clone(),
                 answer,
                 masked: question_masked,
             });
@@ -243,7 +243,7 @@ pub fn quizmaster_submit(lobby_id: &str, player_name: &str, question: &String) -
                 item.questions.push(Question {
                     player: question.player.clone(),
                     id: question_id,
-                    question: question.question.clone(),
+                    text: question.question.clone(),
                     answer: quizmaster_item.answer,
                     masked: question.masked,
                 });
