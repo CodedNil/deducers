@@ -1,33 +1,36 @@
 use crate::{
     backend::{
         items::player_guess_item,
-        question_queue::{convert_score, submit_question},
-        Lobby,
+        question_queue::{convert_score, submit_question_wrapped},
+        Item, LobbySettings, PlayerReduced, QueuedQuestionQuizmaster,
     },
-    frontend::{quizmaster::QuizmasterDisplay, AlertPopup},
+    frontend::quizmaster::QuizmasterDisplay,
     ITEM_NAME_PATTERN, MAX_ITEM_NAME_LENGTH, MAX_QUESTION_LENGTH, QUESTION_PATTERN,
 };
 use dioxus::prelude::*;
 
 #[allow(clippy::cast_possible_wrap)]
-pub fn render<'a>(
-    cx: Scope<'a>,
-    player_name: &'a str,
-    lobby_id: &'a str,
-    lobby: &Lobby,
-    alert_popup: &'a UseState<AlertPopup>,
+#[component]
+pub fn Management<'a>(
+    cx: Scope,
+    player_name: String,
+    lobby_id: String,
+    key_player: String,
+    settings: LobbySettings,
+    players: Vec<PlayerReduced>,
+    items: Vec<Item>,
+    quizmaster_queue: Vec<QueuedQuestionQuizmaster>,
+    on_alert_popup: EventHandler<'a, String>,
 ) -> Element<'a> {
-    let question_masked: &UseState<bool> = use_state(cx, || false);
-
-    let settings = lobby.settings;
+    println!("Management {}", crate::backend::get_current_time());
+    let question_masked = use_state(cx, || false);
 
     let submit_cost = settings.submit_question_cost + if *question_masked.get() { settings.masked_question_cost } else { 0 };
-    let players_coins = lobby.players[player_name].coins;
+    let players_coins = players.iter().find(|p| &p.name == player_name).map_or(0, |p| p.coins);
 
-    if player_name == lobby.key_player && settings.player_controlled {
-        return cx.render(
-            rsx! {QuizmasterDisplay { player_name: player_name, lobby_id: lobby_id, quizmaster_queue: lobby.quizmaster_queue.clone() }},
-        );
+    if player_name == key_player && settings.player_controlled {
+        return cx
+            .render(rsx! {QuizmasterDisplay { player_name: player_name, lobby_id: lobby_id, quizmaster_queue: quizmaster_queue.clone() }});
     }
 
     cx.render(rsx! {
@@ -40,21 +43,15 @@ pub fn render<'a>(
                     let question = question.to_owned();
                     let (lobby_id, player_name) = (lobby_id.to_owned(), player_name.to_owned());
                     let masked = question_masked.clone();
-                    let alert_popup = alert_popup.clone();
                     cx.spawn(async move {
-                        if let Err(error)
-                            = submit_question(
-                                    &lobby_id,
-                                    &player_name,
-                                    question.clone(),
-                                    *masked.get(),
-                                )
-                                .await
-                        {
-                            alert_popup.set(AlertPopup::message(error.to_string()));
-                        } else {
-                            masked.set(false);
-                        }
+                        submit_question_wrapped(
+                                &lobby_id,
+                                &player_name,
+                                question.clone(),
+                                *masked.get(),
+                            )
+                            .await;
+                        masked.set(false);
                     });
                 }
             },
@@ -83,7 +80,7 @@ pub fn render<'a>(
             button {
                 onclick: move |_| {
                     if let Err(error) = convert_score(lobby_id, player_name) {
-                        alert_popup.set(AlertPopup::message(error.to_string()));
+                        on_alert_popup.call(error.to_string());
                     }
                 },
                 flex: "1",
@@ -102,7 +99,7 @@ pub fn render<'a>(
                     .and_then(|k| k.parse::<usize>().ok());
                 if let (Some(guess), Some(key)) = (guess, key) {
                     if let Err(error) = player_guess_item(lobby_id, player_name, key, guess) {
-                        alert_popup.set(AlertPopup::message(error.to_string()));
+                        on_alert_popup.call(error.to_string());
                     }
                 }
             },
@@ -116,7 +113,7 @@ pub fn render<'a>(
                 "data-clear-on-submit": "true"
             }
             select { name: "key",
-                lobby.items.iter().map(|item| {
+                items.iter().map(|item| {
                     rsx! {
                         option { "{item.id}" }
                     }

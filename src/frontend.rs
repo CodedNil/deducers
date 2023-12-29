@@ -1,6 +1,6 @@
 use crate::{
-    backend::{connect_player, get_current_time, get_lobby_info, get_state, Lobby, PlayerMessage},
-    frontend::gamesettings::GameSettings,
+    backend::{connect_player, disconnect_player, get_current_time, get_lobby_info, get_state, Lobby, Player, PlayerMessage},
+    frontend::{gamesettings::GameSettings, gameview::GameView},
     LOBBY_ID_PATTERN, MAX_LOBBY_ID_LENGTH, MAX_PLAYER_NAME_LENGTH, PLAYER_NAME_PATTERN,
 };
 use dioxus::prelude::*;
@@ -120,7 +120,7 @@ pub fn tutorial(tutorial_open: &UseState<bool>) -> LazyNodes<'_, '_> {
     }
 }
 
-#[allow(clippy::cast_possible_wrap)]
+#[allow(clippy::cast_possible_wrap, clippy::cast_possible_truncation, clippy::cast_sign_loss)]
 pub fn app(cx: Scope) -> Element {
     let player_name = use_state(cx, String::new);
     let lobby_id = use_state(cx, String::new);
@@ -197,11 +197,17 @@ pub fn app(cx: Scope) -> Element {
                     alert_popup.set(AlertPopup::message(format!("Question '{message}' rejected by quizmaster")));
                     "guess_incorrect"
                 }
+                PlayerMessage::SubmitQuestionRejected(message) => {
+                    alert_popup.set(AlertPopup::message(format!("Question rejected {message}")));
+                    ""
+                }
             };
-            new_sounds.push(SoundsQueue {
-                expiry: get_current_time() + 5.0,
-                sound: String::from(sound),
-            });
+            if !sound.is_empty() {
+                new_sounds.push(SoundsQueue {
+                    expiry: get_current_time() + 5.0,
+                    sound: String::from(sound),
+                });
+            }
         }
         if !new_sounds.is_empty() {
             sounds_to_play.with_mut(|sounds| {
@@ -272,35 +278,58 @@ pub fn app(cx: Scope) -> Element {
     };
 
     if *is_connected.get() {
-        if let Some(lobby) = lobby_state.get() {
-            let sounds_str = sounds_to_play
-                .read()
-                .iter()
-                .map(|sound| format!("{};{}", sound.expiry.round(), sound.sound))
-                .collect::<Vec<_>>()
-                .join(",");
-            let reveal_message = item_reveal_message.read().clone();
-            cx.render(rsx! {
-                gameview::render(cx, player_name, lobby_id, lobby, is_connected, alert_popup),
-                render_error_dialog,
-                div {
-                    class: "dialog floating item-reveal {reveal_message.revealtype.to_string().to_lowercase()}",
-                    top: if reveal_message.show { "20%" } else { "-100%" },
-                    "{reveal_message.str}"
-                }
-                if player_name == &lobby.key_player && !lobby.started {
-                    rsx! { GameSettings {
+        lobby_state.get().as_ref().map_or_else(
+            || cx.render(rsx! { div { "Loading" } }),
+            |lobby| {
+                let sounds_str = sounds_to_play
+                    .read()
+                    .iter()
+                    .map(|sound| format!("{};{}", sound.expiry.round(), sound.sound))
+                    .collect::<Vec<_>>()
+                    .join(",");
+                let reveal_message = item_reveal_message.read().clone();
+                cx.render(rsx! {
+                    GameView {
                         player_name: player_name.get().clone(),
                         lobby_id: lobby_id.get().clone(),
+                        key_player: lobby.key_player.clone(),
+                        started: lobby.started,
+                        elapsed_time: lobby.elapsed_time.round() as usize,
                         settings: lobby.settings,
-                        items_queue: lobby.items_queue.clone(),
+                        questions_queue: lobby.questions_queue.clone(),
+                        questions_queue_active: lobby.questions_queue_active(),
+                        questions_queue_countdown: lobby.questions_queue_countdown.round() as usize,
+                        quizmaster_queue: lobby.quizmaster_queue.clone(),
+                        players: lobby.players.values().map(Player::reduce).collect(),
+                        items: lobby.items.clone(),
+                        chat_messages: lobby.chat_messages.clone(),
+                        on_disconnect: move |()| {
+                            is_connected.set(false);
+                            let _result = disconnect_player(lobby_id, player_name);
+                        },
+                        alert_popup_message: alert_popup.get().message.clone(),
+                        on_alert_popup: move |message: String| {
+                            alert_popup.set(AlertPopup::message(message));
+                        }
+                    }
+                    render_error_dialog,
+                    div {
+                        class: "dialog floating item-reveal {reveal_message.revealtype.to_string().to_lowercase()}",
+                        top: if reveal_message.show { "20%" } else { "-100%" },
+                        "{reveal_message.str}"
+                    }
+                    if player_name == &lobby.key_player && !lobby.started {
+                    rsx! { GameSettings {
+                    player_name: player_name.get().clone(),
+                    lobby_id: lobby_id.get().clone(),
+                    settings: lobby.settings,
+                    items_queue: lobby.items_queue.clone(),
                     } }
-                }
-                div { id: "sounds", visibility: "collapse", position: "absolute", "{sounds_str}" }
-            })
-        } else {
-            cx.render(rsx! { div { "Loading" } })
-        }
+                    }
+                    div { id: "sounds", visibility: "collapse", position: "absolute", "{sounds_str}" }
+                })
+            },
+        )
     } else {
         let is_lobby_valid = lobby_info.get().iter().any(|lobby| lobby.id == *lobby_id.get());
         cx.render(rsx! {

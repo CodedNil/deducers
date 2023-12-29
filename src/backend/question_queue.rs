@@ -1,10 +1,18 @@
 use crate::{
-    backend::openai::query_ai,
-    backend::{with_lobby, with_lobby_mut, with_player, with_player_mut, QueuedQuestion},
+    backend::{openai::query_ai, with_lobby, with_lobby_mut, with_player, with_player_mut, PlayerMessage, QueuedQuestion},
     MAX_QUESTION_LENGTH,
 };
 use anyhow::{bail, Result};
 use serde::{Deserialize, Serialize};
+
+pub async fn submit_question_wrapped(lobby_id: &str, player_name: &str, question: String, masked: bool) {
+    if let Err(error) = submit_question(lobby_id, player_name, question, masked).await {
+        let _result = with_player_mut(lobby_id, player_name, |_, player| {
+            player.messages.push(PlayerMessage::SubmitQuestionRejected(error.to_string()));
+            Ok(())
+        });
+    }
+}
 
 pub async fn submit_question(lobby_id: &str, player_name: &str, question: String, masked: bool) -> Result<()> {
     let mut total_cost = 0;

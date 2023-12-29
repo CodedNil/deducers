@@ -1,41 +1,36 @@
 use crate::{
-    backend::{add_chat_message, disconnect_player, start_lobby, ChatMessage, Lobby, LobbySettings, Player, PlayerReduced, QueuedQuestion},
+    backend::{add_chat_message, start_lobby, ChatMessage, Item, LobbySettings, PlayerReduced, QueuedQuestion, QueuedQuestionQuizmaster},
     frontend::{
-        items_display::ItemDisplay, leaderboard_display::Leaderboard, management_display, question_queue_display::QuestionQueueDisplay,
-        AlertPopup,
+        items_display::ItemDisplay, leaderboard_display::Leaderboard, management_display::Management,
+        question_queue_display::QuestionQueueDisplay,
     },
     MAX_CHAT_LENGTH,
 };
 use dioxus::prelude::*;
 
-#[derive(Props, PartialEq, Eq)]
-pub struct Props {
-    pub player_name: String,
-    pub lobby_id: String,
-    pub is_quizmaster: bool,
-    pub key_player: String,
-    pub started: bool,
-
-    pub settings: LobbySettings,
-    pub questions_queue: Vec<QueuedQuestion>,
-    pub questions_queue_active: bool,
-    pub questions_queue_countdown: usize,
-    pub players: Vec<PlayerReduced>,
-    pub items: Vec<String>,
-    pub chat_messages: Vec<ChatMessage>,
-}
-
-#[allow(clippy::cast_possible_wrap, clippy::cast_possible_truncation, clippy::cast_sign_loss)]
-pub fn render<'a>(
-    cx: Scope<'a>,
-    player_name: &'a str,
-    lobby_id: &'a str,
-    lobby: &Lobby,
-    is_connected: &'a UseState<bool>,
-    alert_popup: &'a UseState<AlertPopup>,
+#[allow(clippy::cast_possible_wrap)]
+#[component]
+pub fn GameView<'a>(
+    cx: Scope,
+    player_name: String,
+    lobby_id: String,
+    key_player: String,
+    started: bool,
+    elapsed_time: usize,
+    settings: LobbySettings,
+    questions_queue: Vec<QueuedQuestion>,
+    questions_queue_active: bool,
+    questions_queue_countdown: usize,
+    quizmaster_queue: Vec<QueuedQuestionQuizmaster>,
+    players: Vec<PlayerReduced>,
+    items: Vec<Item>,
+    chat_messages: Vec<ChatMessage>,
+    on_disconnect: EventHandler<'a>,
+    alert_popup_message: String,
+    on_alert_popup: EventHandler<'a, String>,
 ) -> Element<'a> {
-    let is_keyplayer = player_name == lobby.key_player;
-    let is_quizmaster = player_name == lobby.key_player && lobby.settings.player_controlled;
+    let is_keyplayer = player_name == key_player;
+    let is_quizmaster = is_keyplayer && settings.player_controlled;
 
     cx.render(rsx! {
         div { display: "flex", height: "calc(100vh - 40px)", gap: "20px",
@@ -44,11 +39,7 @@ pub fn render<'a>(
                 class: "background-box",
                 flex: "1.5",
                 overflow_y: "auto",
-                ItemDisplay {
-                    player_name: player_name.to_owned(),
-                    is_quizmaster: is_quizmaster,
-                    items: lobby.items.clone()
-                }
+                ItemDisplay { player_name: player_name.to_owned(), is_quizmaster: is_quizmaster, items: items.clone() }
             }
             div { flex: "1", display: "flex", flex_direction: "column", gap: "20px",
                 div { display: "flex", flex_direction: "column", gap: "5px",
@@ -66,18 +57,17 @@ pub fn render<'a>(
                         }
                         p { font_weight: "bold",
                             "Time "
-                            span { font_weight: "normal", "{lobby.elapsed_time.round()}s" }
+                            span { font_weight: "normal", "{elapsed_time}s" }
                         }
                         div { display: "flex", gap: "5px",
-                            if lobby.key_player == *player_name && !lobby.started {
+                            if is_keyplayer && !started {
                                 rsx! { button { onclick: move |_| {
                                     let _result = start_lobby(lobby_id, player_name);
                                 }, "Start" } }
                             }
                             button {
                                 onclick: move |_| {
-                                    is_connected.set(false);
-                                    let _result = disconnect_player(lobby_id, player_name);
+                                    on_disconnect.call(());
                                 },
                                 "Disconnect"
                             }
@@ -90,7 +80,7 @@ pub fn render<'a>(
                         Leaderboard {
                             player_name: player_name.to_owned(),
                             lobby_id: lobby_id.to_owned(),
-                            players: lobby.players.values().map(Player::reduce).collect(),
+                            players: players.clone(),
                             is_keyplayer: is_keyplayer
                         }
                     }
@@ -99,17 +89,30 @@ pub fn render<'a>(
                     div {
                         // Management
                         class: "background-box",
-                        if lobby.started {
-                            management_display::render(cx, player_name, lobby_id, lobby, alert_popup)
+                        if *started {
+                            rsx! {
+                                Management {
+                                    player_name: player_name.to_owned(),
+                                    lobby_id: lobby_id.to_owned(),
+                                    key_player: key_player.to_owned(),
+                                    settings: *settings,
+                                    players: players.clone(),
+                                    items: items.clone(),
+                                    quizmaster_queue: quizmaster_queue.clone(),
+                                    on_alert_popup: move |message: String| {
+                                        on_alert_popup.call(message);
+                                    },
+                                }
+                            }
                         } else {
-                            cx.render(rsx! { div { align_self: "center", font_size: "larger", "Waiting for game to start" } })
+                            rsx! { div { align_self: "center", font_size: "larger", "Waiting for game to start" } }
                         }
                     }
-                    if alert_popup.get().shown {
+                    if !alert_popup_message.is_empty() {
                         rsx! {
                             div {
                                 class: "background-box alert",
-                                "{alert_popup.get().message}"
+                                "{alert_popup_message}"
                             }
                         }
                     }
@@ -122,10 +125,10 @@ pub fn render<'a>(
                     QuestionQueueDisplay {
                         player_name: player_name.to_owned(),
                         lobby_id: lobby_id.to_owned(),
-                        questions_queue: lobby.questions_queue.clone(),
-                        questions_queue_active: lobby.questions_queue_active(),
-                        questions_queue_countdown: lobby.questions_queue_countdown.round() as usize,
-                        settings: lobby.settings,
+                        questions_queue: questions_queue.clone(),
+                        questions_queue_active: *questions_queue_active,
+                        questions_queue_countdown: *questions_queue_countdown,
+                        settings: *settings,
                         is_quizmaster: is_quizmaster
                     }
                 }
@@ -137,7 +140,7 @@ pub fn render<'a>(
                     overflow_y: "auto",
                     div { class: "table-header-box", "Chat" }
                     div { flex: "1", display: "flex", flex_direction: "column", gap: "3px", overflow_y: "auto",
-                        lobby.chat_messages.iter().rev().map(|message| {
+                        chat_messages.iter().rev().map(|message| {
                             rsx! {
                                 div { class: "table-body-box", "{message.player}: {message.message}" }
                             }

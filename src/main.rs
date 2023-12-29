@@ -1,5 +1,5 @@
 #![warn(clippy::nursery, clippy::pedantic)]
-#![allow(clippy::too_many_lines)]
+#![allow(clippy::too_many_lines, clippy::derive_partial_eq_without_eq)]
 use crate::frontend::app;
 use axum::{extract::ws::WebSocketUpgrade, response::Html, routing::get, Router};
 use std::{env, net::SocketAddr, time::Duration};

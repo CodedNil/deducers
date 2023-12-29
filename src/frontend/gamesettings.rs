@@ -6,18 +6,8 @@ use dioxus::prelude::*;
 use std::{collections::HashMap, rc::Rc};
 use strum::IntoEnumIterator;
 
-#[derive(Props, PartialEq, Eq)]
-pub struct Props {
-    pub player_name: String,
-    pub lobby_id: String,
-    pub settings: LobbySettings,
-    pub items_queue: Vec<String>,
-}
-
-#[allow(non_snake_case)]
-pub fn GameSettings(cx: Scope<Props>) -> Element {
-    let (player_name, lobby_id) = (cx.props.player_name.clone(), cx.props.lobby_id.clone());
-    let settings = cx.props.settings;
+#[component]
+pub fn GameSettings(cx: Scope, player_name: String, lobby_id: String, settings: LobbySettings, items_queue: Vec<String>) -> Element {
     let advanced_settings_toggle = use_state(cx, || false);
     let player_controlled = settings.player_controlled;
     let game_time = calculate_game_time(
@@ -28,7 +18,7 @@ pub fn GameSettings(cx: Scope<Props>) -> Element {
 
     let alter_setting = {
         move |setting: AlterLobbySetting| {
-            let _result = alter_lobby_settings(&lobby_id, &player_name, setting);
+            let _result = alter_lobby_settings(lobby_id, player_name, setting);
         }
     };
 
@@ -37,7 +27,7 @@ pub fn GameSettings(cx: Scope<Props>) -> Element {
             label { font_weight: "bold", font_size: "larger", "Lobby Settings" }
             label { font_size: "large", "Estimated game length {game_time}" }
             div { display: "flex", flex_direction: "column", gap: "5px",
-                standard_settings(settings, alter_setting.clone()),
+                standard_settings(*settings, alter_setting),
                 div { class: "dark-box",
                     label {
                         "Host as Quizmaster: "
@@ -52,7 +42,7 @@ pub fn GameSettings(cx: Scope<Props>) -> Element {
                         }
                     }
                     if player_controlled {
-                        item_settings(cx.props.items_queue.clone(), alter_setting.clone())
+                        item_settings(items_queue.clone(), alter_setting)
                     }
                 }
                 div { class: "dark-box",
@@ -67,7 +57,7 @@ pub fn GameSettings(cx: Scope<Props>) -> Element {
                         }
                     }
                     if *advanced_settings_toggle.get() {
-                        advanced_settings(settings, alter_setting.clone())
+                        advanced_settings(*settings, alter_setting)
                     }
                 }
             }

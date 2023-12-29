@@ -9,18 +9,10 @@ struct TempQuestion {
     masked: bool,
 }
 
-#[derive(Props, PartialEq, Eq)]
-pub struct Props {
-    pub player_name: String,
-    pub is_quizmaster: bool,
-    pub items: Vec<Item>,
-}
-
-#[allow(non_snake_case)]
-pub fn ItemDisplay(cx: Scope<Props>) -> Element {
-    let items = cx.props.items.clone();
+#[component]
+pub fn ItemDisplay(cx: Scope, player_name: String, is_quizmaster: bool, items: Vec<Item>) -> Element {
     let mut active_questions = vec![];
-    for item in &items {
+    for item in items {
         for question in &item.questions {
             let question_string = if question.masked {
                 let question_player_name = items
@@ -30,7 +22,7 @@ pub fn ItemDisplay(cx: Scope<Props>) -> Element {
                     .map(|item_question| item_question.player.clone())
                     .unwrap_or_default();
 
-                if question_player_name == cx.props.player_name {
+                if &question_player_name == player_name {
                     question.text.clone()
                 } else {
                     format!("MASKED - {question_player_name}")
@@ -54,7 +46,7 @@ pub fn ItemDisplay(cx: Scope<Props>) -> Element {
         div { class: "table-row",
             div { class: "table-header-box", flex: "1", "Question" }
             items.iter().map(|item| {
-                let (content, width) = if cx.props.is_quizmaster { (item.name.clone(), "unset") } else { (item.id.to_string(), "20px") };
+                let (content, width) = if *is_quizmaster { (item.name.clone(), "unset") } else { (item.id.to_string(), "20px") };
                 rsx! {
                     div { class: "table-header-box", width: width, flex: "unset", text_align: "center", content }
                 }

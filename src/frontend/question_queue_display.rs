@@ -1,22 +1,18 @@
 use crate::backend::{question_queue::vote_question, LobbySettings, QueuedQuestion};
 use dioxus::prelude::*;
 
-#[derive(Props, PartialEq, Eq)]
-pub struct Props {
-    pub player_name: String,
-    pub lobby_id: String,
-    pub is_quizmaster: bool,
-    pub questions_queue: Vec<QueuedQuestion>,
-    pub questions_queue_active: bool,
-    pub questions_queue_countdown: usize,
-    pub settings: LobbySettings,
-}
-
-#[allow(non_snake_case)]
-pub fn QuestionQueueDisplay(cx: Scope<Props>) -> Element {
-    let (player_name, lobby_id) = (cx.props.player_name.clone(), cx.props.lobby_id.clone());
-    let settings = cx.props.settings;
-    let questions_queue = cx.props.questions_queue.clone();
+#[component]
+pub fn QuestionQueueDisplay(
+    cx: Scope,
+    player_name: String,
+    lobby_id: String,
+    is_quizmaster: bool,
+    questions_queue: Vec<QueuedQuestion>,
+    questions_queue_active: bool,
+    questions_queue_countdown: usize,
+    settings: LobbySettings,
+) -> Element {
+    let questions_queue = questions_queue.clone();
     let mut sorted_questions = questions_queue;
     sorted_questions.sort_by(|a, b| {
         if a.votes == b.votes {
@@ -28,8 +24,8 @@ pub fn QuestionQueueDisplay(cx: Scope<Props>) -> Element {
 
     cx.render(rsx! {
         div { align_self: "center",
-            if cx.props.questions_queue_active {
-                format!("Top Question Submitted in {} Seconds", cx.props.questions_queue_countdown)
+            if *questions_queue_active {
+                format!("Top Question Submitted in {questions_queue_countdown} Seconds")
             } else {
                 format!("Top Question Submitted After {} Votes", settings.question_min_votes)
             }
@@ -57,7 +53,7 @@ pub fn QuestionQueueDisplay(cx: Scope<Props>) -> Element {
                         class: "{row_class}",
                         flex: "1",
                         "{question.votes}",
-                        if !cx.props.is_quizmaster {
+                        if !is_quizmaster {
                             rsx! { button {
                                 onclick: move |_| {
                                     let _result = vote_question(&lobby_id, &player_name, &question_string);

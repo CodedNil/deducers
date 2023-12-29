@@ -5,16 +5,13 @@ use crate::backend::{
 use dioxus::prelude::*;
 use strum::{EnumProperty, IntoEnumIterator};
 
-#[derive(Props, PartialEq, Eq)]
-pub struct Props<'a> {
-    pub player_name: &'a str,
-    pub lobby_id: &'a str,
-    pub quizmaster_queue: Vec<QueuedQuestionQuizmaster>,
-}
-
-#[allow(non_snake_case, clippy::module_name_repetitions)]
-pub fn QuizmasterDisplay<'a>(cx: Scope<'a, Props>) -> Element<'a> {
-    let (player_name, lobby_id) = (cx.props.player_name, cx.props.lobby_id);
+#[component]
+pub fn QuizmasterDisplay<'a>(
+    cx: Scope,
+    player_name: &'a str,
+    lobby_id: &'a str,
+    quizmaster_queue: Vec<QueuedQuestionQuizmaster>,
+) -> Element<'a> {
     cx.render(rsx! {
         div { class: "table-row",
             rsx! {
@@ -22,7 +19,7 @@ pub fn QuizmasterDisplay<'a>(cx: Scope<'a, Props>) -> Element<'a> {
                 div { class: "table-header-box", flex: "3", "Question" }
             }
         }
-        cx.props.quizmaster_queue.iter().map(|question| {
+        quizmaster_queue.iter().map(|question| {
             let question_string1 = question.question.clone();
             let question_string2 = question.question.clone();
             rsx! {

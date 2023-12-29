@@ -127,6 +127,7 @@ pub enum PlayerMessage {
     ItemAdded,
     QuestionAsked,
     QuestionRejected(String),
+    SubmitQuestionRejected(String),
     GameStart,
     CoinGiven,
     ItemGuessed(String, usize, String),

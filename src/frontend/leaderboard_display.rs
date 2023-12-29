@@ -1,18 +1,9 @@
 use crate::backend::{kick_player, PlayerReduced};
 use dioxus::prelude::*;
 
-#[derive(Props, PartialEq, Eq)]
-pub struct Props {
-    pub player_name: String,
-    pub lobby_id: String,
-    pub players: Vec<PlayerReduced>,
-    pub is_keyplayer: bool,
-}
-
-#[allow(non_snake_case)]
-pub fn Leaderboard(cx: Scope<Props>) -> Element {
-    let (player_name, lobby_id) = (cx.props.player_name.clone(), cx.props.lobby_id.clone());
-    let mut sorted_players = cx.props.players.clone();
+#[component]
+pub fn Leaderboard(cx: Scope, player_name: String, lobby_id: String, players: Vec<PlayerReduced>, is_keyplayer: bool) -> Element {
+    let mut sorted_players = players.clone();
     sorted_players.sort_by(|a, b| {
         if a.score == b.score {
             a.name.cmp(&b.name)
@@ -39,7 +30,7 @@ pub fn Leaderboard(cx: Scope<Props>) -> Element {
                 "table-body-box"
             };
             let row_player = player.name.clone();
-            let can_kick = cx.props.is_keyplayer && player.name != *player_name;
+            let can_kick = *is_keyplayer && player.name != *player_name;
             let lobby_id = lobby_id.clone();
             rsx! {
                 div { class: "table-row",
