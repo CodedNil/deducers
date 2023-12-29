@@ -1,4 +1,4 @@
-use crate::lobby_utils::Lobby;
+use crate::backend::Lobby;
 use dioxus::prelude::*;
 use strum::EnumProperty;
 

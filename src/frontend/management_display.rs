@@ -1,10 +1,10 @@
-use super::{connection::AlertPopup, quizmaster};
 use crate::{
     backend::{
         items::player_guess_item,
         question_queue::{convert_score, submit_question},
+        Lobby,
     },
-    lobby_utils::Lobby,
+    frontend::{quizmaster, AlertPopup},
     ITEM_NAME_PATTERN, MAX_ITEM_NAME_LENGTH, MAX_QUESTION_LENGTH, QUESTION_PATTERN,
 };
 use dioxus::prelude::*;

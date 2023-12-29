@@ -20,6 +20,11 @@ use std::{
 use strum::IntoEnumIterator;
 use strum_macros::{Display, EnumIter, EnumProperty, EnumString};
 
+pub mod items;
+pub mod openai;
+pub mod parse_words;
+pub mod question_queue;
+
 #[derive(Clone, Debug, Default)]
 pub struct Lobby {
     pub id: String,
@@ -344,6 +349,7 @@ pub fn create_lobby(lobby_id: &str, player_name: &str) -> Result<()> {
     Ok(())
 }
 
+#[allow(clippy::cast_sign_loss, clippy::cast_precision_loss, clippy::cast_possible_truncation)]
 pub fn connect_player(lobby_id: &str, player_name: &str) -> Result<()> {
     let lobby_id = lobby_id.trim();
     let player_name = player_name.trim();
@@ -371,9 +377,17 @@ pub fn connect_player(lobby_id: &str, player_name: &str) -> Result<()> {
             return Err(anyhow!("Player '{player_name}' is already connected to lobby '{lobby_id}'"));
         }
 
+        // If lobby is started already, give starting coins plus coins for game time
+        let coins = if lobby.started {
+            lobby.settings.starting_coins + (lobby.elapsed_time / lobby.settings.coin_every_x_seconds as f64).floor() as usize
+        } else {
+            0
+        };
+
         lobby.players.entry(player_name.to_owned()).or_insert(Player {
             name: player_name.to_owned(),
             last_contact: get_current_time(),
+            coins,
             ..Default::default()
         });
 

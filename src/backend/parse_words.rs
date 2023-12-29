@@ -1,4 +1,4 @@
-use crate::lobby_utils::Difficulty;
+use crate::backend::Difficulty;
 use once_cell::sync::Lazy;
 use rand::seq::SliceRandom;
 use std::collections::HashSet;

@@ -1,6 +1,6 @@
 use crate::{
     backend::openai::query_ai,
-    lobby_utils::{with_lobby, with_lobby_mut, with_player, with_player_mut, QueuedQuestion},
+    backend::{with_lobby, with_lobby_mut, with_player, with_player_mut, QueuedQuestion},
     MAX_QUESTION_LENGTH,
 };
 use anyhow::{bail, Result};

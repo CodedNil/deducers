@@ -1,14 +1,13 @@
 #![warn(clippy::nursery, clippy::pedantic)]
 #![allow(clippy::too_many_lines)]
-use crate::ui::connection::app;
+use crate::frontend::app;
 use axum::{extract::ws::WebSocketUpgrade, response::Html, routing::get, Router};
 use std::{env, net::SocketAddr, time::Duration};
 use tokio::time::sleep;
 use tower_http::services::ServeDir;
 
 mod backend;
-mod lobby_utils;
-mod ui;
+mod frontend;
 
 pub const SERVER_PORT: u16 = 3013;
 
@@ -82,7 +81,7 @@ async fn main() {
 
     tokio::spawn(async move {
         loop {
-            lobby_utils::lobby_loop();
+            backend::lobby_loop();
             sleep(Duration::from_millis(500)).await;
         }
     });

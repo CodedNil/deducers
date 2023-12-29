@@ -1,5 +1,5 @@
 use crate::{
-    lobby_utils::{alter_lobby_settings, AlterLobbySetting, Difficulty, Lobby},
+    backend::{alter_lobby_settings, AlterLobbySetting, Difficulty, Lobby},
     ITEM_NAME_PATTERN, MAX_ITEM_NAME_LENGTH, MAX_LOBBY_ITEMS,
 };
 use dioxus::prelude::*;

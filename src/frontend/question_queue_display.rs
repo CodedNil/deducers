@@ -1,4 +1,4 @@
-use crate::{backend::question_queue::vote_question, lobby_utils::Lobby};
+use crate::backend::{question_queue::vote_question, Lobby};
 use dioxus::prelude::*;
 
 pub fn render<'a>(cx: Scope<'a>, player_name: &'a str, lobby_id: &'a str, lobby: &Lobby) -> Element<'a> {

@@ -1,7 +1,6 @@
-use super::connection::AlertPopup;
 use crate::{
-    lobby_utils::{add_chat_message, disconnect_player, start_lobby, Lobby},
-    ui::{items_display, leaderboard_display, management_display, question_queue_display},
+    backend::{add_chat_message, disconnect_player, start_lobby, Lobby},
+    frontend::{items_display, leaderboard_display, management_display, question_queue_display, AlertPopup},
     MAX_CHAT_LENGTH,
 };
 use dioxus::prelude::*;
@@ -58,10 +57,13 @@ pub fn render<'a>(
                                     lobby_settings_open.set(!lobby_settings_open.get());
                                 }, "Settings" } }
                             }
-                            button { onclick: move |_| {
-                                is_connected.set(false);
-                                let _result = disconnect_player(lobby_id, player_name);
-                            }, "Disconnect" }
+                            button {
+                                onclick: move |_| {
+                                    is_connected.set(false);
+                                    let _result = disconnect_player(lobby_id, player_name);
+                                },
+                                "Disconnect"
+                            }
                         }
                     }
 

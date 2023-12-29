@@ -1,8 +1,6 @@
 use crate::{
     backend::openai::query_ai,
-    lobby_utils::{
-        with_lobby_mut, with_player_mut, Answer, Item, Lobby, PlayerMessage, Question, QueuedQuestionQuizmaster, QuizmasterItem,
-    },
+    backend::{with_lobby_mut, with_player_mut, Answer, Item, Lobby, PlayerMessage, Question, QueuedQuestionQuizmaster, QuizmasterItem},
 };
 use anyhow::{bail, Result};
 use futures::future::join_all;

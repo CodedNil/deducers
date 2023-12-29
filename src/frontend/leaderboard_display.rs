@@ -1,4 +1,4 @@
-use crate::lobby_utils::{kick_player, Lobby, Player};
+use crate::backend::{kick_player, Lobby, Player};
 use dioxus::prelude::*;
 
 pub fn render<'a>(cx: Scope<'a>, player_name: &'a str, lobby_id: &'a str, lobby: &Lobby) -> Element<'a> {

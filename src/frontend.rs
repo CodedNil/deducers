@@ -1,6 +1,5 @@
 use crate::{
-    lobby_utils::{connect_player, get_current_time, get_lobby_info, get_state, Lobby, PlayerMessage},
-    ui::{gamesettings, gameview},
+    backend::{connect_player, get_current_time, get_lobby_info, get_state, Lobby, PlayerMessage},
     LOBBY_ID_PATTERN, MAX_LOBBY_ID_LENGTH, MAX_PLAYER_NAME_LENGTH, PLAYER_NAME_PATTERN,
 };
 use dioxus::prelude::*;
@@ -10,6 +9,14 @@ use std::{
 };
 use strum_macros::Display;
 use tokio::time::sleep;
+
+mod gamesettings;
+mod gameview;
+mod items_display;
+mod leaderboard_display;
+mod management_display;
+mod question_queue_display;
+mod quizmaster;
 
 #[derive(Default)]
 struct ItemRevealMessage {
