@@ -164,7 +164,7 @@ impl Player {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct ChatMessage {
     pub player: String,
     pub message: String,

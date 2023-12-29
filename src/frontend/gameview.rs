@@ -1,5 +1,5 @@
 use crate::{
-    backend::{add_chat_message, disconnect_player, start_lobby, Lobby, Player},
+    backend::{add_chat_message, disconnect_player, start_lobby, ChatMessage, Lobby, LobbySettings, Player, PlayerReduced, QueuedQuestion},
     frontend::{
         items_display::ItemDisplay, leaderboard_display::Leaderboard, management_display, question_queue_display::QuestionQueueDisplay,
         AlertPopup,
@@ -7,6 +7,23 @@ use crate::{
     MAX_CHAT_LENGTH,
 };
 use dioxus::prelude::*;
+
+#[derive(Props, PartialEq, Eq)]
+pub struct Props {
+    pub player_name: String,
+    pub lobby_id: String,
+    pub is_quizmaster: bool,
+    pub key_player: String,
+    pub started: bool,
+
+    pub settings: LobbySettings,
+    pub questions_queue: Vec<QueuedQuestion>,
+    pub questions_queue_active: bool,
+    pub questions_queue_countdown: usize,
+    pub players: Vec<PlayerReduced>,
+    pub items: Vec<String>,
+    pub chat_messages: Vec<ChatMessage>,
+}
 
 #[allow(clippy::cast_possible_wrap, clippy::cast_possible_truncation, clippy::cast_sign_loss)]
 pub fn render<'a>(
@@ -17,7 +34,6 @@ pub fn render<'a>(
     is_connected: &'a UseState<bool>,
     alert_popup: &'a UseState<AlertPopup>,
 ) -> Element<'a> {
-    let chat_submission: &UseState<String> = use_state(cx, String::new);
     let is_keyplayer = player_name == lobby.key_player;
     let is_quizmaster = player_name == lobby.key_player && lobby.settings.player_controlled;
 
@@ -31,7 +47,7 @@ pub fn render<'a>(
                 ItemDisplay {
                     player_name: player_name.to_owned(),
                     is_quizmaster: is_quizmaster,
-                    items: lobby.items.clone()
+                    items: lobby.items.clone(),
                 }
             }
             div { flex: "1", display: "flex", flex_direction: "column", gap: "20px",
@@ -130,17 +146,19 @@ pub fn render<'a>(
                     form {
                         display: "flex",
                         gap: "5px",
-                        onsubmit: move |_| {
-                            let _result = add_chat_message(lobby_id, player_name, chat_submission);
+                        onsubmit: move |form_data| {
+                            if let Some(messages) = form_data.values.get("message") {
+                                if let Some(message) = messages.first() {
+                                    let _result = add_chat_message(lobby_id, player_name, message);
+                                }
+                            }
                         },
                         input {
                             placeholder: "Message",
+                            name: "message",
                             maxlength: MAX_CHAT_LENGTH as i64,
                             flex: "1",
                             "data-clear-on-submit": "true",
-                            oninput: move |e| {
-                                chat_submission.set(e.value.clone());
-                            }
                         }
                         button { r#type: "submit", "Send" }
                     }

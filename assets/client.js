@@ -29,11 +29,13 @@ document.addEventListener(
     "submit",
     (event) => {
         if (event.target.tagName === "FORM") {
-            event.target.querySelectorAll('[data-clear-on-submit="true"]').forEach((element) => {
-                if (element.tagName === "INPUT") {
-                    element.value = "";
-                }
-            });
+            setTimeout(() => {
+                event.target.querySelectorAll('[data-clear-on-submit="true"]').forEach((element) => {
+                    if (element.tagName === "INPUT") {
+                        element.value = "";
+                    }
+                });
+            }, 50);
         }
     },
     true

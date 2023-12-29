@@ -18,14 +18,14 @@ pub struct Props {
 pub fn GameSettings(cx: Scope<Props>) -> Element {
     let (player_name, lobby_id) = (cx.props.player_name.clone(), cx.props.lobby_id.clone());
     let settings = cx.props.settings;
-    let advanced_settings_toggle: &UseState<bool> = use_state(cx, || false);
+    let advanced_settings_toggle = use_state(cx, || false);
     let player_controlled = settings.player_controlled;
     let game_time = calculate_game_time(
         settings.item_count,
         settings.submit_question_every_x_seconds,
         settings.add_item_every_x_questions,
     );
-    let add_item_submission: &UseState<String> = use_state(cx, String::new);
+    let add_item_submission = use_state(cx, String::new);
 
     let alter_setting = {
         move |setting: AlterLobbySetting| {
