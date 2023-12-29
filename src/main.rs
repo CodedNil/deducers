@@ -1,26 +1,5 @@
-#![warn(clippy::nursery, clippy::pedantic, clippy::absolute_paths, clippy::use_debug)]
-// clippy::restriction
-#![allow(
-    clippy::too_many_lines,
-    clippy::missing_docs_in_private_items,
-    clippy::implicit_return,
-    clippy::print_stdout,
-    clippy::std_instead_of_core,
-    clippy::unwrap_used,
-    clippy::else_if_without_else,
-    clippy::expect_used,
-    clippy::arithmetic_side_effects,
-    clippy::single_call_fn,
-    clippy::float_arithmetic,
-    clippy::std_instead_of_alloc,
-    clippy::min_ident_chars,
-    clippy::question_mark_used,
-    clippy::single_char_lifetime_names,
-    clippy::shadow_reuse,
-    clippy::shadow_unrelated,
-    clippy::default_numeric_fallback
-)]
-// single_call_fn shadow_reuse shadow_unrelated
+#![warn(clippy::nursery, clippy::pedantic)]
+#![allow(clippy::too_many_lines)]
 use crate::ui::connection::app;
 use axum::{extract::ws::WebSocketUpgrade, response::Html, routing::get, Router};
 use std::{env, net::SocketAddr, time::Duration};

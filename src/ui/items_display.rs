@@ -59,7 +59,7 @@ pub fn render<'a>(cx: Scope<'a>, player_name: &str, lobby: &Lobby) -> Element<'a
             let (question_id, question_string) = if is_blank {
                 (question_index + 1, String::new())
             } else {
-                let question = active_questions.get(question_index).unwrap();
+                let question = &active_questions[question_index];
                 (question.id, question.question.clone())
             };
             rsx! {
@@ -76,7 +76,7 @@ pub fn render<'a>(cx: Scope<'a>, player_name: &str, lobby: &Lobby) -> Element<'a
                             .find(|&answer_question| answer_question.id == question_id)
                             .map(|answer_question| answer_question.answer) };
                         let box_fill = if answer.is_none() { "⭐" } else { "" };
-                        let answer_color = answer.map_or("rgb(60, 60, 80)".to_string(), |answer| answer.get_str("color").unwrap().to_string());
+                        let answer_color = answer.map_or("rgb(60, 60, 80)".to_owned(), |answer| answer.get_str("color").unwrap().to_owned());
                         rsx! {
                             div { class: "table-body-box", width: "20px", text_align: "center", background_color: "{answer_color}", box_fill }
                         }

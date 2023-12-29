@@ -98,7 +98,7 @@ pub async fn query_ai(prompt: &String, max_tokens: usize, temperature: f32) -> R
         .header("Content-Type", "application/json")
         .header("Authorization", &format!("Bearer {api_key}"))
         .timeout(Duration::from_secs(10))
-        .body(body_str.to_string())
+        .body(body_str)
         .send()
         .await
         .context("Failed to make the HTTP request")?

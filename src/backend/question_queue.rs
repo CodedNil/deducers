@@ -49,7 +49,7 @@ pub async fn submit_question(lobby_id: &str, player_name: &str, question: String
 
     // Add question mark if missing, and capitalise first letter
     let question = {
-        let mut question = question.trim().to_string();
+        let mut question = question.trim().to_owned();
         if !question.ends_with('?') {
             question.push('?');
         }
@@ -73,7 +73,7 @@ pub async fn submit_question(lobby_id: &str, player_name: &str, question: String
         }
         player.coins -= total_cost;
         lobby.questions_queue.push(QueuedQuestion {
-            player: player_name.to_string(),
+            player: player_name.to_owned(),
             question,
             votes: 0,
             voters: Vec::new(),
@@ -103,7 +103,7 @@ async fn validate_question(question: &str, use_ai: bool) -> ValidateQuestionResp
     if !suitable {
         return ValidateQuestionResponse {
             suitable,
-            reasoning: reasoning.to_string(),
+            reasoning: reasoning.to_owned(),
         };
     }
 
@@ -128,7 +128,7 @@ async fn validate_question(question: &str, use_ai: bool) -> ValidateQuestionResp
 
     ValidateQuestionResponse {
         suitable: false,
-        reasoning: "Failed to validate question".to_string(),
+        reasoning: "Failed to validate question".to_owned(),
     }
 }
 
@@ -156,7 +156,7 @@ pub fn vote_question(lobby_id: &str, player_name: &str, question: &String) -> Re
             // Deduct coins and increment vote count
             player.coins -= 1;
             queued_question.votes += 1;
-            queued_question.voters.push(player_name.to_string());
+            queued_question.voters.push(player_name.to_owned());
             return Ok(());
         }
         Err(anyhow::anyhow!("Question not found in queue"))

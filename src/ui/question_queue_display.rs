@@ -30,7 +30,7 @@ pub fn render<'a>(cx: Scope<'a>, player_name: &'a str, lobby_id: &'a str, lobby:
             let row_class = format!("table-body-box{}", if question.player == *player_name { " self" } else { "" });
             let question_string = question.question.clone();
             let question_text = if question.masked && question.player != *player_name {
-                "MASKED".to_string()
+                "MASKED".to_owned()
             } else {
                 question.question.clone()
             };

@@ -28,7 +28,7 @@ pub fn render<'a>(
         } else {
             0
         };
-    let players_coins = lobby.players.get(player_name).unwrap().coins;
+    let players_coins = lobby.players[player_name].coins;
 
     if !lobby.started {
         return cx.render(rsx! { div { align_self: "center", font_size: "larger", "Waiting for game to start" } });
@@ -44,7 +44,7 @@ pub fn render<'a>(
             display: "flex",
             gap: "5px",
             onsubmit: move |_| {
-                let (lobby_id, player_name) = (lobby_id.to_string(), player_name.to_string());
+                let (lobby_id, player_name) = (lobby_id.to_owned(), player_name.to_owned());
                 let input = question_submission.get().clone();
                 let masked = question_masked.clone();
                 let alert_popup = alert_popup.clone();

@@ -5,7 +5,7 @@ use crate::{
 };
 use dioxus::prelude::*;
 use std::{
-    sync::{Arc, Mutex},
+    sync::{atomic, Arc},
     time::Duration,
 };
 use strum_macros::Display;
@@ -58,7 +58,7 @@ struct SoundsQueue {
 #[derive(Default)]
 pub struct AlertPopup {
     pub shown: bool,
-    expiry: f64,
+    pub expiry: f64,
     pub message: String,
 }
 
@@ -221,16 +221,13 @@ pub fn app(cx: Scope) -> Element {
     };
 
     // Get lobby state every x seconds if connected or lobby info if not connected
-    let cancel_signal = use_state(cx, || Arc::new(Mutex::new(false)));
+    let cancel_signal = use_state(cx, || Arc::new(atomic::AtomicBool::new(false)));
     use_effect(cx, is_connected, |is_connected| {
-        let cancel_signal = cancel_signal.clone();
-
         // Set the cancellation signal for the previous loop
-        let mut cancel = cancel_signal.get().lock().unwrap();
-        *cancel = true;
-        drop(cancel);
-        let new_cancel_signal = Arc::new(Mutex::new(false));
-        cancel_signal.set(new_cancel_signal.clone());
+        let cancel_signal = cancel_signal.clone();
+        cancel_signal.store(true, atomic::Ordering::SeqCst);
+        let new_cancel_signal = Arc::new(atomic::AtomicBool::new(false));
+        cancel_signal.set(Arc::<atomic::AtomicBool>::clone(&new_cancel_signal));
 
         let lobby_state = lobby_state.clone();
         let lobby_info = lobby_info.clone();
@@ -242,7 +239,7 @@ pub fn app(cx: Scope) -> Element {
         let alert_popup = alert_popup.clone();
         async move {
             loop {
-                if *new_cancel_signal.lock().unwrap() {
+                if new_cancel_signal.load(atomic::Ordering::SeqCst) {
                     break;
                 }
 

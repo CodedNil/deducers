@@ -349,7 +349,7 @@ pub fn player_guess_item(lobby_id: &str, player_name: &str, item_choice: usize, 
             for player_n in lobby.players.values_mut() {
                 player_n
                     .messages
-                    .push(PlayerMessage::ItemGuessed(player_name.to_string(), item_id, item_name.clone()));
+                    .push(PlayerMessage::ItemGuessed(player_name.to_owned(), item_id, item_name.clone()));
             }
 
             // If lobby items is empty but theres still items in the item_queue, add another item

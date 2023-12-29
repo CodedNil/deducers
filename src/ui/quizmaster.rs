@@ -45,7 +45,7 @@ pub fn render<'a>(cx: Scope<'a>, player_name: &'a str, lobby_id: &'a str, lobby:
                         question.items.iter().map(|item| {
                             let item = item.clone();
                             let question_string = question_string1.clone();
-                            let answer_color = item.answer.get_str("color").unwrap().to_string();
+                            let answer_color = item.answer.get_str("color").unwrap().to_owned();
                             rsx! {
                                 button {
                                     class: "table-body-box",
@@ -65,7 +65,7 @@ pub fn render<'a>(cx: Scope<'a>, player_name: &'a str, lobby_id: &'a str, lobby:
                                         width: "100%",
                                         Answer::iter().map(|answer| {
                                             let question_string = question_string.clone();
-                                            let answer_color = answer.get_str("color").unwrap().to_string();
+                                            let answer_color = answer.get_str("color").unwrap().to_owned();
                                             rsx! {
                                                 button {
                                                     class: "table-body-box smallanswerbutton",

@@ -30,8 +30,8 @@ pub fn render<'a>(
 
     let alter_setting = {
         move |setting: AlterLobbySetting| {
-            let lobby_id = lobby_id.to_string();
-            let player_name = player_name.to_string();
+            let lobby_id = lobby_id.to_owned();
+            let player_name = player_name.to_owned();
             let _result = alter_lobby_settings(&lobby_id, &player_name, setting);
         }
     };
@@ -123,12 +123,12 @@ fn standard_settings<'a>(cx: Scope<'a>, lobby: &Lobby, alter_setting: impl Fn(Al
         div { display: "flex", gap: "5px",
             "Difficulty:"
             Difficulty::iter().map(|variant| {
-                let alter_setting = alter_setting.clone();
+                let alter_setting = Rc::clone(&alter_setting);
                 rsx! {
                     button {
                         class: if lobby.settings.difficulty == variant { "highlighted" } else { "" },
                         onclick: {
-                            let alter_setting = alter_setting.clone();
+                            let alter_setting = Rc::clone(&alter_setting);
                             move |_| {
                                 alter_setting(AlterLobbySetting::Difficulty(variant));
                             }
@@ -178,7 +178,7 @@ fn item_settings<'a>(
                     padding_top: "0px",
                     background_color: "rgb(20, 100, 150)",
                     onclick: {
-                        let alter_setting = alter_setting.clone();
+                        let alter_setting = Rc::clone(&alter_setting);
                         move |_| {
                             alter_setting(AlterLobbySetting::RefreshAllItems);
                         }
@@ -188,7 +188,7 @@ fn item_settings<'a>(
             }
             server_items.into_iter().map(|item| {
                 let item1 = item.clone();
-                let alter_setting = alter_setting.clone();
+                let alter_setting = Rc::clone(&alter_setting);
                 rsx! {
                     div { display: "flex", flex_direction: "row", gap: "5px",
                         class: "table-body-box",
@@ -198,7 +198,7 @@ fn item_settings<'a>(
                             padding_top: "0px",
                             background_color: "rgb(20, 100, 150)",
                             onclick: {
-                                let alter_setting = alter_setting.clone();
+                                let alter_setting = Rc::clone(&alter_setting);
                                 move |_| {
                                     alter_setting(AlterLobbySetting::RefreshItem(item.clone()));
                                 }
@@ -209,7 +209,7 @@ fn item_settings<'a>(
                             class: "smallbutton",
                             background_color: "rgb(100, 20, 20)",
                             onclick: {
-                                let alter_setting = alter_setting.clone();
+                                let alter_setting = Rc::clone(&alter_setting);
                                 move |_| {
                                     alter_setting(AlterLobbySetting::RemoveItem(item1.clone()));
                                 }
@@ -223,7 +223,7 @@ fn item_settings<'a>(
                 display: "flex",
                 gap: "5px",
                 onsubmit: {
-                    let alter_setting = alter_setting.clone();
+                    let alter_setting = Rc::clone(&alter_setting);
                     let submission = add_item_submission1.get().clone();
                     move |_| {
                         alter_setting(AlterLobbySetting::AddItem(submission.clone()));
@@ -255,7 +255,7 @@ struct SettingDetail {
 impl SettingDetail {
     fn new(key: &str, min: usize, max: usize) -> Self {
         Self {
-            key: key.to_string(),
+            key: key.to_owned(),
             display_name: key
                 .split('_')
                 .map(|word| word.chars().next().unwrap().to_uppercase().to_string() + &word.chars().skip(1).collect::<String>())
@@ -298,7 +298,7 @@ fn advanced_settings<'a>(cx: Scope<'a>, lobby: &'a Lobby, alter_setting: impl Fn
 
     cx.render(rsx! {
         settings.into_iter().map(|setting| {
-            let alter_setting = alter_setting.clone();
+            let alter_setting = Rc::clone(&alter_setting);
             setting_values.get(setting.key.as_str()).map_or_else(|| rsx! { div {} }, |&setting_value|
                 rsx! {
                     label {
