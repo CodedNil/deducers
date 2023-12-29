@@ -71,7 +71,10 @@ pub fn QuizmasterDisplay<'a>(
                                             let answer_color = answer.get_str("color").unwrap().to_owned();
                                             rsx! {
                                                 button {
-                                                    class: "table-body-box smallanswerbutton",
+                                                    class: "table-body-box",
+                                                    padding: "8px",
+                                                    flex: "1",
+                                                    border: "1px solid white",
                                                     background_color: "{answer_color}",
                                                     onclick: move |_| {
                                                         quizmaster_change_answer(lobby_id, player_name, &question_string, item.id, answer);

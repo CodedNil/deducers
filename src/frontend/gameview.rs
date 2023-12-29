@@ -52,11 +52,11 @@ pub fn GameView(
                         justify_content: "space-between",
                         align_items: "center",
 
-                        p { font_weight: "bold",
+                        div { font_weight: "bold",
                             "Lobby "
                             span { font_weight: "normal", "{lobby_id}" }
                         }
-                        p { font_weight: "bold",
+                        div { font_weight: "bold",
                             "Time "
                             span { font_weight: "normal", "{elapsed_time}s" }
                         }
@@ -109,7 +109,8 @@ pub fn GameView(
                     if !alert_popup_message.is_empty() {
                         rsx! {
                             div {
-                                class: "background-box alert",
+                                class: "background-box",
+                                background_color: "rgb(100, 20, 20)",
                                 "{alert_popup_message}"
                             }
                         }

@@ -20,27 +20,28 @@ pub fn Leaderboard(cx: Scope, player_name: String, lobby_id: String, players: Ve
             }
         }
         sorted_players.iter().map(|player| {
-            let row_class = if player.quizmaster {
-                "table-body-box quizmaster"
+            let row_color = if player.quizmaster {
+                "rgb(120, 110, 20)"
             } else if player.score == sorted_players[0].score {
-                "table-body-box winner"
+                "rgb(80, 80, 60)"
             } else if player.name == *player_name {
-                "table-body-box self"
+                "rgb(60, 80, 80)"
             } else {
-                "table-body-box"
+                "rgb(60, 60, 80)"
             };
             let row_player = player.name.clone();
             let can_kick = *is_keyplayer && player.name != *player_name;
             let lobby_id = lobby_id.clone();
             rsx! {
                 div { class: "table-row",
-                    div { class: row_class, flex: "2", "{row_player}" }
+                    div { class: "table-body-box", background_color: row_color, flex: "2", "{row_player}" }
                     if player.quizmaster {
-                        rsx! { div { class: row_class, flex: "1", "👑" } }
+                        rsx! { div { class: "table-body-box", background_color: row_color, flex: "1", "👑" } }
                     } else if can_kick {
                         rsx! {
                             div {
-                                class: row_class,
+                                class: "table-body-box",
+                                background_color: row_color,
                                 flex: "1",
                                 gap: "5px",
                                 "{player.score}",
@@ -54,7 +55,7 @@ pub fn Leaderboard(cx: Scope, player_name: String, lobby_id: String, players: Ve
                             }
                         }
                     } else {
-                        rsx! { div { class: row_class, flex: "1", "{player.score}" } }
+                        rsx! { div { class: "table-body-box", background_color: row_color, flex: "1", "{player.score}" } }
                     }
                 }
             }

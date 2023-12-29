@@ -23,7 +23,7 @@ pub fn GameSettings(cx: Scope, player_name: String, lobby_id: String, settings: 
     };
 
     cx.render(rsx! {
-        div { class: "dialog floating", display: "flex", gap: "20px", top: "50%",
+        div { class: "dialog", display: "flex", gap: "20px", top: "50%",
             label { font_weight: "bold", font_size: "larger", "Lobby Settings" }
             label { font_size: "large", "Estimated game length {game_time}" }
             div { display: "flex", flex_direction: "column", gap: "5px",
@@ -177,7 +177,8 @@ fn item_settings<'a>(items_queue: Vec<String>, alter_setting: impl Fn(AlterLobby
                             "↻"
                         }
                         button {
-                            class: "smallbutton",
+                            padding: "2px",
+                            padding_top: "0px",
                             background_color: "rgb(100, 20, 20)",
                             onclick: {
                                 let alter_setting = Rc::clone(&alter_setting);
