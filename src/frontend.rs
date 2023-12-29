@@ -152,7 +152,7 @@ pub fn app(cx: Scope) -> Element {
         alert_popup.set(AlertPopup::default());
     }
 
-    let messages_to_process: &UseState<Vec<PlayerMessage>> = use_state(cx, Vec::new);
+    let messages_to_process = use_state(cx, Vec::new);
     if !messages_to_process.get().is_empty() {
         let mut new_sounds = Vec::new();
         for message in messages_to_process.get() {
@@ -295,7 +295,7 @@ pub fn app(cx: Scope) -> Element {
                         players: lobby.players.values().map(Player::reduce).collect(),
                         items: lobby.items.clone(),
                         chat_messages: lobby.chat_messages.clone(),
-                        alert_popup_message: alert_popup.get().message.clone(),
+                        alert_popup_message: alert_popup.get().message.clone()
                     }
                     render_error_dialog,
                     div {
@@ -304,12 +304,12 @@ pub fn app(cx: Scope) -> Element {
                         "{reveal_message.str}"
                     }
                     if player_name == &lobby.key_player && !lobby.started {
-                    rsx! { GameSettings {
-                    player_name: player_name.get().clone(),
-                    lobby_id: lobby_id.get().clone(),
-                    settings: lobby.settings,
-                    items_queue: lobby.items_queue.clone(),
-                    } }
+                        rsx! { GameSettings {
+                            player_name: player_name.get().clone(),
+                            lobby_id: lobby_id.get().clone(),
+                            settings: lobby.settings,
+                            items_queue: lobby.items_queue.clone(),
+                        }}
                     }
                     div { id: "sounds", visibility: "collapse", position: "absolute", "{sounds_str}" }
                 })
