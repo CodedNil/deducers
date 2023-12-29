@@ -31,27 +31,27 @@ struct ResponseFormat {
 
 // ---------- API Response ----------
 // Represents the expected response format from the API.
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize)]
 struct ApiResponse {
     choices: Vec<Choice>,
     usage: Usage,
 }
 
 // Represents individual messages in the request.
-#[derive(Deserialize, Serialize, Debug, Clone)]
+#[derive(Deserialize, Serialize, Clone)]
 pub struct MessageResponse {
     content: String,
 }
 
 // Represents individual choices in the API response.
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize)]
 struct Choice {
     message: MessageResponse,
 }
 
 // Represents the token usage of a response.
 #[allow(clippy::struct_field_names)]
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize)]
 struct Usage {
     prompt_tokens: usize,
     completion_tokens: usize,
@@ -126,7 +126,7 @@ fn log_details(prompt: &String, result: &MessageResponse, tokens: &Usage) -> Res
     let price = ((tokens.prompt_tokens as f32 * 0.0015) + (tokens.completion_tokens as f32 * 0.002)) / 1000.0;
 
     // Format the log entry.
-    let result = format!("{result:?}");
+    let result = result.content.clone();
     let log_entry = format!(
         "Prompt: {:} | Result: {:} | Tokens: {}/{}/{} ${}\n",
         &prompt[..100.min(prompt.len())],

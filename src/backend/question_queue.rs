@@ -1,5 +1,5 @@
 use crate::{
-    backend::{openai::query_ai, with_lobby, with_lobby_mut, with_player, with_player_mut, PlayerMessage, QueuedQuestion},
+    backend::{alert_popup, openai::query_ai, with_lobby, with_lobby_mut, with_player, with_player_mut, QueuedQuestion},
     MAX_QUESTION_LENGTH,
 };
 use anyhow::{bail, Result};
@@ -7,10 +7,7 @@ use serde::{Deserialize, Serialize};
 
 pub async fn submit_question_wrapped(lobby_id: &str, player_name: &str, question: String, masked: bool) {
     if let Err(error) = submit_question(lobby_id, player_name, question, masked).await {
-        let _result = with_player_mut(lobby_id, player_name, |_, player| {
-            player.messages.push(PlayerMessage::SubmitQuestionRejected(error.to_string()));
-            Ok(())
-        });
+        alert_popup(lobby_id, player_name, &format!("Question rejected {error}"));
     }
 }
 
@@ -92,7 +89,7 @@ pub async fn submit_question(lobby_id: &str, player_name: &str, question: String
 }
 
 // Helper function to validate a question
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize)]
 struct ValidateQuestionResponse {
     suitable: bool,
     reasoning: String,
@@ -145,8 +142,8 @@ async fn validate_question(question: &str, use_ai: bool) -> ValidateQuestionResp
     }
 }
 
-pub fn vote_question(lobby_id: &str, player_name: &str, question: &String) -> Result<()> {
-    with_lobby_mut(lobby_id, |lobby| {
+pub fn vote_question(lobby_id: &str, player_name: &str, question: &String) {
+    let result = with_lobby_mut(lobby_id, |lobby| {
         let player = lobby
             .players
             .get_mut(player_name)
@@ -173,11 +170,14 @@ pub fn vote_question(lobby_id: &str, player_name: &str, question: &String) -> Re
             return Ok(());
         }
         Err(anyhow::anyhow!("Question not found in queue"))
-    })
+    });
+    if let Err(error) = result {
+        alert_popup(lobby_id, player_name, &format!("Vote rejected {error}"));
+    }
 }
 
-pub fn convert_score(lobby_id: &str, player_name: &str) -> Result<()> {
-    with_player_mut(lobby_id, player_name, |lobby, player| {
+pub fn convert_score(lobby_id: &str, player_name: &str) {
+    let result = with_player_mut(lobby_id, player_name, |lobby, player| {
         if !lobby.started {
             bail!("Lobby not started");
         }
@@ -191,5 +191,8 @@ pub fn convert_score(lobby_id: &str, player_name: &str) -> Result<()> {
         player.score -= 1;
         player.coins += lobby.settings.score_to_coins_ratio;
         Ok(())
-    })
+    });
+    if let Err(error) = result {
+        alert_popup(lobby_id, player_name, &format!("Conversion rejected {error}"));
+    }
 }

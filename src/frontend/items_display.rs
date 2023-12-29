@@ -2,7 +2,7 @@ use crate::backend::Item;
 use dioxus::prelude::*;
 use strum::EnumProperty;
 
-#[derive(Debug, PartialEq)]
+#[derive(PartialEq)]
 struct TempQuestion {
     id: usize,
     question: String,

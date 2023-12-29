@@ -1,5 +1,5 @@
 use crate::{
-    backend::{connect_player, disconnect_player, get_current_time, get_lobby_info, get_state, Lobby, Player, PlayerMessage},
+    backend::{connect_player, get_current_time, get_lobby_info, get_state, Lobby, Player, PlayerMessage},
     frontend::{gamesettings::GameSettings, gameview::GameView},
     LOBBY_ID_PATTERN, MAX_LOBBY_ID_LENGTH, MAX_PLAYER_NAME_LENGTH, PLAYER_NAME_PATTERN,
 };
@@ -197,8 +197,8 @@ pub fn app(cx: Scope) -> Element {
                     alert_popup.set(AlertPopup::message(format!("Question '{message}' rejected by quizmaster")));
                     "guess_incorrect"
                 }
-                PlayerMessage::SubmitQuestionRejected(message) => {
-                    alert_popup.set(AlertPopup::message(format!("Question rejected {message}")));
+                PlayerMessage::AlertPopup(message) => {
+                    alert_popup.set(AlertPopup::message(message.clone()));
                     ""
                 }
             };
@@ -231,7 +231,6 @@ pub fn app(cx: Scope) -> Element {
         let messages_to_process = messages_to_process.clone();
         let lobby_id = lobby_id.clone();
         let player_name = player_name.clone();
-        let error_message = error_message.clone();
         async move {
             loop {
                 if new_cancel_signal.load(atomic::Ordering::SeqCst) {
@@ -239,19 +238,12 @@ pub fn app(cx: Scope) -> Element {
                 }
 
                 if *is_connected.get() {
-                    match get_state(&lobby_id.get().clone(), &player_name.get().clone()) {
-                        Ok((lobby, messages)) => {
-                            messages_to_process.set(messages);
-                            lobby_state.set(Some(lobby));
-                        }
-                        Err(error) => {
-                            error_message.set(ErrorDialog {
-                                show: true,
-                                str: format!("Disconnected from lobby: {error}"),
-                            });
-                            is_connected.set(false);
-                            break;
-                        }
+                    if let Ok((lobby, messages)) = get_state(&lobby_id.get().clone(), &player_name.get().clone()) {
+                        messages_to_process.set(messages);
+                        lobby_state.set(Some(lobby));
+                    } else {
+                        is_connected.set(false);
+                        break;
                     }
                 } else {
                     lobby_info.set(get_lobby_info());
@@ -303,14 +295,7 @@ pub fn app(cx: Scope) -> Element {
                         players: lobby.players.values().map(Player::reduce).collect(),
                         items: lobby.items.clone(),
                         chat_messages: lobby.chat_messages.clone(),
-                        on_disconnect: move |()| {
-                            is_connected.set(false);
-                            let _result = disconnect_player(lobby_id, player_name);
-                        },
                         alert_popup_message: alert_popup.get().message.clone(),
-                        on_alert_popup: move |message: String| {
-                            alert_popup.set(AlertPopup::message(message));
-                        }
                     }
                     render_error_dialog,
                     div {

@@ -18,7 +18,7 @@ pub fn GameSettings(cx: Scope, player_name: String, lobby_id: String, settings: 
 
     let alter_setting = {
         move |setting: AlterLobbySetting| {
-            let _result = alter_lobby_settings(lobby_id, player_name, setting);
+            alter_lobby_settings(lobby_id, player_name, setting);
         }
     };
 

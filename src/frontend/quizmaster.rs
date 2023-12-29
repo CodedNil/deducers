@@ -36,12 +36,12 @@ pub fn QuizmasterDisplay<'a>(
                         div { class: "table-body-box", flex: "1", "{question.question}" }
                         button {
                             onclick: move |_| {
-                                let _response = quizmaster_submit(lobby_id, player_name, &question_string1);
+                                quizmaster_submit(lobby_id, player_name, &question_string1);
                             },
                             background_color: "rgb(20, 100, 20)", "Submit" }
                         button {
                             onclick: move |_| {
-                                let _response = quizmaster_reject(lobby_id, player_name, &question_string2);
+                                quizmaster_reject(lobby_id, player_name, &question_string2);
                             },
                             background_color: "rgb(100, 20, 20)", "Reject" }
                     }
@@ -74,7 +74,7 @@ pub fn QuizmasterDisplay<'a>(
                                                     class: "table-body-box smallanswerbutton",
                                                     background_color: "{answer_color}",
                                                     onclick: move |_| {
-                                                        let _response = quizmaster_change_answer(lobby_id, player_name, &question_string, item.id, answer);
+                                                        quizmaster_change_answer(lobby_id, player_name, &question_string, item.id, answer);
                                                     },
                                                 }
                                             }

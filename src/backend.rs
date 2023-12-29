@@ -127,7 +127,7 @@ pub enum PlayerMessage {
     ItemAdded,
     QuestionAsked,
     QuestionRejected(String),
-    SubmitQuestionRejected(String),
+    AlertPopup(String),
     GameStart,
     CoinGiven,
     ItemGuessed(String, usize, String),
@@ -315,7 +315,7 @@ pub fn create_lobby(lobby_id: &str, player_name: &str) -> Result<()> {
     // If lobby_id is debug, create a loaded lobby
     if lobby_id == "debug" {
         println!("Creating debug lobby");
-        start_lobby(lobby_id, player_name)?;
+        start_lobby(lobby_id, player_name);
         with_lobby_mut(lobby_id, |lobby| {
             for _ in 0..10 {
                 lobby.chat_messages.push(ChatMessage {
@@ -417,16 +417,16 @@ pub fn connect_player(lobby_id: &str, player_name: &str) -> Result<()> {
     })
 }
 
-pub fn disconnect_player(lobby_id: &str, player_name: &str) -> Result<()> {
-    with_lobby_mut(lobby_id, |lobby| {
+pub fn disconnect_player(lobby_id: &str, player_name: &str) {
+    let _result = with_lobby_mut(lobby_id, |lobby| {
         lobby.players.remove(player_name);
         println!("Player '{player_name}' disconnected from lobby '{lobby_id}'");
         Ok(())
-    })
+    });
 }
 
-pub fn alter_lobby_settings(lobby_id: &str, player_name: &str, setting: AlterLobbySetting) -> Result<()> {
-    with_lobby_mut(lobby_id, |lobby| {
+pub fn alter_lobby_settings(lobby_id: &str, player_name: &str, setting: AlterLobbySetting) {
+    let result = with_lobby_mut(lobby_id, |lobby| {
         if player_name != lobby.key_player {
             return Err(anyhow!("Only the key player can alter the lobby settings"));
         }
@@ -540,11 +540,14 @@ pub fn alter_lobby_settings(lobby_id: &str, player_name: &str, setting: AlterLob
         }
 
         Ok(())
-    })
+    });
+    if let Err(e) = result {
+        alert_popup(lobby_id, player_name, &format!("Setting change failed {e}"));
+    }
 }
 
-pub fn start_lobby(lobby_id: &str, player_name: &str) -> Result<()> {
-    with_lobby_mut(lobby_id, |lobby| {
+pub fn start_lobby(lobby_id: &str, player_name: &str) {
+    let result = with_lobby_mut(lobby_id, |lobby| {
         if lobby.started {
             return Err(anyhow!("Lobby '{lobby_id}' already started"));
         } else if player_name != lobby.key_player {
@@ -574,31 +577,56 @@ pub fn start_lobby(lobby_id: &str, player_name: &str) -> Result<()> {
             lobby.settings
         );
         Ok(())
-    })
+    });
+    if let Err(e) = result {
+        alert_popup(lobby_id, player_name, &format!("Start lobby failed {e}"));
+    }
 }
 
-pub fn kick_player(lobby_id: &str, player_name: &str) -> Result<()> {
-    with_lobby_mut(lobby_id, |lobby| {
+pub fn alert_popup(lobby_id: &str, player_name: &str, message: &str) {
+    let result = with_player_mut(lobby_id, player_name, |_, player| {
+        player.messages.push(PlayerMessage::AlertPopup(message.to_owned()));
+        Ok(())
+    });
+    if let Err(e) = result {
+        println!("Alert popup failed {e}");
+    }
+}
+
+pub fn kick_player(lobby_id: &str, player_name: &str) {
+    let result = with_lobby_mut(lobby_id, |lobby| {
         lobby.players.remove(player_name);
         println!("Lobby '{lobby_id}' player '{player_name}' kicked by key player");
         Ok(())
-    })
+    });
+    if let Err(e) = result {
+        alert_popup(lobby_id, player_name, &format!("Kick failed {e}"));
+    }
 }
 
-pub fn add_chat_message(lobby_id: &str, player_name: &str, message: &str) -> Result<()> {
-    if message.len() > MAX_CHAT_LENGTH {
-        return Err(anyhow!("Chat message must be less than {MAX_CHAT_LENGTH} characters long"));
-    }
-    with_lobby_mut(lobby_id, |lobby| {
-        lobby.chat_messages.push(ChatMessage {
-            player: player_name.to_owned(),
-            message: message.to_owned(),
-        });
-        if lobby.chat_messages.len() > MAX_CHAT_MESSAGES {
-            lobby.chat_messages.remove(0);
+pub fn add_chat_message(lobby_id: &str, player_name: &str, message: &str) {
+    let error_message = if message.len() < 2 {
+        Some("Chat message must be at least 2 characters long".to_string())
+    } else if message.len() > MAX_CHAT_LENGTH {
+        Some(format!("Chat message must be less than {MAX_CHAT_LENGTH} characters long"))
+    } else {
+        match with_lobby_mut(lobby_id, |lobby| {
+            lobby.chat_messages.push(ChatMessage {
+                player: player_name.to_owned(),
+                message: message.to_owned(),
+            });
+            if lobby.chat_messages.len() > MAX_CHAT_MESSAGES {
+                lobby.chat_messages.remove(0);
+            }
+            Ok(())
+        }) {
+            Ok(()) => None,
+            Err(e) => Some(format!("Chat message failed {e}")),
         }
-        Ok(())
-    })
+    };
+    if let Some(msg) = error_message {
+        alert_popup(lobby_id, player_name, &msg);
+    }
 }
 
 pub fn get_state(lobby_id: &str, player_name: &str) -> Result<(Lobby, Vec<PlayerMessage>)> {

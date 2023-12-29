@@ -1,5 +1,8 @@
 use crate::{
-    backend::{add_chat_message, start_lobby, ChatMessage, Item, LobbySettings, PlayerReduced, QueuedQuestion, QueuedQuestionQuizmaster},
+    backend::{
+        add_chat_message, disconnect_player, start_lobby, ChatMessage, Item, LobbySettings, PlayerReduced, QueuedQuestion,
+        QueuedQuestionQuizmaster,
+    },
     frontend::{
         items_display::ItemDisplay, leaderboard_display::Leaderboard, management_display::Management,
         question_queue_display::QuestionQueueDisplay,
@@ -10,7 +13,7 @@ use dioxus::prelude::*;
 
 #[allow(clippy::cast_possible_wrap)]
 #[component]
-pub fn GameView<'a>(
+pub fn GameView(
     cx: Scope,
     player_name: String,
     lobby_id: String,
@@ -25,10 +28,8 @@ pub fn GameView<'a>(
     players: Vec<PlayerReduced>,
     items: Vec<Item>,
     chat_messages: Vec<ChatMessage>,
-    on_disconnect: EventHandler<'a>,
     alert_popup_message: String,
-    on_alert_popup: EventHandler<'a, String>,
-) -> Element<'a> {
+) -> Element {
     let is_keyplayer = player_name == key_player;
     let is_quizmaster = is_keyplayer && settings.player_controlled;
 
@@ -62,12 +63,12 @@ pub fn GameView<'a>(
                         div { display: "flex", gap: "5px",
                             if is_keyplayer && !started {
                                 rsx! { button { onclick: move |_| {
-                                    let _result = start_lobby(lobby_id, player_name);
+                                    start_lobby(lobby_id, player_name);
                                 }, "Start" } }
                             }
                             button {
                                 onclick: move |_| {
-                                    on_disconnect.call(());
+                                    disconnect_player(lobby_id, player_name);
                                 },
                                 "Disconnect"
                             }
@@ -99,9 +100,6 @@ pub fn GameView<'a>(
                                     players: players.clone(),
                                     items: items.clone(),
                                     quizmaster_queue: quizmaster_queue.clone(),
-                                    on_alert_popup: move |message: String| {
-                                        on_alert_popup.call(message);
-                                    },
                                 }
                             }
                         } else {
@@ -151,7 +149,7 @@ pub fn GameView<'a>(
                         gap: "5px",
                         onsubmit: move |form_data| {
                             if let Some(message) = form_data.values.get("message").and_then(|m| m.first()) {
-                                let _result = add_chat_message(lobby_id, player_name, message);
+                                add_chat_message(lobby_id, player_name, message);
                             }
                         },
                         input {

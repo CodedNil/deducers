@@ -1,6 +1,6 @@
 use crate::{
     backend::{
-        items::player_guess_item,
+        items::player_guess_item_wrapped,
         question_queue::{convert_score, submit_question_wrapped},
         Item, LobbySettings, PlayerReduced, QueuedQuestionQuizmaster,
     },
@@ -11,7 +11,7 @@ use dioxus::prelude::*;
 
 #[allow(clippy::cast_possible_wrap)]
 #[component]
-pub fn Management<'a>(
+pub fn Management(
     cx: Scope,
     player_name: String,
     lobby_id: String,
@@ -20,9 +20,7 @@ pub fn Management<'a>(
     players: Vec<PlayerReduced>,
     items: Vec<Item>,
     quizmaster_queue: Vec<QueuedQuestionQuizmaster>,
-    on_alert_popup: EventHandler<'a, String>,
-) -> Element<'a> {
-    println!("Management {}", crate::backend::get_current_time());
+) -> Element {
     let question_masked = use_state(cx, || false);
 
     let submit_cost = settings.submit_question_cost + if *question_masked.get() { settings.masked_question_cost } else { 0 };
@@ -79,9 +77,7 @@ pub fn Management<'a>(
         div { display: "flex", gap: "5px",
             button {
                 onclick: move |_| {
-                    if let Err(error) = convert_score(lobby_id, player_name) {
-                        on_alert_popup.call(error.to_string());
-                    }
+                    convert_score(lobby_id, player_name);
                 },
                 flex: "1",
                 "Convert Leaderboard Score To {settings.score_to_coins_ratio}🪙"
@@ -98,9 +94,7 @@ pub fn Management<'a>(
                     .and_then(|m| m.first())
                     .and_then(|k| k.parse::<usize>().ok());
                 if let (Some(guess), Some(key)) = (guess, key) {
-                    if let Err(error) = player_guess_item(lobby_id, player_name, key, guess) {
-                        on_alert_popup.call(error.to_string());
-                    }
+                    player_guess_item_wrapped(lobby_id, player_name, key, guess);
                 }
             },
             input {

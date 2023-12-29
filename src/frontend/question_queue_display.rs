@@ -56,7 +56,7 @@ pub fn QuestionQueueDisplay(
                         if !is_quizmaster {
                             rsx! { button {
                                 onclick: move |_| {
-                                    let _result = vote_question(&lobby_id, &player_name, &question_string);
+                                    vote_question(&lobby_id, &player_name, &question_string);
                                 },
                                 padding: "2px",
                                 "🪙"

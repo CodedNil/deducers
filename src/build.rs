@@ -29,7 +29,6 @@ const EASY_CUTOFF: i32 = 3000;
 const MEDIUM_CUTOFF: i32 = 1000;
 const HARD_CUTOFF: i32 = 50;
 
-#[derive(Debug)]
 pub struct WordSets {
     pub easy: HashSet<String>,
     pub medium: HashSet<String>,
@@ -83,7 +82,7 @@ fn write_word_set(file: &mut BufWriter<File>, title: &str, words: &HashSet<Strin
     Ok(())
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Deserialize)]
 struct SubtlexRecord {
     #[serde(rename = "DomPoSLemma")] // The base form of the word
     spelling: String,

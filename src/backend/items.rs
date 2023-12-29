@@ -1,6 +1,6 @@
-use crate::{
-    backend::openai::query_ai,
-    backend::{with_lobby_mut, with_player_mut, Answer, Item, Lobby, PlayerMessage, Question, QueuedQuestionQuizmaster, QuizmasterItem},
+use crate::backend::{
+    alert_popup, openai::query_ai, with_lobby_mut, with_player_mut, Answer, Item, Lobby, PlayerMessage, Question, QueuedQuestionQuizmaster,
+    QuizmasterItem,
 };
 use anyhow::{bail, Result};
 use futures::future::join_all;
@@ -32,7 +32,7 @@ pub fn add_item_to_lobby(lobby: &mut Lobby) {
     }
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize)]
 struct AskQuestionResponse {
     answers: Vec<String>,
 }
@@ -196,8 +196,8 @@ pub async fn ask_top_question(lobby_id: &str) -> Result<()> {
     test_game_over(lobby_id)
 }
 
-pub fn quizmaster_change_answer(lobby_id: &str, player_name: &str, question: &String, item_id: usize, new_answer: Answer) -> Result<()> {
-    with_lobby_mut(lobby_id, |lobby| {
+pub fn quizmaster_change_answer(lobby_id: &str, player_name: &str, question: &String, item_id: usize, new_answer: Answer) {
+    let result = with_lobby_mut(lobby_id, |lobby| {
         if !lobby.started {
             bail!("Lobby not started");
         }
@@ -213,11 +213,14 @@ pub fn quizmaster_change_answer(lobby_id: &str, player_name: &str, question: &St
             .and_then(|q| q.items.iter_mut().find(|i| i.id == item_id))
             .map(|i| i.answer = new_answer)
             .ok_or_else(|| anyhow::anyhow!("Question or item not found"))
-    })
+    });
+    if let Err(error) = result {
+        alert_popup(lobby_id, player_name, &format!("Change answer failed {error}"));
+    }
 }
 
-pub fn quizmaster_submit(lobby_id: &str, player_name: &str, question: &String) -> Result<()> {
-    with_lobby_mut(lobby_id, |lobby| {
+pub fn quizmaster_submit(lobby_id: &str, player_name: &str, question: &String) {
+    let result = with_lobby_mut(lobby_id, |lobby| {
         if !lobby.started {
             bail!("Lobby not started");
         }
@@ -271,11 +274,14 @@ pub fn quizmaster_submit(lobby_id: &str, player_name: &str, question: &String) -
         }
 
         Ok(())
-    })
+    });
+    if let Err(error) = result {
+        alert_popup(lobby_id, player_name, &format!("Submission failed {error}"));
+    }
 }
 
-pub fn quizmaster_reject(lobby_id: &str, player_name: &str, question: &String) -> Result<()> {
-    with_lobby_mut(lobby_id, |lobby| {
+pub fn quizmaster_reject(lobby_id: &str, player_name: &str, question: &String) {
+    let result = with_lobby_mut(lobby_id, |lobby| {
         if !lobby.started {
             bail!("Lobby not started");
         }
@@ -304,7 +310,16 @@ pub fn quizmaster_reject(lobby_id: &str, player_name: &str, question: &String) -
         }
 
         Ok(())
-    })
+    });
+    if let Err(error) = result {
+        alert_popup(lobby_id, player_name, &format!("Rejection failed {error}"));
+    }
+}
+
+pub fn player_guess_item_wrapped(lobby_id: &str, player_name: &str, item_choice: usize, guess: &str) {
+    if let Err(error) = player_guess_item(lobby_id, player_name, item_choice, guess) {
+        alert_popup(lobby_id, player_name, &format!("Guess rejected {error}"));
+    }
 }
 
 pub fn player_guess_item(lobby_id: &str, player_name: &str, item_choice: usize, guess: &str) -> Result<()> {

@@ -46,7 +46,7 @@ pub fn Leaderboard(cx: Scope, player_name: String, lobby_id: String, players: Ve
                                 "{player.score}",
                                 button {
                                     onclick: move |_| {
-                                        let _result = kick_player(&lobby_id, &row_player);
+                                        kick_player(&lobby_id, &row_player);
                                     },
                                     padding: "2px",
                                     "💥"

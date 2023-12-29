@@ -5,7 +5,6 @@ use std::collections::HashSet;
 
 pub static WORD_SETS: Lazy<WordSets> = Lazy::new(|| parse_words(include_str!("words.txt")));
 
-#[derive(Debug)]
 pub struct WordSets {
     pub easy: HashSet<String>,
     pub medium: HashSet<String>,
