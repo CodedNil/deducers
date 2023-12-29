@@ -124,6 +124,11 @@ async fn validate_question(question: &str, use_ai: bool) -> ValidateQuestionResp
         if let Ok(validate_response) = serde_json::from_str::<ValidateQuestionResponse>(&message) {
             return validate_response;
         }
+    } else if let Err(error) = response {
+        return ValidateQuestionResponse {
+            suitable: false,
+            reasoning: format!("Failed to validate question {error}"),
+        };
     }
 
     ValidateQuestionResponse {

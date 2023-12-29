@@ -253,6 +253,7 @@ where
     })
 }
 
+#[derive(PartialEq, Eq)]
 pub struct LobbyInfo {
     pub id: String,
     pub players_count: usize,

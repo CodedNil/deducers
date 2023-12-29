@@ -1,4 +1,4 @@
-use crate::backend::Lobby;
+use crate::backend::Item;
 use dioxus::prelude::*;
 use strum::EnumProperty;
 
@@ -9,12 +9,23 @@ struct TempQuestion {
     masked: bool,
 }
 
-pub fn render<'a>(cx: Scope<'a>, player_name: &str, lobby: &Lobby) -> Element<'a> {
+#[derive(Props, PartialEq, Eq)]
+pub struct Props {
+    pub player_name: String,
+    pub is_quizmaster: bool,
+    pub items: Vec<Item>,
+}
+
+#[allow(non_snake_case)]
+pub fn ItemDisplay(cx: Scope<Props>) -> Element {
+    println!("Rendering at {}", crate::backend::get_current_time());
+    let props = cx.props;
+
     let mut active_questions = vec![];
-    for item in &lobby.items {
+    for item in &props.items {
         for question in &item.questions {
             let question_string = if question.masked {
-                let question_player_name = lobby
+                let question_player_name = props
                     .items
                     .iter()
                     .flat_map(|item| &item.questions)
@@ -22,7 +33,7 @@ pub fn render<'a>(cx: Scope<'a>, player_name: &str, lobby: &Lobby) -> Element<'a
                     .map(|item_question| item_question.player.clone())
                     .unwrap_or_default();
 
-                if question_player_name == *player_name {
+                if question_player_name == props.player_name {
                     question.text.clone()
                 } else {
                     format!("MASKED - {question_player_name}")
@@ -42,13 +53,11 @@ pub fn render<'a>(cx: Scope<'a>, player_name: &str, lobby: &Lobby) -> Element<'a
         }
     }
 
-    let is_quizmaster = player_name == lobby.key_player && lobby.settings.player_controlled;
-
     cx.render(rsx! {
         div { class: "table-row",
             div { class: "table-header-box", flex: "1", "Question" }
-            lobby.items.iter().map(|item| {
-                let (content, width) = if is_quizmaster { (item.name.clone(), "unset") } else { (item.id.to_string(), "20px") };
+            props.items.iter().map(|item| {
+                let (content, width) = if props.is_quizmaster { (item.name.clone(), "unset") } else { (item.id.to_string(), "20px") };
                 rsx! {
                     div { class: "table-header-box", width: width, flex: "unset", text_align: "center", content }
                 }
@@ -62,6 +71,7 @@ pub fn render<'a>(cx: Scope<'a>, player_name: &str, lobby: &Lobby) -> Element<'a
                 let question = &active_questions[question_index];
                 (question.id, question.question.clone())
             };
+            let items = props.items.clone();
             rsx! {
                 div { class: "table-row", flex: "1",
                     div {
@@ -71,7 +81,7 @@ pub fn render<'a>(cx: Scope<'a>, player_name: &str, lobby: &Lobby) -> Element<'a
                         div { font_weight: "bold", width: "20px", "{question_index + 1}" },
                         div { "{question_string}" }
                     }
-                    lobby.items.iter().map(|item| {
+                    items.iter().map(|item| {
                         let answer = if is_blank { None } else { item.questions.iter()
                             .find(|&answer_question| answer_question.id == question_id)
                             .map(|answer_question| answer_question.answer) };

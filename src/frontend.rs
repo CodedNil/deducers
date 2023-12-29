@@ -164,68 +164,64 @@ pub fn app(cx: Scope) -> Element {
         alert_popup.set(AlertPopup::default());
     }
 
-    // Process players messages
-    let process_messages = {
-        move |messages: Vec<PlayerMessage>,
-              sounds_to_play: &UseState<Vec<SoundsQueue>>,
-              item_reveal_message: &UseState<ItemRevealMessage>,
-              alert_popup: &UseState<AlertPopup>| {
-            let mut new_sounds = Vec::new();
-            for message in messages {
-                let sound = match message {
-                    PlayerMessage::ItemAdded => "item_added",
-                    PlayerMessage::QuestionAsked => "question_added",
-                    PlayerMessage::GameStart => "game_start",
-                    PlayerMessage::CoinGiven => "coin_added",
-                    PlayerMessage::ItemGuessed(player_name, item_id, item_name) => {
-                        if !(item_reveal_message.get().show && item_reveal_message.get().revealtype == RevealType::Victory) {
-                            item_reveal_message.set(ItemRevealMessage::new(
-                                5.0,
-                                format!("{player_name} guessed item {item_id} correctly as {item_name}!"),
-                                RevealType::Correct,
-                            ));
-                        }
-                        "guess_correct"
+    let messages_to_process: &UseState<Vec<PlayerMessage>> = use_state(cx, Vec::new);
+    if !messages_to_process.get().is_empty() {
+        let mut new_sounds = Vec::new();
+        for message in messages_to_process.get() {
+            let sound = match message {
+                PlayerMessage::ItemAdded => "item_added",
+                PlayerMessage::QuestionAsked => "question_added",
+                PlayerMessage::GameStart => "game_start",
+                PlayerMessage::CoinGiven => "coin_added",
+                PlayerMessage::ItemGuessed(player_name, item_id, item_name) => {
+                    if !(item_reveal_message.get().show && item_reveal_message.get().revealtype == RevealType::Victory) {
+                        item_reveal_message.set(ItemRevealMessage::new(
+                            5.0,
+                            format!("{player_name} guessed item {item_id} correctly as {item_name}!"),
+                            RevealType::Correct,
+                        ));
                     }
-                    PlayerMessage::GuessIncorrect => "guess_incorrect",
-                    PlayerMessage::ItemRemoved(item_id, item_name) => {
-                        if !(item_reveal_message.get().show && item_reveal_message.get().revealtype == RevealType::Victory) {
-                            item_reveal_message.set(ItemRevealMessage::new(
-                                5.0,
-                                format!("Item {item_id} was removed from the game, it was {item_name}!"),
-                                RevealType::Incorrect,
-                            ));
-                        }
-                        "guess_incorrect"
+                    "guess_correct"
+                }
+                PlayerMessage::GuessIncorrect => "guess_incorrect",
+                PlayerMessage::ItemRemoved(item_id, item_name) => {
+                    if !(item_reveal_message.get().show && item_reveal_message.get().revealtype == RevealType::Victory) {
+                        item_reveal_message.set(ItemRevealMessage::new(
+                            5.0,
+                            format!("Item {item_id} was removed from the game, it was {item_name}!"),
+                            RevealType::Incorrect,
+                        ));
                     }
-                    PlayerMessage::Winner(players) => {
-                        let win_message = if players.len() > 1 {
-                            format!("The tied winners are {}!", players.join(", "))
-                        } else if players.is_empty() {
-                            String::from("The game has ended with no winner!")
-                        } else {
-                            format!("The winner is {}!", players[0])
-                        };
-                        item_reveal_message.set(ItemRevealMessage::new(30.0, win_message, RevealType::Victory));
-                        "guess_correct"
-                    }
-                    PlayerMessage::QuestionRejected(message) => {
-                        alert_popup.set(AlertPopup::message(format!("Question '{message}' rejected by quizmaster")));
-                        "guess_incorrect"
-                    }
-                };
-                new_sounds.push(SoundsQueue {
-                    expiry: get_current_time() + 5.0,
-                    sound: String::from(sound),
-                });
-            }
-            if !new_sounds.is_empty() {
-                let mut old_sounds = sounds_to_play.get().clone();
-                old_sounds.extend(new_sounds);
-                sounds_to_play.set(old_sounds);
-            }
+                    "guess_incorrect"
+                }
+                PlayerMessage::Winner(players) => {
+                    let win_message = if players.len() > 1 {
+                        format!("The tied winners are {}!", players.join(", "))
+                    } else if players.is_empty() {
+                        String::from("The game has ended with no winner!")
+                    } else {
+                        format!("The winner is {}!", players[0])
+                    };
+                    item_reveal_message.set(ItemRevealMessage::new(30.0, win_message, RevealType::Victory));
+                    "guess_correct"
+                }
+                PlayerMessage::QuestionRejected(message) => {
+                    alert_popup.set(AlertPopup::message(format!("Question '{message}' rejected by quizmaster")));
+                    "guess_incorrect"
+                }
+            };
+            new_sounds.push(SoundsQueue {
+                expiry: get_current_time() + 5.0,
+                sound: String::from(sound),
+            });
         }
-    };
+        if !new_sounds.is_empty() {
+            let mut old_sounds = sounds_to_play.get().clone();
+            old_sounds.extend(new_sounds);
+            sounds_to_play.set(old_sounds);
+        }
+        messages_to_process.set(Vec::new());
+    }
 
     // Get lobby state every x seconds if connected or lobby info if not connected
     let cancel_signal = use_state(cx, || Arc::new(atomic::AtomicBool::new(false)));
@@ -238,12 +234,10 @@ pub fn app(cx: Scope) -> Element {
 
         let lobby_state = lobby_state.clone();
         let lobby_info = lobby_info.clone();
+        let messages_to_process = messages_to_process.clone();
         let lobby_id = lobby_id.clone();
         let player_name = player_name.clone();
         let error_message = error_message.clone();
-        let sounds_to_play = sounds_to_play.clone();
-        let item_reveal_message = item_reveal_message.clone();
-        let alert_popup = alert_popup.clone();
         async move {
             loop {
                 if new_cancel_signal.load(atomic::Ordering::SeqCst) {
@@ -253,7 +247,7 @@ pub fn app(cx: Scope) -> Element {
                 if *is_connected.get() {
                     match get_state(&lobby_id.get().clone(), &player_name.get().clone()) {
                         Ok((lobby, messages)) => {
-                            process_messages(messages.clone(), &sounds_to_play, &item_reveal_message, &alert_popup);
+                            messages_to_process.set(messages);
                             lobby_state.set(Some(lobby));
                         }
                         Err(error) => {

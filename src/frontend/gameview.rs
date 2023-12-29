@@ -1,6 +1,6 @@
 use crate::{
     backend::{add_chat_message, disconnect_player, start_lobby, Lobby},
-    frontend::{items_display, leaderboard_display, management_display, question_queue_display, AlertPopup},
+    frontend::{items_display::ItemDisplay, leaderboard_display, management_display, question_queue_display, AlertPopup},
     MAX_CHAT_LENGTH,
 };
 use dioxus::prelude::*;
@@ -16,6 +16,7 @@ pub fn render<'a>(
     alert_popup: &'a UseState<AlertPopup>,
 ) -> Element<'a> {
     let chat_submission: &UseState<String> = use_state(cx, String::new);
+    let is_quizmaster = player_name == lobby.key_player && lobby.settings.player_controlled;
 
     cx.render(rsx! {
         div { display: "flex", height: "calc(100vh - 40px)", gap: "20px",
@@ -24,11 +25,14 @@ pub fn render<'a>(
                 class: "background-box",
                 flex: "1.5",
                 overflow_y: "auto",
-                items_display::render(cx, player_name, lobby)
+                ItemDisplay {
+                    player_name: player_name.to_owned(),
+                    is_quizmaster: is_quizmaster,
+                    items: lobby.items.clone()
+                }
             }
             div { flex: "1", display: "flex", flex_direction: "column", gap: "20px",
                 div { display: "flex", flex_direction: "column", gap: "5px",
-
                     div {
                         // Lobby info
                         class: "background-box",

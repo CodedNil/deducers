@@ -19,7 +19,7 @@ pub fn add_item_to_lobby(lobby: &mut Lobby) {
 
     // Add item to lobby
     let lobby_id = lobby.id.clone();
-    println!("Adding item '{item_name}' to lobby {lobby_id}");
+    println!("Adding item '{item_name}' to lobby '{lobby_id}'");
     lobby.items.push(Item {
         name: item_name.clone(),
         id: lobby.items_history.len() + 1,
@@ -117,7 +117,8 @@ pub async fn ask_top_question(lobby_id: &str) -> Result<()> {
             if let Ok(validate_response) = serde_json::from_str::<AskQuestionResponse>(&response) {
                 let mut choices = Vec::new();
                 for answer_str in validate_response.answers {
-                    if let Ok(answer) = Answer::from_str(&answer_str.to_lowercase()) {
+                    let answer_str = format!("{}{}", answer_str[..1].to_uppercase(), &answer_str[1..].to_lowercase());
+                    if let Ok(answer) = Answer::from_str(&answer_str) {
                         choices.push(answer);
                     }
                 }
