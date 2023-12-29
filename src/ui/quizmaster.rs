@@ -3,6 +3,7 @@ use crate::{
     lobby_utils::{Answer, Lobby},
 };
 use dioxus::prelude::*;
+use strum::{EnumProperty, IntoEnumIterator};
 
 pub fn render<'a>(cx: Scope<'a>, player_name: &'a str, lobby_id: &'a str, lobby: &Lobby) -> Element<'a> {
     cx.render(rsx! {
@@ -44,13 +45,15 @@ pub fn render<'a>(cx: Scope<'a>, player_name: &'a str, lobby_id: &'a str, lobby:
                         question.items.iter().map(|item| {
                             let item = item.clone();
                             let question_string = question_string1.clone();
+                            let answer_color = item.answer.get_str("color").unwrap().to_string();
                             rsx! {
                                 button {
-                                    class: "table-body-box {item.answer.to_string().to_lowercase()}",
+                                    class: "table-body-box",
                                     flex: "1",
                                     display: "flex",
                                     flex_direction: "column",
                                     gap: "5px",
+                                    background_color: "{answer_color}",
                                     onclick: move |_| {
                                         let _response = quizmaster_change_answer(lobby_id, player_name, &question_string, item.id, item.answer.next());
                                     },
@@ -60,14 +63,15 @@ pub fn render<'a>(cx: Scope<'a>, player_name: &'a str, lobby_id: &'a str, lobby:
                                     div {
                                         display: "flex",
                                         width: "100%",
-                                        Answer::variants().iter().map(|answer| {
+                                        Answer::iter().map(|answer| {
                                             let question_string = question_string.clone();
-                                            let answer = answer.clone();
+                                            let answer_color = answer.get_str("color").unwrap().to_string();
                                             rsx! {
                                                 button {
-                                                    class: "table-body-box {answer.to_string().to_lowercase()} smallanswerbutton",
+                                                    class: "table-body-box smallanswerbutton",
+                                                    background_color: "{answer_color}",
                                                     onclick: move |_| {
-                                                        let _response = quizmaster_change_answer(lobby_id, player_name, &question_string, item.id, answer.clone());
+                                                        let _response = quizmaster_change_answer(lobby_id, player_name, &question_string, item.id, answer);
                                                     },
                                                 }
                                             }

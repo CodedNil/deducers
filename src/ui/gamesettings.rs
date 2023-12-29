@@ -4,6 +4,7 @@ use crate::{
 };
 use dioxus::prelude::*;
 use std::{collections::HashMap, rc::Rc};
+use strum::IntoEnumIterator;
 
 pub fn render<'a>(
     cx: Scope<'a>,
@@ -121,17 +122,15 @@ fn standard_settings<'a>(cx: Scope<'a>, lobby: &Lobby, alter_setting: impl Fn(Al
     cx.render(rsx! {
         div { display: "flex", gap: "5px",
             "Difficulty:"
-            Difficulty::variants().iter().map(|variant| {
+            Difficulty::iter().map(|variant| {
                 let alter_setting = alter_setting.clone();
-                let difficulty = lobby.settings.difficulty.clone();
                 rsx! {
                     button {
-                        class: if &difficulty == variant { "highlighted" } else { "" },
+                        class: if lobby.settings.difficulty == variant { "highlighted" } else { "" },
                         onclick: {
                             let alter_setting = alter_setting.clone();
-                            let variant = variant.clone();
                             move |_| {
-                                alter_setting(AlterLobbySetting::Difficulty(variant.clone()));
+                                alter_setting(AlterLobbySetting::Difficulty(variant));
                             }
                         },
                         "{variant}"

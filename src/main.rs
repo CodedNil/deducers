@@ -1,4 +1,5 @@
-#![warn(clippy::restriction, clippy::nursery, clippy::pedantic, clippy::absolute_paths, clippy::use_debug)]
+#![warn(clippy::nursery, clippy::pedantic, clippy::absolute_paths, clippy::use_debug)]
+// clippy::restriction
 #![allow(
     clippy::too_many_lines,
     clippy::missing_docs_in_private_items,
@@ -16,7 +17,8 @@
     clippy::question_mark_used,
     clippy::single_char_lifetime_names,
     clippy::shadow_reuse,
-    clippy::shadow_unrelated
+    clippy::shadow_unrelated,
+    clippy::default_numeric_fallback
 )]
 // single_call_fn shadow_reuse shadow_unrelated
 use crate::ui::connection::app;

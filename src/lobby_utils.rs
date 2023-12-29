@@ -9,14 +9,16 @@ use crate::{
 };
 use anyhow::{anyhow, Result};
 use once_cell::sync::Lazy;
+use rand::prelude::*;
 use std::{
     cmp::Ordering,
     collections::HashMap,
-    fmt::{Display, Formatter, Result as FmtResult},
-    str::FromStr,
+    fmt,
     sync::{Arc, Mutex},
     time,
 };
+use strum::{EnumCount, IntoEnumIterator};
+use strum_macros::{Display, EnumCount, EnumIter, EnumProperty, EnumString};
 
 #[derive(Clone, Debug, Default)]
 pub struct Lobby {
@@ -83,8 +85,8 @@ impl Default for LobbySettings {
     }
 }
 
-impl Display for LobbySettings {
-    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
+impl fmt::Display for LobbySettings {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
             "{} Items, {}, {}",
@@ -95,41 +97,11 @@ impl Display for LobbySettings {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, EnumString, Display, EnumIter)]
 pub enum Difficulty {
     Easy,
     Medium,
     Hard,
-}
-
-impl FromStr for Difficulty {
-    type Err = anyhow::Error;
-
-    fn from_str(s: &str) -> Result<Self> {
-        match s.to_lowercase().as_str() {
-            "easy" => Ok(Self::Easy),
-            "medium" => Ok(Self::Medium),
-            "hard" => Ok(Self::Hard),
-            _ => Err(anyhow!("Difficulty must be easy, medium, or hard")),
-        }
-    }
-}
-
-impl Display for Difficulty {
-    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
-        let difficulty = match *self {
-            Self::Easy => "Easy",
-            Self::Medium => "Medium",
-            Self::Hard => "Hard",
-        };
-        write!(f, "{difficulty}")
-    }
-}
-
-impl Difficulty {
-    pub fn variants() -> Vec<Self> {
-        vec![Self::Easy, Self::Medium, Self::Hard]
-    }
 }
 
 #[derive(Clone, Debug)]
@@ -214,57 +186,22 @@ pub struct Question {
     pub masked: bool,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, EnumString, Display, EnumIter, EnumProperty, EnumCount)]
 pub enum Answer {
+    #[strum(props(color = "rgb(60, 130, 50)"))]
     Yes,
+    #[strum(props(color = "rgb(130, 50, 50)"))]
     No,
+    #[strum(props(color = "rgb(140, 80, 0)"))]
     Maybe,
+    #[strum(props(color = "rgb(80, 80, 80)"))]
     Unknown,
 }
 
 impl Answer {
-    pub fn from_str(s: &str) -> Option<Self> {
-        match s.to_lowercase().as_str() {
-            "yes" => Some(Self::Yes),
-            "no" => Some(Self::No),
-            "maybe" => Some(Self::Maybe),
-            "unknown" => Some(Self::Unknown),
-            _ => None,
-        }
-    }
-
-    pub const fn next(&self) -> Self {
-        match *self {
-            Self::Maybe => Self::Yes,
-            Self::Yes => Self::No,
-            Self::No => Self::Unknown,
-            Self::Unknown => Self::Maybe,
-        }
-    }
-
-    pub fn variants() -> Vec<Self> {
-        vec![Self::Yes, Self::No, Self::Maybe, Self::Unknown]
-    }
-
-    pub const fn to_color(&self) -> &'static str {
-        match *self {
-            Self::Yes => "rgb(60, 130, 50)",
-            Self::No => "rgb(130, 50, 50)",
-            Self::Maybe => "rgb(140, 80, 0)",
-            Self::Unknown => "rgb(80, 80, 80)",
-        }
-    }
-}
-
-impl Display for Answer {
-    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
-        let answer = match *self {
-            Self::Yes => "Yes",
-            Self::No => "No",
-            Self::Maybe => "Maybe",
-            Self::Unknown => "Unknown",
-        };
-        write!(f, "{answer}")
+    pub fn next(self) -> Self {
+        let next_index = (self as usize + 1) % Self::COUNT;
+        Self::iter().nth(next_index).unwrap()
     }
 }
 
@@ -319,7 +256,7 @@ pub fn create_lobby(lobby_id: &str, player_name: &str) -> Result<()> {
         Lobby {
             last_update: get_current_time(),
             key_player: player_name.to_owned(),
-            items_queue: select_lobby_words(&LobbySettings::default().difficulty, LobbySettings::default().item_count),
+            items_queue: select_lobby_words(LobbySettings::default().difficulty, LobbySettings::default().item_count),
             settings: LobbySettings::default(),
             ..Default::default()
         },
@@ -335,7 +272,7 @@ pub fn create_lobby(lobby_id: &str, player_name: &str) -> Result<()> {
             for _ in 0..10 {
                 lobby.chat_messages.push(ChatMessage {
                     player: "debug".to_owned(),
-                    message: select_lobby_words(&Difficulty::Easy, 1).pop().unwrap(),
+                    message: select_lobby_words(Difficulty::Easy, 1).pop().unwrap(),
                 });
             }
             let questions: Vec<&str> = vec![
@@ -371,7 +308,7 @@ pub fn create_lobby(lobby_id: &str, player_name: &str) -> Result<()> {
                         player: "debug".to_owned(),
                         id: question_id,
                         text: question.to_owned(),
-                        answer: Answer::variants()[rand::random::<usize>() % 4].clone(),
+                        answer: Answer::iter().choose(&mut rand::thread_rng()).unwrap(),
                         masked,
                     });
                 }
@@ -471,11 +408,9 @@ pub fn alter_lobby_settings(lobby_id: &str, player_name: &str, setting: AlterLob
                 // Expand or shrink the items queue to match the new item count
                 match lobby.items_queue.len().cmp(&item_count) {
                     Ordering::Less => {
-                        lobby.items_queue.extend(select_lobby_words_unique(
-                            &lobby.items_queue,
-                            &lobby.settings.difficulty,
-                            item_count,
-                        ));
+                        lobby
+                            .items_queue
+                            .extend(select_lobby_words_unique(&lobby.items_queue, lobby.settings.difficulty, item_count));
                     }
                     Ordering::Greater => {
                         lobby.items_queue.truncate(item_count);
@@ -493,7 +428,7 @@ pub fn alter_lobby_settings(lobby_id: &str, player_name: &str, setting: AlterLob
                 // If item is empty, pick a random unique word from the difficulty
                 if item.is_empty() {
                     lobby.items_queue.push(
-                        select_lobby_words_unique(&lobby.items_queue, &lobby.settings.difficulty, 1)
+                        select_lobby_words_unique(&lobby.items_queue, lobby.settings.difficulty, 1)
                             .pop()
                             .unwrap(),
                     );
@@ -529,14 +464,14 @@ pub fn alter_lobby_settings(lobby_id: &str, player_name: &str, setting: AlterLob
             AlterLobbySetting::RefreshItem(item) => {
                 let index = lobby.items_queue.iter().position(|i| i.to_lowercase() == item.to_lowercase());
                 if let Some(index) = index {
-                    let new_word = select_lobby_words_unique(&lobby.items_queue, &lobby.settings.difficulty, 1)
+                    let new_word = select_lobby_words_unique(&lobby.items_queue, lobby.settings.difficulty, 1)
                         .pop()
                         .unwrap();
                     lobby.items_queue[index] = new_word;
                 }
             }
             AlterLobbySetting::RefreshAllItems => {
-                lobby.items_queue = select_lobby_words(&lobby.settings.difficulty, lobby.settings.item_count);
+                lobby.items_queue = select_lobby_words(lobby.settings.difficulty, lobby.settings.item_count);
             }
             AlterLobbySetting::Advanced(key, value) => match key.as_str() {
                 "starting_coins" => {
@@ -595,7 +530,7 @@ pub fn start_lobby(lobby_id: &str, player_name: &str) -> Result<()> {
         }
 
         if !lobby.settings.player_controlled {
-            lobby.items_queue = select_lobby_words(&lobby.settings.difficulty, lobby.settings.item_count);
+            lobby.items_queue = select_lobby_words(lobby.settings.difficulty, lobby.settings.item_count);
         }
         add_item_to_lobby(lobby);
         if lobby.settings.item_count > 1 {

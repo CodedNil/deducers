@@ -8,6 +8,7 @@ use std::{
     sync::{Arc, Mutex},
     time::Duration,
 };
+use strum_macros::Display;
 use tokio::time::sleep;
 
 #[derive(Default)]
@@ -18,7 +19,7 @@ struct ItemRevealMessage {
     revealtype: RevealType,
 }
 
-#[derive(PartialEq, Default, Clone)]
+#[derive(Clone, Copy, PartialEq, Default, Display)]
 enum RevealType {
     Victory,
     Correct,
@@ -37,11 +38,7 @@ impl ItemRevealMessage {
     }
 
     fn render(&self) -> LazyNodes<'_, '_> {
-        let revealtype = match self.revealtype {
-            RevealType::Victory => "victory",
-            RevealType::Correct => "correct",
-            RevealType::Incorrect => "incorrect",
-        };
+        let revealtype = self.revealtype.to_string().to_lowercase();
         rsx! {div { class: "dialog floating item-reveal {revealtype}", top: if self.show { "20%" } else { "-100%" }, "{self.str}" }}
     }
 }
@@ -140,7 +137,7 @@ pub fn app(cx: Scope) -> Element {
             show: false,
             expiry: 0.0,
             str: item_reveal_message.get().str.clone(),
-            revealtype: item_reveal_message.get().revealtype.clone(),
+            revealtype: item_reveal_message.get().revealtype,
         });
     }
 
@@ -331,7 +328,7 @@ pub fn app(cx: Scope) -> Element {
                                 onclick: move |_| {
                                     lobby_id.set(lobby.id.clone());
                                     lobby_state.set(None);
-                                    if let Err(error) = connect_player(lobby_id, player_name) {
+                                    if let Err(error) = connect_player(&lobby.id, player_name) {
                                         error_message
                                             .set(ErrorDialog {
                                                 show: true,

@@ -1,5 +1,6 @@
 use crate::lobby_utils::Lobby;
 use dioxus::prelude::*;
+use strum::EnumProperty;
 
 #[derive(Debug, PartialEq)]
 struct TempQuestion {
@@ -73,9 +74,9 @@ pub fn render<'a>(cx: Scope<'a>, player_name: &str, lobby: &Lobby) -> Element<'a
                     lobby.items.iter().map(|item| {
                         let answer = if is_blank { None } else { item.questions.iter()
                             .find(|&answer_question| answer_question.id == question_id)
-                            .map(|answer_question| answer_question.answer.clone()) };
+                            .map(|answer_question| answer_question.answer) };
                         let box_fill = if answer.is_none() { "⭐" } else { "" };
-                        let answer_color = answer.map_or("rgb(60, 60, 80)".to_string(), |answer| answer.to_color().to_string());
+                        let answer_color = answer.map_or("rgb(60, 60, 80)".to_string(), |answer| answer.get_str("color").unwrap().to_string());
                         rsx! {
                             div { class: "table-body-box", width: "20px", text_align: "center", background_color: "{answer_color}", box_fill }
                         }

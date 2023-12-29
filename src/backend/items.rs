@@ -7,7 +7,7 @@ use crate::{
 use anyhow::{bail, Result};
 use futures::future::join_all;
 use serde::Deserialize;
-use std::{cmp::Ordering, collections::HashMap};
+use std::{cmp::Ordering, collections::HashMap, str::FromStr};
 
 pub fn add_item_to_lobby(lobby: &mut Lobby) {
     if !lobby.started {
@@ -118,7 +118,7 @@ pub async fn ask_top_question(lobby_id: &str) -> Result<()> {
             if let Ok(validate_response) = serde_json::from_str::<AskQuestionResponse>(&response) {
                 let mut choices = Vec::new();
                 for answer_str in validate_response.answers {
-                    if let Some(answer) = Answer::from_str(&answer_str) {
+                    if let Ok(answer) = Answer::from_str(&answer_str.to_lowercase()) {
                         choices.push(answer);
                     }
                 }
@@ -140,7 +140,7 @@ pub async fn ask_top_question(lobby_id: &str) -> Result<()> {
 
         for answers in &answers_choices {
             let answer = answers.get(item_index).expect("Answers should have the same length as items");
-            *answer_frequency.entry(answer.clone()).or_insert(0) += 1;
+            *answer_frequency.entry(*answer).or_insert(0) += 1;
         }
 
         let most_common_answer = answer_frequency
@@ -162,12 +162,12 @@ pub async fn ask_top_question(lobby_id: &str) -> Result<()> {
         // Ask question against each item
         let mut remove_items = Vec::new();
         for (index, item) in &mut lobby.items.iter_mut().enumerate() {
-            let answer = answers.get(index).unwrap_or(&Answer::Unknown).clone();
+            let answer = answers.get(index).unwrap_or(&Answer::Unknown);
             item.questions.push(Question {
                 player: question_player.clone(),
                 id: question_id,
                 text: question_text.clone(),
-                answer,
+                answer: *answer,
                 masked: question_masked,
             });
 

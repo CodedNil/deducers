@@ -33,10 +33,10 @@ fn parse_words(contents: &str) -> WordSets {
     WordSets { easy, medium, hard }
 }
 
-pub fn select_lobby_words(difficulty: &Difficulty, count: usize) -> Vec<String> {
+pub fn select_lobby_words(difficulty: Difficulty, count: usize) -> Vec<String> {
     let mut rng = rand::thread_rng();
 
-    let combined_words = match *difficulty {
+    let combined_words = match difficulty {
         Difficulty::Easy => WORD_SETS.easy.iter().collect::<Vec<_>>(),
         Difficulty::Medium => [&WORD_SETS.easy, &WORD_SETS.medium]
             .iter()
@@ -54,7 +54,7 @@ pub fn select_lobby_words(difficulty: &Difficulty, count: usize) -> Vec<String> 
     shuffled_words.into_iter().take(count).cloned().collect()
 }
 
-pub fn select_lobby_words_unique(current_words: &[String], difficulty: &Difficulty, count: usize) -> Vec<String> {
+pub fn select_lobby_words_unique(current_words: &[String], difficulty: Difficulty, count: usize) -> Vec<String> {
     let mut unique_new_words = HashSet::new();
     let mut additional_items_needed = count;
     while additional_items_needed > 0 {

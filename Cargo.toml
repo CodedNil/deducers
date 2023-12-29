@@ -2,6 +2,7 @@
 name = "deducers"
 edition = "2021"
 build = "src/build.rs"
+version = "0.1.0"
 
 [dependencies]
 axum = { version = "0.6.1", features = ["ws"] }
@@ -17,6 +18,8 @@ regex = "1.10.2"
 futures = "0.3.30"
 once_cell = "1.19.0"
 rand = "0.8.5"
+strum = "0.25.0"
+strum_macros = "0.25.3"
 
 [build-dependencies]
 anyhow = "1.0.77"
