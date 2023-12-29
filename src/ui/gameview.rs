@@ -1,6 +1,6 @@
 use super::connection::AlertPopup;
 use crate::{
-    lobby_utils::{add_chat_message, start_lobby, Lobby},
+    lobby_utils::{add_chat_message, disconnect_player, start_lobby, Lobby},
     ui::{items_display, leaderboard_display, management_display, question_queue_display},
     MAX_CHAT_LENGTH,
 };
@@ -12,7 +12,7 @@ pub fn render<'a>(
     player_name: &'a str,
     lobby_id: &'a str,
     lobby: &Lobby,
-    disconnect: Box<dyn Fn() + 'a>,
+    is_connected: &'a UseState<bool>,
     lobby_settings_open: &'a UseState<bool>,
     alert_popup: &'a UseState<AlertPopup>,
 ) -> Element<'a> {
@@ -58,7 +58,10 @@ pub fn render<'a>(
                                     lobby_settings_open.set(!lobby_settings_open.get());
                                 }, "Settings" } }
                             }
-                            button { onclick: move |_| (disconnect)(), "Disconnect" }
+                            button { onclick: move |_| {
+                                is_connected.set(false);
+                                let _result = disconnect_player(lobby_id, player_name);
+                            }, "Disconnect" }
                         }
                     }
 

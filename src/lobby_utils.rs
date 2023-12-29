@@ -17,11 +17,12 @@ use std::{
     sync::{Arc, Mutex},
     time,
 };
-use strum::{EnumCount, IntoEnumIterator};
-use strum_macros::{Display, EnumCount, EnumIter, EnumProperty, EnumString};
+use strum::IntoEnumIterator;
+use strum_macros::{Display, EnumIter, EnumProperty, EnumString};
 
 #[derive(Clone, Debug, Default)]
 pub struct Lobby {
+    pub id: String,
     pub started: bool,
     pub elapsed_time: f64,
     pub last_update: f64,
@@ -186,7 +187,7 @@ pub struct Question {
     pub masked: bool,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, EnumString, Display, EnumIter, EnumProperty, EnumCount)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, EnumString, Display, EnumIter, EnumProperty)]
 pub enum Answer {
     #[strum(props(color = "rgb(60, 130, 50)"))]
     Yes,
@@ -198,13 +199,6 @@ pub enum Answer {
     Unknown,
 }
 
-impl Answer {
-    pub fn next(self) -> Self {
-        let next_index = (self as usize + 1) % Self::COUNT;
-        Self::iter().nth(next_index).unwrap()
-    }
-}
-
 static LOBBYS: Lazy<Arc<Mutex<HashMap<String, Lobby>>>> = Lazy::new(|| Arc::new(Mutex::new(HashMap::new())));
 
 pub fn with_lobby<F, T>(lobby_id: &str, f: F) -> Result<T>
@@ -214,6 +208,44 @@ where
     let lobbys_lock = LOBBYS.lock().unwrap();
     let lobby = lobbys_lock.get(lobby_id).ok_or_else(|| anyhow!("Lobby '{lobby_id}' not found"))?;
     f(lobby)
+}
+
+pub fn with_lobby_mut<F, T>(lobby_id: &str, f: F) -> Result<T>
+where
+    F: FnOnce(&mut Lobby) -> Result<T>,
+{
+    let mut lobbys_lock = LOBBYS.lock().unwrap();
+    let lobby = lobbys_lock
+        .get_mut(lobby_id)
+        .ok_or_else(|| anyhow!("Lobby '{lobby_id}' not found"))?;
+    f(lobby)
+}
+
+pub fn with_player<F, T>(lobby_id: &str, player_name: &str, f: F) -> Result<T>
+where
+    F: FnOnce(&Lobby, &Player) -> Result<T>,
+{
+    with_lobby(lobby_id, |lobby| {
+        let player = lobby
+            .players
+            .get(player_name)
+            .ok_or_else(|| anyhow!("Player '{player_name}' not found"))?;
+        f(lobby, player)
+    })
+}
+
+pub fn with_player_mut<F, T>(lobby_id: &str, player_name: &str, f: F) -> Result<T>
+where
+    F: FnOnce(Lobby, &mut Player) -> Result<T>,
+{
+    with_lobby_mut(lobby_id, |lobby| {
+        let lobby_state = lobby.clone();
+        let player = lobby
+            .players
+            .get_mut(player_name)
+            .ok_or_else(|| anyhow!("Player '{player_name}' not found"))?;
+        f(lobby_state, player)
+    })
 }
 
 pub struct LobbyInfo {
@@ -235,25 +267,15 @@ pub fn get_lobby_info() -> Vec<LobbyInfo> {
     lobby_infos
 }
 
-pub fn with_lobby_mut<F, T>(lobby_id: &str, f: F) -> Result<T>
-where
-    F: FnOnce(&mut Lobby) -> Result<T>,
-{
-    let mut lobbys_lock = LOBBYS.lock().unwrap();
-    let lobby = lobbys_lock
-        .get_mut(lobby_id)
-        .ok_or_else(|| anyhow!("Lobby '{lobby_id}' not found"))?;
-    f(lobby)
-}
-
 pub fn create_lobby(lobby_id: &str, player_name: &str) -> Result<()> {
     let mut lobbys_lock = LOBBYS.lock().unwrap();
     if lobbys_lock.contains_key(lobby_id) {
-        return Err(anyhow!("Lobby '{lobby_id}' already exists"));
+        return Ok(());
     }
     lobbys_lock.insert(
         lobby_id.to_owned(),
         Lobby {
+            id: lobby_id.to_owned(),
             last_update: get_current_time(),
             key_player: player_name.to_owned(),
             items_queue: select_lobby_words(LobbySettings::default().difficulty, LobbySettings::default().item_count),
@@ -322,33 +344,6 @@ pub fn create_lobby(lobby_id: &str, player_name: &str) -> Result<()> {
     Ok(())
 }
 
-pub fn with_player<F, T>(lobby_id: &str, player_name: &str, f: F) -> Result<T>
-where
-    F: FnOnce(&Lobby, &Player) -> Result<T>,
-{
-    with_lobby(lobby_id, |lobby| {
-        let player = lobby
-            .players
-            .get(player_name)
-            .ok_or_else(|| anyhow!("Player '{player_name}' not found"))?;
-        f(lobby, player)
-    })
-}
-
-pub fn with_player_mut<F, T>(lobby_id: &str, player_name: &str, f: F) -> Result<T>
-where
-    F: FnOnce(Lobby, &mut Player) -> Result<T>,
-{
-    with_lobby_mut(lobby_id, |lobby| {
-        let lobby_state = lobby.clone();
-        let player = lobby
-            .players
-            .get_mut(player_name)
-            .ok_or_else(|| anyhow!("Player '{player_name}' not found"))?;
-        f(lobby_state, player)
-    })
-}
-
 pub fn connect_player(lobby_id: &str, player_name: &str) -> Result<()> {
     let lobby_id = lobby_id.trim();
     let player_name = player_name.trim();
@@ -367,7 +362,9 @@ pub fn connect_player(lobby_id: &str, player_name: &str) -> Result<()> {
         return Err(anyhow!("Player name must be alphabetic"));
     }
 
-    let _result = create_lobby(lobby_id, player_name);
+    if let Err(e) = create_lobby(lobby_id, player_name) {
+        println!("Error creating lobby {e}");
+    }
 
     with_lobby_mut(lobby_id, |lobby| {
         if lobby.players.contains_key(player_name) {

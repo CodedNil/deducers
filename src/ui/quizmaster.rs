@@ -47,16 +47,13 @@ pub fn render<'a>(cx: Scope<'a>, player_name: &'a str, lobby_id: &'a str, lobby:
                             let question_string = question_string1.clone();
                             let answer_color = item.answer.get_str("color").unwrap().to_owned();
                             rsx! {
-                                button {
+                                div {
                                     class: "table-body-box",
                                     flex: "1",
                                     display: "flex",
                                     flex_direction: "column",
                                     gap: "5px",
                                     background_color: "{answer_color}",
-                                    onclick: move |_| {
-                                        let _response = quizmaster_change_answer(lobby_id, player_name, &question_string, item.id, item.answer.next());
-                                    },
                                     div {
                                         "{item.name}: {item.answer.to_string()}"
                                     },

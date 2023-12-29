@@ -1,5 +1,5 @@
 use crate::{
-    lobby_utils::{connect_player, disconnect_player, get_current_time, get_lobby_info, get_state, Lobby, PlayerMessage},
+    lobby_utils::{connect_player, get_current_time, get_lobby_info, get_state, Lobby, PlayerMessage},
     ui::{gamesettings, gameview},
     LOBBY_ID_PATTERN, MAX_LOBBY_ID_LENGTH, MAX_PLAYER_NAME_LENGTH, PLAYER_NAME_PATTERN,
 };
@@ -266,14 +266,6 @@ pub fn app(cx: Scope) -> Element {
         }
     });
 
-    let disconnect = Box::new(move || {
-        let player_name = player_name.clone();
-        let lobby_id = lobby_id.clone();
-        is_connected.set(false);
-        lobby_state.set(None);
-        let _result = disconnect_player(&lobby_id.get().clone(), &player_name.get().clone());
-    });
-
     let render_error_dialog = rsx! {
         div { class: "dialog floating error", top: if error_message.get().show { "50%" } else { "-100%" },
             "{error_message.get().str}"
@@ -298,7 +290,7 @@ pub fn app(cx: Scope) -> Element {
                 .collect::<Vec<String>>()
                 .join(",");
             cx.render(rsx! {
-                gameview::render(cx, player_name, lobby_id, lobby, disconnect, lobby_settings_open, alert_popup),
+                gameview::render(cx, player_name, lobby_id, lobby, is_connected, lobby_settings_open, alert_popup),
                 render_error_dialog,
                 item_reveal_message.render(),
                 rsx! { gamesettings::render(cx, lobby_settings_open, player_name, lobby_id, lobby) },

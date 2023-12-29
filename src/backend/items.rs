@@ -20,7 +20,8 @@ pub fn add_item_to_lobby(lobby: &mut Lobby) {
     let item_name = lobby.items_queue.remove(0);
 
     // Add item to lobby
-    println!("Adding item '{item_name}' to lobby");
+    let lobby_id = lobby.id.clone();
+    println!("Adding item '{item_name}' to lobby {lobby_id}");
     lobby.items.push(Item {
         name: item_name.clone(),
         id: lobby.items_history.len() + 1,

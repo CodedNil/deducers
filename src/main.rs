@@ -72,7 +72,7 @@ async fn main() {
             "/ws",
             get(move |ws: WebSocketUpgrade| async move {
                 ws.on_upgrade(move |socket| async move {
-                    view.launch(dioxus_liveview::axum_socket(socket), app).await.unwrap();
+                    _ = view.launch(dioxus_liveview::axum_socket(socket), app).await;
                 })
             }),
         )
