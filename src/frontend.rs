@@ -19,7 +19,7 @@ mod management_display;
 mod question_queue_display;
 mod quizmaster;
 
-#[derive(Default)]
+#[derive(Clone, Default)]
 struct ItemRevealMessage {
     show: bool,
     expiry: f64,
@@ -43,11 +43,6 @@ impl ItemRevealMessage {
             str,
             revealtype,
         }
-    }
-
-    fn render(&self) -> LazyNodes<'_, '_> {
-        let revealtype = self.revealtype.to_string().to_lowercase();
-        rsx! {div { class: "dialog floating item-reveal {revealtype}", top: if self.show { "20%" } else { "-100%" }, "{self.str}" }}
     }
 }
 
@@ -138,25 +133,18 @@ pub fn app(cx: Scope) -> Element {
 
     let tutorial_open = use_state(cx, || false);
 
-    let item_reveal_message = use_state(cx, ItemRevealMessage::default);
-    if item_reveal_message.get().show && item_reveal_message.get().expiry < get_current_time() {
-        item_reveal_message.set(ItemRevealMessage {
-            show: false,
-            expiry: 0.0,
-            str: item_reveal_message.get().str.clone(),
-            revealtype: item_reveal_message.get().revealtype,
+    let item_reveal_message = use_ref(cx, ItemRevealMessage::default);
+    if item_reveal_message.read().show && item_reveal_message.read().expiry < get_current_time() {
+        item_reveal_message.with_mut(|message| {
+            message.show = false;
         });
     }
 
-    let sounds_to_play: &UseState<Vec<SoundsQueue>> = use_state(cx, Vec::new);
-    let new_sounds_to_play_vec = sounds_to_play
-        .get()
-        .iter()
-        .filter(|sound| sound.expiry > get_current_time())
-        .cloned()
-        .collect();
-    if new_sounds_to_play_vec != *sounds_to_play.get() {
-        sounds_to_play.set(new_sounds_to_play_vec);
+    let sounds_to_play: &UseRef<Vec<SoundsQueue>> = use_ref(cx, Vec::new);
+    if sounds_to_play.read().iter().any(|sound| sound.expiry <= get_current_time()) {
+        sounds_to_play.with_mut(|sounds| {
+            sounds.retain(|sound| sound.expiry > get_current_time());
+        });
     }
 
     let alert_popup = use_state(cx, AlertPopup::default);
@@ -174,7 +162,7 @@ pub fn app(cx: Scope) -> Element {
                 PlayerMessage::GameStart => "game_start",
                 PlayerMessage::CoinGiven => "coin_added",
                 PlayerMessage::ItemGuessed(player_name, item_id, item_name) => {
-                    if !(item_reveal_message.get().show && item_reveal_message.get().revealtype == RevealType::Victory) {
+                    if !(item_reveal_message.read().show && item_reveal_message.read().revealtype == RevealType::Victory) {
                         item_reveal_message.set(ItemRevealMessage::new(
                             5.0,
                             format!("{player_name} guessed item {item_id} correctly as {item_name}!"),
@@ -185,7 +173,7 @@ pub fn app(cx: Scope) -> Element {
                 }
                 PlayerMessage::GuessIncorrect => "guess_incorrect",
                 PlayerMessage::ItemRemoved(item_id, item_name) => {
-                    if !(item_reveal_message.get().show && item_reveal_message.get().revealtype == RevealType::Victory) {
+                    if !(item_reveal_message.read().show && item_reveal_message.read().revealtype == RevealType::Victory) {
                         item_reveal_message.set(ItemRevealMessage::new(
                             5.0,
                             format!("Item {item_id} was removed from the game, it was {item_name}!"),
@@ -216,9 +204,9 @@ pub fn app(cx: Scope) -> Element {
             });
         }
         if !new_sounds.is_empty() {
-            let mut old_sounds = sounds_to_play.get().clone();
-            old_sounds.extend(new_sounds);
-            sounds_to_play.set(old_sounds);
+            sounds_to_play.with_mut(|sounds| {
+                sounds.extend(new_sounds);
+            });
         }
         messages_to_process.set(Vec::new());
     }
@@ -286,14 +274,20 @@ pub fn app(cx: Scope) -> Element {
     if *is_connected.get() {
         if let Some(lobby) = lobby_state.get() {
             let sounds_str = sounds_to_play
+                .read()
                 .iter()
                 .map(|sound| format!("{};{}", sound.expiry.round(), sound.sound))
-                .collect::<Vec<String>>()
+                .collect::<Vec<_>>()
                 .join(",");
+            let reveal_message = item_reveal_message.read().clone();
             cx.render(rsx! {
                 gameview::render(cx, player_name, lobby_id, lobby, is_connected, alert_popup),
                 render_error_dialog,
-                item_reveal_message.render(),
+                div {
+                    class: "dialog floating item-reveal {reveal_message.revealtype.to_string().to_lowercase()}",
+                    top: if reveal_message.show { "20%" } else { "-100%" },
+                    "{reveal_message.str}"
+                }
                 if player_name == &lobby.key_player && !lobby.started {
                     rsx! { GameSettings {
                         player_name: player_name.get().clone(),

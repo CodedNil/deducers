@@ -25,7 +25,6 @@ pub fn GameSettings(cx: Scope<Props>) -> Element {
         settings.submit_question_every_x_seconds,
         settings.add_item_every_x_questions,
     );
-    let add_item_submission = use_state(cx, String::new);
 
     let alter_setting = {
         move |setting: AlterLobbySetting| {
@@ -53,7 +52,7 @@ pub fn GameSettings(cx: Scope<Props>) -> Element {
                         }
                     }
                     if player_controlled {
-                        item_settings(add_item_submission, cx.props.items_queue.clone(), alter_setting.clone())
+                        item_settings(cx.props.items_queue.clone(), alter_setting.clone())
                     }
                 }
                 div { class: "dark-box",
@@ -149,13 +148,7 @@ fn standard_settings<'a>(settings: LobbySettings, alter_setting: impl Fn(AlterLo
 }
 
 #[allow(clippy::cast_possible_wrap)]
-fn item_settings<'a>(
-    add_item_submission: &UseState<String>,
-    items_queue: Vec<String>,
-    alter_setting: impl Fn(AlterLobbySetting) + 'a,
-) -> LazyNodes<'a, 'a> {
-    let add_item_submission1 = add_item_submission.clone();
-    let add_item_submission2 = add_item_submission.clone();
+fn item_settings<'a>(items_queue: Vec<String>, alter_setting: impl Fn(AlterLobbySetting) + 'a) -> LazyNodes<'a, 'a> {
     let alter_setting = Rc::new(alter_setting);
     rsx! {
         div { display: "flex", flex_direction: "column", gap: "5px",
@@ -212,20 +205,21 @@ fn item_settings<'a>(
                 gap: "5px",
                 onsubmit: {
                     let alter_setting = Rc::clone(&alter_setting);
-                    let submission = add_item_submission1.get().clone();
-                    move |_| {
-                        alter_setting(AlterLobbySetting::AddItem(submission.clone()));
+                    move |form_data| {
+                        if let Some(item_name)
+                            = form_data.values.get("item_name").and_then(|m| m.first())
+                        {
+                            alter_setting(AlterLobbySetting::AddItem(item_name.clone()));
+                        }
                     }
                 },
                 input {
                     r#type: "text",
                     placeholder: "Add item",
+                    name: "item_name",
                     maxlength: MAX_ITEM_NAME_LENGTH as i64,
                     pattern: ITEM_NAME_PATTERN,
-                    "data-clear-on-submit": "true",
-                    oninput: move |e| {
-                        add_item_submission2.set(e.value.clone());
-                    }
+                    "data-clear-on-submit": "true"
                 }
                 button { background_color: "rgb(20, 100, 20)", r#type: "submit", "+" }
             }

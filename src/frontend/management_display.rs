@@ -17,10 +17,7 @@ pub fn render<'a>(
     lobby: &Lobby,
     alert_popup: &'a UseState<AlertPopup>,
 ) -> Element<'a> {
-    let question_submission: &UseState<String> = use_state(cx, String::new);
     let question_masked: &UseState<bool> = use_state(cx, || false);
-    let guess_item_submission: &UseState<String> = use_state(cx, String::new);
-    let guess_item_key: &UseState<usize> = use_state(cx, || 1);
 
     let settings = lobby.settings;
 
@@ -38,31 +35,37 @@ pub fn render<'a>(
         form {
             display: "flex",
             gap: "5px",
-            onsubmit: move |_| {
-                let (lobby_id, player_name) = (lobby_id.to_owned(), player_name.to_owned());
-                let input = question_submission.get().clone();
-                let masked = question_masked.clone();
-                let alert_popup = alert_popup.clone();
-                cx.spawn(async move {
-                    if let Err(error)
-                        = submit_question(&lobby_id, &player_name, input, *masked.get()).await
-                    {
-                        alert_popup.set(AlertPopup::message(error.to_string()));
-                    } else {
-                        masked.set(false);
-                    }
-                });
+            onsubmit: move |form_data| {
+                if let Some(question) = form_data.values.get("question").and_then(|m| m.first()) {
+                    let question = question.to_owned();
+                    let (lobby_id, player_name) = (lobby_id.to_owned(), player_name.to_owned());
+                    let masked = question_masked.clone();
+                    let alert_popup = alert_popup.clone();
+                    cx.spawn(async move {
+                        if let Err(error)
+                            = submit_question(
+                                    &lobby_id,
+                                    &player_name,
+                                    question.clone(),
+                                    *masked.get(),
+                                )
+                                .await
+                        {
+                            alert_popup.set(AlertPopup::message(error.to_string()));
+                        } else {
+                            masked.set(false);
+                        }
+                    });
+                }
             },
             input {
                 r#type: "text",
                 placeholder: "Question To Ask",
+                name: "question",
                 flex: "1",
                 pattern: QUESTION_PATTERN,
                 maxlength: MAX_QUESTION_LENGTH as i64,
-                "data-clear-on-submit": "true",
-                oninput: move |e| {
-                    question_submission.set(e.value.clone());
-                }
+                "data-clear-on-submit": "true"
             }
             button { r#type: "submit", "Submit Question {submit_cost}🪙" }
         }
@@ -90,34 +93,29 @@ pub fn render<'a>(
         form {
             display: "flex",
             gap: "5px",
-            onsubmit: move |_| {
-                if let Err(error)
-                    = player_guess_item(
-                        lobby_id,
-                        player_name,
-                        *guess_item_key.get(),
-                        guess_item_submission,
-                    ) {
-                    alert_popup.set(AlertPopup::message(error.to_string()));
+            onsubmit: move |form_data| {
+                let guess = form_data.values.get("guess").and_then(|m| m.first());
+                let key = form_data
+                    .values
+                    .get("key")
+                    .and_then(|m| m.first())
+                    .and_then(|k| k.parse::<usize>().ok());
+                if let (Some(guess), Some(key)) = (guess, key) {
+                    if let Err(error) = player_guess_item(lobby_id, player_name, key, guess) {
+                        alert_popup.set(AlertPopup::message(error.to_string()));
+                    }
                 }
             },
             input {
                 r#type: "text",
                 placeholder: "Guess Item",
+                name: "guess",
                 flex: "1",
                 maxlength: MAX_ITEM_NAME_LENGTH as i64,
                 pattern: ITEM_NAME_PATTERN,
-                "data-clear-on-submit": "true",
-                oninput: move |e| {
-                    guess_item_submission.set(e.value.clone());
-                }
+                "data-clear-on-submit": "true"
             }
-            select {
-                onchange: move |event| {
-                    if let Ok(selected_key) = event.value.parse::<usize>() {
-                        guess_item_key.set(selected_key);
-                    }
-                },
+            select { name: "key",
                 lobby.items.iter().map(|item| {
                     rsx! {
                         option { "{item.id}" }

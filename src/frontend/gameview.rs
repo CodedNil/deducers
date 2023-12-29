@@ -47,7 +47,7 @@ pub fn render<'a>(
                 ItemDisplay {
                     player_name: player_name.to_owned(),
                     is_quizmaster: is_quizmaster,
-                    items: lobby.items.clone(),
+                    items: lobby.items.clone()
                 }
             }
             div { flex: "1", display: "flex", flex_direction: "column", gap: "20px",
@@ -147,10 +147,8 @@ pub fn render<'a>(
                         display: "flex",
                         gap: "5px",
                         onsubmit: move |form_data| {
-                            if let Some(messages) = form_data.values.get("message") {
-                                if let Some(message) = messages.first() {
-                                    let _result = add_chat_message(lobby_id, player_name, message);
-                                }
+                            if let Some(message) = form_data.values.get("message").and_then(|m| m.first()) {
+                                let _result = add_chat_message(lobby_id, player_name, message);
                             }
                         },
                         input {
@@ -158,7 +156,7 @@ pub fn render<'a>(
                             name: "message",
                             maxlength: MAX_CHAT_LENGTH as i64,
                             flex: "1",
-                            "data-clear-on-submit": "true",
+                            "data-clear-on-submit": "true"
                         }
                         button { r#type: "submit", "Send" }
                     }
