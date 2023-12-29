@@ -65,7 +65,7 @@ pub async fn ask_top_question(lobby_id: &str) -> Result<()> {
         lobby.questions_queue.retain(|q| q.question != question_text);
 
         // Reset queue waiting if needed
-        if !lobby.question_queue_active() {
+        if !lobby.questions_queue_active() {
             lobby.questions_queue_countdown = lobby.settings.submit_question_every_x_seconds as f64;
         }
 

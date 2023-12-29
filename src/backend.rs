@@ -45,12 +45,12 @@ pub struct Lobby {
 }
 
 impl Lobby {
-    pub fn question_queue_active(&self) -> bool {
+    pub fn questions_queue_active(&self) -> bool {
         self.questions_queue.iter().any(|q| q.votes >= self.settings.question_min_votes)
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct LobbySettings {
     pub item_count: usize,
     pub difficulty: Difficulty,
@@ -151,7 +151,7 @@ pub struct ChatMessage {
     pub message: String,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct QueuedQuestion {
     pub player: String,
     pub question: String,
@@ -640,7 +640,7 @@ pub fn lobby_loop() {
                 }
 
                 // If lobby has a queued question with at least QUESTION_MIN_VOTES votes, tick it down, else reset
-                if lobby.question_queue_active() {
+                if lobby.questions_queue_active() {
                     lobby.questions_queue_countdown -= elapsed_time_update;
                     if lobby.questions_queue_countdown <= 0.0 {
                         lobby.questions_queue_countdown += lobby.settings.submit_question_every_x_seconds as f64;

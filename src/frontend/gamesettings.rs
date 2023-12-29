@@ -1,47 +1,44 @@
 use crate::{
-    backend::{alter_lobby_settings, AlterLobbySetting, Difficulty, Lobby},
+    backend::{alter_lobby_settings, AlterLobbySetting, Difficulty, LobbySettings},
     ITEM_NAME_PATTERN, MAX_ITEM_NAME_LENGTH, MAX_LOBBY_ITEMS,
 };
 use dioxus::prelude::*;
 use std::{collections::HashMap, rc::Rc};
 use strum::IntoEnumIterator;
 
-pub fn render<'a>(
-    cx: Scope<'a>,
-    lobby_settings_open: &'a UseState<bool>,
-    player_name: &'a str,
-    lobby_id: &'a str,
-    lobby: &'a Lobby,
-) -> Element<'a> {
+#[derive(Props, PartialEq, Eq)]
+pub struct Props {
+    pub player_name: String,
+    pub lobby_id: String,
+    pub settings: LobbySettings,
+    pub items_queue: Vec<String>,
+}
+
+#[allow(non_snake_case)]
+pub fn GameSettings(cx: Scope<Props>) -> Element {
+    let (player_name, lobby_id) = (cx.props.player_name.clone(), cx.props.lobby_id.clone());
+    let settings = cx.props.settings;
     let advanced_settings_toggle: &UseState<bool> = use_state(cx, || false);
-    let player_controlled = lobby.settings.player_controlled;
+    let player_controlled = settings.player_controlled;
     let game_time = calculate_game_time(
-        lobby.settings.item_count,
-        lobby.settings.submit_question_every_x_seconds,
-        lobby.settings.add_item_every_x_questions,
+        settings.item_count,
+        settings.submit_question_every_x_seconds,
+        settings.add_item_every_x_questions,
     );
     let add_item_submission: &UseState<String> = use_state(cx, String::new);
 
-    let settings_open = if player_name == lobby.key_player {
-        *lobby_settings_open.get()
-    } else {
-        false
-    };
-
     let alter_setting = {
         move |setting: AlterLobbySetting| {
-            let lobby_id = lobby_id.to_owned();
-            let player_name = player_name.to_owned();
             let _result = alter_lobby_settings(&lobby_id, &player_name, setting);
         }
     };
 
     cx.render(rsx! {
-        div { class: "dialog floating", display: "flex", gap: "20px", top: if settings_open { "50%" } else { "-100%" },
+        div { class: "dialog floating", display: "flex", gap: "20px", top: "50%",
             label { font_weight: "bold", font_size: "larger", "Lobby Settings" }
             label { font_size: "large", "Estimated game length {game_time}" }
             div { display: "flex", flex_direction: "column", gap: "5px",
-                standard_settings(cx, lobby, alter_setting),
+                standard_settings(settings, alter_setting.clone()),
                 div { class: "dark-box",
                     label {
                         "Host as Quizmaster: "
@@ -56,7 +53,7 @@ pub fn render<'a>(
                         }
                     }
                     if player_controlled {
-                        item_settings(cx, lobby, add_item_submission, alter_setting)
+                        item_settings(add_item_submission, cx.props.items_queue.clone(), alter_setting.clone())
                     }
                 }
                 div { class: "dark-box",
@@ -71,16 +68,9 @@ pub fn render<'a>(
                         }
                     }
                     if *advanced_settings_toggle.get() {
-                        advanced_settings(cx, lobby, alter_setting)
+                        advanced_settings(settings, alter_setting.clone())
                     }
                 }
-            }
-            button {
-                onclick: move |_| {
-                    lobby_settings_open.set(!lobby_settings_open.get());
-                },
-                font_weight: "bold",
-                "Close"
             }
         }
     })
@@ -117,16 +107,16 @@ fn calculate_game_time(items_count: usize, question_every_x_seconds: usize, item
 }
 
 #[allow(clippy::cast_possible_wrap)]
-fn standard_settings<'a>(cx: Scope<'a>, lobby: &Lobby, alter_setting: impl Fn(AlterLobbySetting) + 'a) -> Element<'a> {
+fn standard_settings<'a>(settings: LobbySettings, alter_setting: impl Fn(AlterLobbySetting) + 'a) -> LazyNodes<'a, 'a> {
     let alter_setting = Rc::new(alter_setting);
-    cx.render(rsx! {
+    rsx! {
         div { display: "flex", gap: "5px",
             "Difficulty:"
             Difficulty::iter().map(|variant| {
                 let alter_setting = Rc::clone(&alter_setting);
                 rsx! {
                     button {
-                        class: if lobby.settings.difficulty == variant { "highlighted" } else { "" },
+                        class: if settings.difficulty == variant { "highlighted" } else { "" },
                         onclick: {
                             let alter_setting = Rc::clone(&alter_setting);
                             move |_| {
@@ -138,14 +128,14 @@ fn standard_settings<'a>(cx: Scope<'a>, lobby: &Lobby, alter_setting: impl Fn(Al
                 }
             })
         }
-        if !lobby.settings.player_controlled {
+        if !settings.player_controlled {
             rsx! { label {
                 "Item Count: "
                 input {
                     r#type: "number",
                     min: "1",
                     max: MAX_LOBBY_ITEMS as i64,
-                    value: "{lobby.settings.item_count}",
+                    value: "{settings.item_count}",
                     width: "50px",
                     oninput: {
                         move |e| {
@@ -155,21 +145,19 @@ fn standard_settings<'a>(cx: Scope<'a>, lobby: &Lobby, alter_setting: impl Fn(Al
                 }
             }}
         }
-    })
+    }
 }
 
 #[allow(clippy::cast_possible_wrap)]
 fn item_settings<'a>(
-    cx: Scope<'a>,
-    lobby: &Lobby,
     add_item_submission: &UseState<String>,
+    items_queue: Vec<String>,
     alter_setting: impl Fn(AlterLobbySetting) + 'a,
-) -> Element<'a> {
+) -> LazyNodes<'a, 'a> {
     let add_item_submission1 = add_item_submission.clone();
     let add_item_submission2 = add_item_submission.clone();
-    let server_items = lobby.items_queue.clone();
     let alter_setting = Rc::new(alter_setting);
-    cx.render(rsx! {
+    rsx! {
         div { display: "flex", flex_direction: "column", gap: "5px",
             div {
                 "Items "
@@ -186,7 +174,7 @@ fn item_settings<'a>(
                     "↻"
                 }
             }
-            server_items.into_iter().map(|item| {
+            items_queue.into_iter().map(|item| {
                 let item1 = item.clone();
                 let alter_setting = Rc::clone(&alter_setting);
                 rsx! {
@@ -242,7 +230,7 @@ fn item_settings<'a>(
                 button { background_color: "rgb(20, 100, 20)", r#type: "submit", "+" }
             }
         }
-    })
+    }
 }
 
 struct SettingDetail {
@@ -267,9 +255,9 @@ impl SettingDetail {
     }
 }
 
-fn advanced_settings<'a>(cx: Scope<'a>, lobby: &'a Lobby, alter_setting: impl Fn(AlterLobbySetting) + 'a) -> Element<'a> {
+fn advanced_settings<'a>(settings: LobbySettings, alter_setting: impl Fn(AlterLobbySetting) + 'a) -> LazyNodes<'a, 'a> {
     let alter_setting = Rc::new(alter_setting);
-    let settings = vec![
+    let setting_details = vec![
         SettingDetail::new("starting_coins", 1, 100),
         SettingDetail::new("coin_every_x_seconds", 1, 20),
         SettingDetail::new("submit_question_every_x_seconds", 1, 30),
@@ -282,22 +270,22 @@ fn advanced_settings<'a>(cx: Scope<'a>, lobby: &'a Lobby, alter_setting: impl Fn
     ];
 
     let setting_values: HashMap<&str, usize> = [
-        ("starting_coins", lobby.settings.starting_coins),
-        ("coin_every_x_seconds", lobby.settings.coin_every_x_seconds),
-        ("submit_question_every_x_seconds", lobby.settings.submit_question_every_x_seconds),
-        ("add_item_every_x_questions", lobby.settings.add_item_every_x_questions),
-        ("submit_question_cost", lobby.settings.submit_question_cost),
-        ("masked_question_cost", lobby.settings.masked_question_cost),
-        ("guess_item_cost", lobby.settings.guess_item_cost),
-        ("question_min_votes", lobby.settings.question_min_votes),
-        ("score_to_coins_ratio", lobby.settings.score_to_coins_ratio),
+        ("starting_coins", settings.starting_coins),
+        ("coin_every_x_seconds", settings.coin_every_x_seconds),
+        ("submit_question_every_x_seconds", settings.submit_question_every_x_seconds),
+        ("add_item_every_x_questions", settings.add_item_every_x_questions),
+        ("submit_question_cost", settings.submit_question_cost),
+        ("masked_question_cost", settings.masked_question_cost),
+        ("guess_item_cost", settings.guess_item_cost),
+        ("question_min_votes", settings.question_min_votes),
+        ("score_to_coins_ratio", settings.score_to_coins_ratio),
     ]
     .iter()
     .copied()
     .collect();
 
-    cx.render(rsx! {
-        settings.into_iter().map(|setting| {
+    rsx! {
+        setting_details.into_iter().map(|setting| {
             let alter_setting = Rc::clone(&alter_setting);
             setting_values.get(setting.key.as_str()).map_or_else(|| rsx! { div {} }, |&setting_value|
                 rsx! {
@@ -319,5 +307,5 @@ fn advanced_settings<'a>(cx: Scope<'a>, lobby: &'a Lobby, alter_setting: impl Fn
                 }
             )
         })
-    })
+    }
 }

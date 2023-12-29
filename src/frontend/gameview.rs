@@ -1,18 +1,19 @@
 use crate::{
     backend::{add_chat_message, disconnect_player, start_lobby, Lobby},
-    frontend::{items_display::ItemDisplay, leaderboard_display, management_display, question_queue_display, AlertPopup},
+    frontend::{
+        items_display::ItemDisplay, leaderboard_display, management_display, question_queue_display::QuestionQueueDisplay, AlertPopup,
+    },
     MAX_CHAT_LENGTH,
 };
 use dioxus::prelude::*;
 
-#[allow(clippy::cast_possible_wrap, clippy::too_many_arguments)]
+#[allow(clippy::cast_possible_wrap, clippy::cast_possible_truncation, clippy::cast_sign_loss)]
 pub fn render<'a>(
     cx: Scope<'a>,
     player_name: &'a str,
     lobby_id: &'a str,
     lobby: &Lobby,
     is_connected: &'a UseState<bool>,
-    lobby_settings_open: &'a UseState<bool>,
     alert_popup: &'a UseState<AlertPopup>,
 ) -> Element<'a> {
     let chat_submission: &UseState<String> = use_state(cx, String::new);
@@ -52,14 +53,8 @@ pub fn render<'a>(
                         div { display: "flex", gap: "5px",
                             if lobby.key_player == *player_name && !lobby.started {
                                 rsx! { button { onclick: move |_| {
-                                    lobby_settings_open.set(false);
                                     let _result = start_lobby(lobby_id, player_name);
                                 }, "Start" } }
-                            }
-                            if lobby.key_player == *player_name && !lobby.started {
-                                rsx! { button { onclick: move |_| {
-                                    lobby_settings_open.set(!lobby_settings_open.get());
-                                }, "Settings" } }
                             }
                             button {
                                 onclick: move |_| {
@@ -93,11 +88,19 @@ pub fn render<'a>(
                     }
                 }
                 div {
-                    // Item Queue
+                    // Questions Queue
                     class: "background-box",
                     min_height: "200px",
                     overflow_y: "auto",
-                    question_queue_display::render(cx, player_name, lobby_id, lobby)
+                    QuestionQueueDisplay {
+                        player_name: player_name.to_owned(),
+                        lobby_id: lobby_id.to_owned(),
+                        questions_queue: lobby.questions_queue.clone(),
+                        questions_queue_active: lobby.questions_queue_active(),
+                        questions_queue_countdown: lobby.questions_queue_countdown.round() as usize,
+                        settings: lobby.settings,
+                        is_quizmaster: is_quizmaster
+                    }
                 }
                 div {
                     // Chat

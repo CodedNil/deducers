@@ -1,9 +1,23 @@
-use crate::backend::{question_queue::vote_question, Lobby};
+use crate::backend::{question_queue::vote_question, LobbySettings, QueuedQuestion};
 use dioxus::prelude::*;
 
-pub fn render<'a>(cx: Scope<'a>, player_name: &'a str, lobby_id: &'a str, lobby: &Lobby) -> Element<'a> {
-    let questions = lobby.questions_queue.clone();
-    let mut sorted_questions = questions;
+#[derive(Props, PartialEq, Eq)]
+pub struct Props {
+    pub player_name: String,
+    pub lobby_id: String,
+    pub is_quizmaster: bool,
+    pub questions_queue: Vec<QueuedQuestion>,
+    pub questions_queue_active: bool,
+    pub questions_queue_countdown: usize,
+    pub settings: LobbySettings,
+}
+
+#[allow(non_snake_case)]
+pub fn QuestionQueueDisplay(cx: Scope<Props>) -> Element {
+    let (player_name, lobby_id) = (cx.props.player_name.clone(), cx.props.lobby_id.clone());
+    let settings = cx.props.settings;
+    let questions_queue = cx.props.questions_queue.clone();
+    let mut sorted_questions = questions_queue;
     sorted_questions.sort_by(|a, b| {
         if a.votes == b.votes {
             a.question.cmp(&b.question)
@@ -14,10 +28,10 @@ pub fn render<'a>(cx: Scope<'a>, player_name: &'a str, lobby_id: &'a str, lobby:
 
     cx.render(rsx! {
         div { align_self: "center",
-            if lobby.question_queue_active() {
-                format!("Top Question Submitted in {} Seconds", lobby.questions_queue_countdown.round())
+            if cx.props.questions_queue_active {
+                format!("Top Question Submitted in {} Seconds", cx.props.questions_queue_countdown)
             } else {
-                format!("Top Question Submitted After {} Votes", lobby.settings.question_min_votes)
+                format!("Top Question Submitted After {} Votes", settings.question_min_votes)
             }
         }
 
@@ -34,6 +48,7 @@ pub fn render<'a>(cx: Scope<'a>, player_name: &'a str, lobby_id: &'a str, lobby:
             } else {
                 question.question.clone()
             };
+            let (player_name, lobby_id) = (player_name.clone(), lobby_id.clone());
             rsx! {
                 div { class: "table-row",
                     div { class: "{row_class}", flex: "1", "{question.player}" }
@@ -42,10 +57,10 @@ pub fn render<'a>(cx: Scope<'a>, player_name: &'a str, lobby_id: &'a str, lobby:
                         class: "{row_class}",
                         flex: "1",
                         "{question.votes}",
-                        if !(player_name == lobby.key_player && lobby.settings.player_controlled) {
+                        if !cx.props.is_quizmaster {
                             rsx! { button {
                                 onclick: move |_| {
-                                    let _result = vote_question(lobby_id, player_name, &question_string);
+                                    let _result = vote_question(&lobby_id, &player_name, &question_string);
                                 },
                                 padding: "2px",
                                 "🪙"

@@ -18,22 +18,19 @@ pub struct Props {
 
 #[allow(non_snake_case)]
 pub fn ItemDisplay(cx: Scope<Props>) -> Element {
-    println!("Rendering at {}", crate::backend::get_current_time());
-    let props = cx.props;
-
+    let items = cx.props.items.clone();
     let mut active_questions = vec![];
-    for item in &props.items {
+    for item in &items {
         for question in &item.questions {
             let question_string = if question.masked {
-                let question_player_name = props
-                    .items
+                let question_player_name = items
                     .iter()
                     .flat_map(|item| &item.questions)
                     .find(|item_question| item_question.id == question.id)
                     .map(|item_question| item_question.player.clone())
                     .unwrap_or_default();
 
-                if question_player_name == props.player_name {
+                if question_player_name == cx.props.player_name {
                     question.text.clone()
                 } else {
                     format!("MASKED - {question_player_name}")
@@ -56,8 +53,8 @@ pub fn ItemDisplay(cx: Scope<Props>) -> Element {
     cx.render(rsx! {
         div { class: "table-row",
             div { class: "table-header-box", flex: "1", "Question" }
-            props.items.iter().map(|item| {
-                let (content, width) = if props.is_quizmaster { (item.name.clone(), "unset") } else { (item.id.to_string(), "20px") };
+            items.iter().map(|item| {
+                let (content, width) = if cx.props.is_quizmaster { (item.name.clone(), "unset") } else { (item.id.to_string(), "20px") };
                 rsx! {
                     div { class: "table-header-box", width: width, flex: "unset", text_align: "center", content }
                 }
@@ -71,7 +68,7 @@ pub fn ItemDisplay(cx: Scope<Props>) -> Element {
                 let question = &active_questions[question_index];
                 (question.id, question.question.clone())
             };
-            let items = props.items.clone();
+            let items = items.clone();
             rsx! {
                 div { class: "table-row", flex: "1",
                     div {

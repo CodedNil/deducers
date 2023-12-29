@@ -1,5 +1,6 @@
 use crate::{
     backend::{connect_player, get_current_time, get_lobby_info, get_state, Lobby, PlayerMessage},
+    frontend::gamesettings::GameSettings,
     LOBBY_ID_PATTERN, MAX_LOBBY_ID_LENGTH, MAX_PLAYER_NAME_LENGTH, PLAYER_NAME_PATTERN,
 };
 use dioxus::prelude::*;
@@ -132,7 +133,6 @@ pub fn app(cx: Scope) -> Element {
 
     let lobby_state = use_state(cx, || None::<Lobby>);
     let lobby_info = use_state(cx, Vec::new);
-    let lobby_settings_open = use_state(cx, || true);
 
     let error_message = use_state(cx, ErrorDialog::default);
 
@@ -291,10 +291,17 @@ pub fn app(cx: Scope) -> Element {
                 .collect::<Vec<String>>()
                 .join(",");
             cx.render(rsx! {
-                gameview::render(cx, player_name, lobby_id, lobby, is_connected, lobby_settings_open, alert_popup),
+                gameview::render(cx, player_name, lobby_id, lobby, is_connected, alert_popup),
                 render_error_dialog,
                 item_reveal_message.render(),
-                rsx! { gamesettings::render(cx, lobby_settings_open, player_name, lobby_id, lobby) },
+                if player_name == &lobby.key_player && !lobby.started {
+                    rsx! { GameSettings {
+                        player_name: player_name.get().clone(),
+                        lobby_id: lobby_id.get().clone(),
+                        settings: lobby.settings,
+                        items_queue: lobby.items_queue.clone(),
+                    } }
+                }
                 div { id: "sounds", visibility: "collapse", position: "absolute", "{sounds_str}" }
             })
         } else {
@@ -326,7 +333,6 @@ pub fn app(cx: Scope) -> Element {
                                             });
                                     } else {
                                         is_connected.set(true);
-                                        lobby_settings_open.set(true);
                                     }
                                 },
                                 "Join"
@@ -352,7 +358,6 @@ pub fn app(cx: Scope) -> Element {
                                 });
                         } else {
                             is_connected.set(true);
-                            lobby_settings_open.set(true);
                         }
                     },
                     input {
