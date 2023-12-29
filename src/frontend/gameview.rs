@@ -1,7 +1,8 @@
 use crate::{
-    backend::{add_chat_message, disconnect_player, start_lobby, Lobby},
+    backend::{add_chat_message, disconnect_player, start_lobby, Lobby, Player},
     frontend::{
-        items_display::ItemDisplay, leaderboard_display, management_display, question_queue_display::QuestionQueueDisplay, AlertPopup,
+        items_display::ItemDisplay, leaderboard_display::Leaderboard, management_display, question_queue_display::QuestionQueueDisplay,
+        AlertPopup,
     },
     MAX_CHAT_LENGTH,
 };
@@ -17,6 +18,7 @@ pub fn render<'a>(
     alert_popup: &'a UseState<AlertPopup>,
 ) -> Element<'a> {
     let chat_submission: &UseState<String> = use_state(cx, String::new);
+    let is_keyplayer = player_name == lobby.key_player;
     let is_quizmaster = player_name == lobby.key_player && lobby.settings.player_controlled;
 
     cx.render(rsx! {
@@ -69,14 +71,23 @@ pub fn render<'a>(
                     div {
                         // Leaderboard
                         class: "background-box",
-                        leaderboard_display::render(cx, player_name, lobby_id, lobby)
+                        Leaderboard {
+                            player_name: player_name.to_owned(),
+                            lobby_id: lobby_id.to_owned(),
+                            players: lobby.players.values().map(Player::reduce).collect(),
+                            is_keyplayer: is_keyplayer
+                        }
                     }
                 }
                 div { display: "flex", flex_direction: "column", gap: "5px",
                     div {
                         // Management
                         class: "background-box",
-                        management_display::render(cx, player_name, lobby_id, lobby, &alert_popup)
+                        if lobby.started {
+                            management_display::render(cx, player_name, lobby_id, lobby, alert_popup)
+                        } else {
+                            cx.render(rsx! { div { align_self: "center", font_size: "larger", "Waiting for game to start" } })
+                        }
                     }
                     if alert_popup.get().shown {
                         rsx! {

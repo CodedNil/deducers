@@ -25,7 +25,7 @@ pub mod openai;
 pub mod parse_words;
 pub mod question_queue;
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Default)]
 pub struct Lobby {
     pub id: String,
     pub started: bool,
@@ -50,7 +50,7 @@ impl Lobby {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub struct LobbySettings {
     pub item_count: usize,
     pub difficulty: Difficulty,
@@ -103,14 +103,14 @@ impl fmt::Display for LobbySettings {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, EnumString, Display, EnumIter)]
+#[derive(Clone, Copy, PartialEq, Eq, EnumString, Display, EnumIter)]
 pub enum Difficulty {
     Easy,
     Medium,
     Hard,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub enum AlterLobbySetting {
     ItemCount(usize),
     Difficulty(Difficulty),
@@ -122,7 +122,7 @@ pub enum AlterLobbySetting {
     Advanced(String, usize),
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub enum PlayerMessage {
     ItemAdded,
     QuestionAsked,
@@ -135,7 +135,7 @@ pub enum PlayerMessage {
     Winner(Vec<String>),
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Default)]
 pub struct Player {
     pub name: String,
     pub last_contact: f64,
@@ -145,13 +145,32 @@ pub struct Player {
     pub messages: Vec<PlayerMessage>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, PartialEq, Eq)]
+pub struct PlayerReduced {
+    pub name: String,
+    pub quizmaster: bool,
+    pub score: usize,
+    pub coins: usize,
+}
+
+impl Player {
+    pub fn reduce(&self) -> PlayerReduced {
+        PlayerReduced {
+            name: self.name.clone(),
+            quizmaster: self.quizmaster,
+            score: self.score,
+            coins: self.coins,
+        }
+    }
+}
+
+#[derive(Clone)]
 pub struct ChatMessage {
     pub player: String,
     pub message: String,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct QueuedQuestion {
     pub player: String,
     pub question: String,
@@ -160,7 +179,7 @@ pub struct QueuedQuestion {
     pub voters: Vec<String>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct QueuedQuestionQuizmaster {
     pub player: String,
     pub question: String,
@@ -169,21 +188,21 @@ pub struct QueuedQuestionQuizmaster {
     pub voters: Vec<String>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct QuizmasterItem {
     pub name: String,
     pub id: usize,
     pub answer: Answer,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct Item {
     pub name: String,
     pub id: usize,
     pub questions: Vec<Question>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct Question {
     pub player: String,
     pub id: usize,
@@ -192,7 +211,7 @@ pub struct Question {
     pub masked: bool,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, EnumString, Display, EnumIter, EnumProperty)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, EnumString, Display, EnumIter, EnumProperty)]
 pub enum Answer {
     #[strum(props(color = "rgb(60, 130, 50)"))]
     Yes,

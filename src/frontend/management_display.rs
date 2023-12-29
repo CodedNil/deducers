@@ -4,7 +4,7 @@ use crate::{
         question_queue::{convert_score, submit_question},
         Lobby,
     },
-    frontend::{quizmaster, AlertPopup},
+    frontend::{quizmaster::QuizmasterDisplay, AlertPopup},
     ITEM_NAME_PATTERN, MAX_ITEM_NAME_LENGTH, MAX_QUESTION_LENGTH, QUESTION_PATTERN,
 };
 use dioxus::prelude::*;
@@ -22,20 +22,15 @@ pub fn render<'a>(
     let guess_item_submission: &UseState<String> = use_state(cx, String::new);
     let guess_item_key: &UseState<usize> = use_state(cx, || 1);
 
-    let submit_cost = lobby.settings.submit_question_cost
-        + if *question_masked.get() {
-            lobby.settings.masked_question_cost
-        } else {
-            0
-        };
+    let settings = lobby.settings;
+
+    let submit_cost = settings.submit_question_cost + if *question_masked.get() { settings.masked_question_cost } else { 0 };
     let players_coins = lobby.players[player_name].coins;
 
-    if !lobby.started {
-        return cx.render(rsx! { div { align_self: "center", font_size: "larger", "Waiting for game to start" } });
-    }
-
-    if player_name == lobby.key_player && lobby.settings.player_controlled {
-        return quizmaster::render(cx, player_name, lobby_id, lobby);
+    if player_name == lobby.key_player && settings.player_controlled {
+        return cx.render(
+            rsx! {QuizmasterDisplay { player_name: player_name, lobby_id: lobby_id, quizmaster_queue: lobby.quizmaster_queue.clone() }},
+        );
     }
 
     cx.render(rsx! {
@@ -79,7 +74,7 @@ pub fn render<'a>(
                     question_masked.set(!question_masked.get());
                 }
             }
-            "Masked +{lobby.settings.masked_question_cost}🪙"
+            "Masked +{settings.masked_question_cost}🪙"
         }
         div { display: "flex", gap: "5px",
             button {
@@ -89,7 +84,7 @@ pub fn render<'a>(
                     }
                 },
                 flex: "1",
-                "Convert Leaderboard Score To {lobby.settings.score_to_coins_ratio}🪙"
+                "Convert Leaderboard Score To {settings.score_to_coins_ratio}🪙"
             }
         }
         form {
@@ -129,7 +124,7 @@ pub fn render<'a>(
                     }
                 })
             }
-            button { r#type: "submit", "Submit Guess {lobby.settings.guess_item_cost}🪙" }
+            button { r#type: "submit", "Submit Guess {settings.guess_item_cost}🪙" }
         }
     })
 }

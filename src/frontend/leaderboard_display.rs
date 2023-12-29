@@ -1,9 +1,18 @@
-use crate::backend::{kick_player, Lobby, Player};
+use crate::backend::{kick_player, PlayerReduced};
 use dioxus::prelude::*;
 
-pub fn render<'a>(cx: Scope<'a>, player_name: &'a str, lobby_id: &'a str, lobby: &Lobby) -> Element<'a> {
-    let players = lobby.players.values().collect::<Vec<&Player>>();
-    let mut sorted_players = players.clone();
+#[derive(Props, PartialEq, Eq)]
+pub struct Props {
+    pub player_name: String,
+    pub lobby_id: String,
+    pub players: Vec<PlayerReduced>,
+    pub is_keyplayer: bool,
+}
+
+#[allow(non_snake_case)]
+pub fn Leaderboard(cx: Scope<Props>) -> Element {
+    let (player_name, lobby_id) = (cx.props.player_name.clone(), cx.props.lobby_id.clone());
+    let mut sorted_players = cx.props.players.clone();
     sorted_players.sort_by(|a, b| {
         if a.score == b.score {
             a.name.cmp(&b.name)
@@ -30,7 +39,8 @@ pub fn render<'a>(cx: Scope<'a>, player_name: &'a str, lobby_id: &'a str, lobby:
                 "table-body-box"
             };
             let row_player = player.name.clone();
-            let can_kick = lobby.key_player == *player_name && player.name != *player_name;
+            let can_kick = cx.props.is_keyplayer && player.name != *player_name;
+            let lobby_id = lobby_id.clone();
             rsx! {
                 div { class: "table-row",
                     div { class: row_class, flex: "2", "{row_player}" }
@@ -45,7 +55,7 @@ pub fn render<'a>(cx: Scope<'a>, player_name: &'a str, lobby_id: &'a str, lobby:
                                 "{player.score}",
                                 button {
                                     onclick: move |_| {
-                                        let _result = kick_player(lobby_id, &row_player);
+                                        let _result = kick_player(&lobby_id, &row_player);
                                     },
                                     padding: "2px",
                                     "💥"

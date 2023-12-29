@@ -1,11 +1,20 @@
 use crate::backend::{
     items::{quizmaster_change_answer, quizmaster_reject, quizmaster_submit},
-    Answer, Lobby,
+    Answer, QueuedQuestionQuizmaster,
 };
 use dioxus::prelude::*;
 use strum::{EnumProperty, IntoEnumIterator};
 
-pub fn render<'a>(cx: Scope<'a>, player_name: &'a str, lobby_id: &'a str, lobby: &Lobby) -> Element<'a> {
+#[derive(Props, PartialEq, Eq)]
+pub struct Props<'a> {
+    pub player_name: &'a str,
+    pub lobby_id: &'a str,
+    pub quizmaster_queue: Vec<QueuedQuestionQuizmaster>,
+}
+
+#[allow(non_snake_case, clippy::module_name_repetitions)]
+pub fn QuizmasterDisplay<'a>(cx: Scope<'a, Props>) -> Element<'a> {
+    let (player_name, lobby_id) = (cx.props.player_name, cx.props.lobby_id);
     cx.render(rsx! {
         div { class: "table-row",
             rsx! {
@@ -13,7 +22,7 @@ pub fn render<'a>(cx: Scope<'a>, player_name: &'a str, lobby_id: &'a str, lobby:
                 div { class: "table-header-box", flex: "3", "Question" }
             }
         }
-        lobby.quizmaster_queue.iter().map(|question| {
+        cx.props.quizmaster_queue.iter().map(|question| {
             let question_string1 = question.question.clone();
             let question_string2 = question.question.clone();
             rsx! {
