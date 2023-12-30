@@ -36,8 +36,12 @@ async fn main() {
     let server_ip = env::var("SERVER_IP").unwrap_or_else(|_| "127.0.0.1".to_owned());
     let server_address = format!("{server_ip}:{SERVER_PORT}");
 
+    // Include the contents of CSS and JS files
+    let css_content = include_str!("style.css");
+    let js_content = include_str!("client.js");
+
     let view = dioxus_liveview::LiveViewPool::new();
-    let index_page_with_glue = |glue: &str| {
+    let index_page_with_glue = move |glue: &str| {
         Html(format!(
             r#"
         <!DOCTYPE html>
@@ -46,13 +50,11 @@ async fn main() {
                 <title>Deducers</title>
                 <meta name="darkreader-lock">
                 <link rel="icon" href="/assets/favicon.ico" type="image/x-icon">
-                <link rel="stylesheet" type="text/css" href="assets/style.css">
+                <style>{css_content}</style>
             </head>
-            <body>
-                <div id="main"></div>
-            </body>
+            <body><div id="main"></div></body>
             {glue}
-            <script src="assets/client.js"></script>
+            <script>{js_content}</script>
         </html>
         "#,
         ))

@@ -13,7 +13,7 @@ fn main() -> Result<()> {
     // Compile scss
     let scss_path = Path::new("src").join("style.scss");
     let css = compile_scss_path(&scss_path, Format::default()).expect("Failed to compile SCSS");
-    write(Path::new("assets").join("style.css"), css)?;
+    write(Path::new("src").join("style.css"), css)?;
 
     // Create words.txt
     if !Path::new("src/backend/words.txt").exists() {
