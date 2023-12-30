@@ -120,10 +120,10 @@ pub async fn query_ai(prompt: &String, max_tokens: usize, temperature: f32) -> R
     bail!("Failed to extract message content from the response")
 }
 
-#[allow(clippy::cast_precision_loss, clippy::suboptimal_flops)]
+#[allow(clippy::suboptimal_flops)]
 fn log_details(prompt: &String, result: &MessageResponse, tokens: &Usage) -> Result<()> {
     // Pricing is input $0.0015 / 1K tokens output $0.002 / 1K tokens
-    let price = ((tokens.prompt_tokens as f32 * 0.0015) + (tokens.completion_tokens as f32 * 0.002)) / 1000.0;
+    let price = ((tokens.prompt_tokens as f64 * 0.0015) + (tokens.completion_tokens as f64 * 0.002)) / 1000.0;
 
     // Format the log entry.
     let result = result.content.clone();

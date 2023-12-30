@@ -11,7 +11,6 @@ use crate::{
 };
 use dioxus::prelude::*;
 
-#[allow(clippy::cast_possible_wrap)]
 #[component]
 pub fn GameView(
     cx: Scope,

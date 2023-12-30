@@ -37,7 +37,6 @@ struct AskQuestionResponse {
     answers: Vec<String>,
 }
 
-#[allow(clippy::cast_precision_loss)]
 pub async fn ask_top_question(lobby_id: &str) -> Result<()> {
     let (mut question_text, mut question_player, mut question_masked) = (String::new(), String::new(), false);
     let mut question_voters = Vec::new();

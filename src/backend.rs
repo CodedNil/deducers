@@ -1,4 +1,3 @@
-#![allow(clippy::significant_drop_tightening)]
 use crate::{
     backend::{
         items::{add_item_to_lobby, ask_top_question},
@@ -371,7 +370,6 @@ pub fn create_lobby(lobby_id: &str, player_name: &str) -> Result<()> {
     Ok(())
 }
 
-#[allow(clippy::cast_sign_loss, clippy::cast_precision_loss, clippy::cast_possible_truncation)]
 pub fn connect_player(lobby_id: &str, player_name: &str) -> Result<()> {
     let lobby_id = lobby_id.trim();
     let player_name = player_name.trim();
@@ -624,7 +622,6 @@ pub fn get_current_time() -> f64 {
     now.duration_since(time::UNIX_EPOCH).unwrap_or_default().as_secs_f64()
 }
 
-#[allow(clippy::cast_precision_loss)]
 pub fn lobby_loop() {
     let mut lobbys_lock = LOBBYS.lock().unwrap();
 

@@ -124,7 +124,6 @@ pub fn tutorial(tutorial_open: &UseState<bool>) -> LazyNodes<'_, '_> {
     }
 }
 
-#[allow(clippy::cast_possible_wrap, clippy::cast_possible_truncation, clippy::cast_sign_loss)]
 pub fn app(cx: Scope) -> Element {
     let player_name = use_state(cx, String::new);
     let lobby_id = use_state(cx, String::new);

@@ -66,7 +66,6 @@ pub fn GameSettings(cx: Scope, player_name: String, lobby_id: String, settings: 
 }
 
 // Function to estimate game time in seconds
-#[allow(clippy::cast_precision_loss, clippy::cast_possible_truncation, clippy::cast_sign_loss)]
 fn calculate_game_time(items_count: usize, question_every_x_seconds: usize, item_every_x_questions: usize) -> String {
     // Initial items are added at the start, so we subtract them from the total count
     let remaining_items = if items_count > 2 { items_count - 2 } else { 0 };
@@ -95,7 +94,6 @@ fn calculate_game_time(items_count: usize, question_every_x_seconds: usize, item
     }
 }
 
-#[allow(clippy::cast_possible_wrap)]
 fn standard_settings<'a>(settings: LobbySettings, alter_setting: impl Fn(AlterLobbySetting) + 'a) -> LazyNodes<'a, 'a> {
     let alter_setting = Rc::new(alter_setting);
     rsx! {
@@ -137,7 +135,6 @@ fn standard_settings<'a>(settings: LobbySettings, alter_setting: impl Fn(AlterLo
     }
 }
 
-#[allow(clippy::cast_possible_wrap)]
 fn item_settings<'a>(items_queue: Vec<String>, alter_setting: impl Fn(AlterLobbySetting) + 'a) -> LazyNodes<'a, 'a> {
     let alter_setting = Rc::new(alter_setting);
     rsx! {
