@@ -12,6 +12,7 @@ function playSound(sound) {
 document.addEventListener("click", function (event) {
     if (event.target.nodeName === "BUTTON") {
         playSound("button_pressed");
+        event.target.blur();
     }
 });
 

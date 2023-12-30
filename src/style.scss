@@ -3,6 +3,9 @@ $secondary_color: rgb(25, 25, 40);
 $tertiary_color: rgb(60, 60, 80);
 $shadow_color: rgba(black, 0.12);
 
+$size_small: 5px;
+$size_large: 10px;
+
 body {
     background-color: rgb(70, 70, 100);
     color: white;
@@ -12,16 +15,16 @@ body {
 
 @mixin interactive-element {
     color: white;
-    border-radius: 4px;
-    padding: 5px 10px;
+    border-radius: $size_small;
+    border: 2px solid $secondary_color;
+    padding: $size_small $size_large;
     transition: 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-    transition-property: color, background-color, letter-spacing;
+    transition-property: color, background-color;
     &:hover,
     &:focus {
         outline: none;
         background-color: white;
         color: black;
-        letter-spacing: 0.5px;
         box-shadow: inset 0 0 1px white, 0 1px 3px $shadow_color, 0 1px 2px rgba($shadow_color, 0.24);
     }
     &:active {
@@ -30,90 +33,78 @@ body {
 }
 
 button {
-    background-color: rgb(25, 25, 80);
-    border: none;
+    background-color: rgb(60, 60, 100);
     @include interactive-element;
-}
-
-input {
-    background-color: $tertiary_color;
-    border: 2px solid $secondary_color;
-    @include interactive-element;
-}
-
-select {
-    background-color: $secondary_color;
-    border: none;
-    @include interactive-element;
-}
-
-button.highlighted {
-    background-color: rgb(90, 80, 40);
-    &:hover,
-    &:focus {
-        background-color: rgb(140, 120, 60);
-        color: white;
+    &.highlighted {
+        background-color: rgb(100, 100, 60);
+        &:hover,
+        &:focus {
+            background-color: white;
+            color: black;
+        }
     }
 }
 
+input,
+select {
+    background-color: $tertiary_color;
+    @include interactive-element;
+}
+
+@mixin flex-column($gap: $size_small) {
+    display: flex;
+    flex-direction: column;
+    gap: $gap;
+}
+
+@mixin box-style($color, $radius, $padding) {
+    background-color: $color;
+    border-radius: $radius;
+    padding: $padding;
+}
+
 .dialog {
-    background-color: $primary_color;
+    @include box-style($primary_color, $size_large, $size_large);
+    @include flex-column($size_large);
     position: fixed;
     top: -100%;
     left: 50%;
     transform: translate(-50%, -50%);
     transition: top 0.5s;
-    padding: 20px;
-    border-radius: 10px;
-    display: flex;
-    flex-direction: column;
     align-items: center;
-    gap: 10px;
     box-shadow: 0 1px 2px rgba($shadow_color, 0.24);
 }
 
 .background-box {
-    background-color: $primary_color;
+    @include box-style($primary_color, $size_large, $size_large);
+    @include flex-column;
     box-shadow: 0 1px 2px rgba($shadow_color, 0.24);
-    border-radius: 10px;
-    padding: 10px;
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
 }
 
 .dark-box {
-    background-color: $secondary_color;
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
-    padding: 10px;
-    border-radius: 4px;
+    @include box-style($secondary_color, $size_small, $size_large);
+    @include flex-column;
     font-weight: bold;
     text-align: center;
 }
 
 .table-row {
     display: flex;
-    gap: 5px;
+    gap: $size_small;
 }
 
 .table-header-box {
-    background-color: $secondary_color;
-    padding: 5px;
-    border-radius: 4px;
+    @include box-style($secondary_color, $size_small, $size_small);
     text-transform: uppercase;
     font-weight: bold;
     text-align: center;
 }
 
 .table-body-box {
-    background-color: $tertiary_color;
-    padding: 5px;
-    border-radius: 4px;
+    @include box-style($tertiary_color, $size_small, $size_small);
     display: flex;
     justify-content: center;
     align-items: center;
     text-align: center;
-    gap: 5px;
+    gap: $size_small;
 }
