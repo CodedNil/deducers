@@ -7,7 +7,7 @@ use crate::{
     IDLE_KICK_TIME, ITEM_NAME_PATTERN, LOBBY_ID_PATTERN, MAX_CHAT_LENGTH, MAX_CHAT_MESSAGES, MAX_ITEM_NAME_LENGTH, MAX_LOBBY_ID_LENGTH,
     MAX_LOBBY_ITEMS, MAX_PLAYER_NAME_LENGTH, PLAYER_NAME_PATTERN,
 };
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, bail, Result};
 use once_cell::sync::Lazy;
 use rand::prelude::*;
 use std::{
@@ -376,18 +376,16 @@ pub fn connect_player(lobby_id: &str, player_name: &str) -> Result<()> {
     let lobby_id = lobby_id.trim();
     let player_name = player_name.trim();
     if lobby_id.len() < 3 || lobby_id.len() > MAX_LOBBY_ID_LENGTH {
-        return Err(anyhow!("Lobby ID must be between 3 and {MAX_LOBBY_ID_LENGTH} characters long"));
+        bail!("Lobby ID must be between 3 and {MAX_LOBBY_ID_LENGTH} characters long");
     }
     if player_name.len() < 3 || player_name.len() > MAX_PLAYER_NAME_LENGTH {
-        return Err(anyhow!(
-            "Player name must be between 3 and {MAX_PLAYER_NAME_LENGTH} characters long"
-        ));
+        bail!("Player name must be between 3 and {MAX_PLAYER_NAME_LENGTH} characters long");
     }
     if !regex::Regex::new(LOBBY_ID_PATTERN).unwrap().is_match(lobby_id) {
-        return Err(anyhow!("Lobby ID must be alphabetic"));
+        bail!("Lobby ID must be alphabetic");
     }
     if !regex::Regex::new(PLAYER_NAME_PATTERN).unwrap().is_match(player_name) {
-        return Err(anyhow!("Player name must be alphabetic"));
+        bail!("Player name must be alphabetic");
     }
 
     if let Err(e) = create_lobby(lobby_id, player_name) {
@@ -396,7 +394,7 @@ pub fn connect_player(lobby_id: &str, player_name: &str) -> Result<()> {
 
     with_lobby_mut(lobby_id, |lobby| {
         if lobby.players.contains_key(player_name) {
-            return Err(anyhow!("Player '{player_name}' is already connected to lobby '{lobby_id}'"));
+            bail!("Player '{player_name}' is already connected to lobby '{lobby_id}'");
         }
 
         // If lobby is started already, give starting coins plus coins for game time
@@ -428,14 +426,17 @@ pub fn disconnect_player(lobby_id: &str, player_name: &str) {
 
 pub fn alter_lobby_settings(lobby_id: &str, player_name: &str, setting: AlterLobbySetting) {
     let result = with_lobby_mut(lobby_id, |lobby| {
+        if lobby.started {
+            bail!("Lobby is started");
+        }
         if player_name != lobby.key_player {
-            return Err(anyhow!("Only the key player can alter the lobby settings"));
+            bail!("Only the key player can alter the lobby settings");
         }
 
         match setting {
             AlterLobbySetting::ItemCount(item_count) => {
                 if !(1..=MAX_LOBBY_ITEMS).contains(&item_count) {
-                    return Err(anyhow!("Item count must be between 1 and 20"));
+                    bail!("Item count must be between 1 and 20");
                 }
                 lobby.settings.item_count = item_count;
                 // Expand or shrink the items queue to match the new item count
@@ -470,13 +471,13 @@ pub fn alter_lobby_settings(lobby_id: &str, player_name: &str, setting: AlterLob
                 }
                 // Else check if the item is valid and add it to the queue
                 if !regex::Regex::new(ITEM_NAME_PATTERN).unwrap().is_match(&item) {
-                    return Err(anyhow!("Item name must be alphabetic"));
+                    bail!("Item name must be alphabetic");
                 }
                 if item.len() < 3 || item.len() > MAX_ITEM_NAME_LENGTH {
-                    return Err(anyhow!("Item name must be between 3 and {MAX_ITEM_NAME_LENGTH} characters long"));
+                    bail!("Item name must be between 3 and {MAX_ITEM_NAME_LENGTH} characters long");
                 }
                 if lobby.items_queue.contains(&item) {
-                    return Err(anyhow!("Item '{item}' already exists in the lobby"));
+                    bail!("Item '{item}' already exists in the lobby");
                 }
                 // Capitalise the first letter of the item
                 let item = item
@@ -515,7 +516,7 @@ pub fn alter_lobby_settings(lobby_id: &str, player_name: &str, setting: AlterLob
                 "guess_item_cost" => lobby.settings.guess_item_cost = value,
                 "question_min_votes" => lobby.settings.question_min_votes = value,
                 "score_to_coins_ratio" => lobby.settings.score_to_coins_ratio = value,
-                _ => return Err(anyhow!("Invalid advanced setting key")),
+                _ => bail!("Invalid advanced setting key"),
             },
         }
 
@@ -529,9 +530,9 @@ pub fn alter_lobby_settings(lobby_id: &str, player_name: &str, setting: AlterLob
 pub fn start_lobby(lobby_id: &str, player_name: &str) {
     let result = with_lobby_mut(lobby_id, |lobby| {
         if lobby.started {
-            return Err(anyhow!("Lobby '{lobby_id}' already started"));
+            bail!("Lobby '{lobby_id}' already started");
         } else if player_name != lobby.key_player {
-            return Err(anyhow!("Only the key player can start the lobby '{lobby_id}'",));
+            bail!("Only the key player can start the lobby '{lobby_id}'",);
         }
         lobby.started = true;
         lobby.last_update = get_current_time();

@@ -9,20 +9,16 @@ use std::{
     path::Path,
 };
 
-fn main() -> Result<()> {
+fn main() {
     // Compile scss
     let scss_path = Path::new("src").join("style.scss");
     let css = compile_scss_path(&scss_path, Format::default()).expect("Failed to compile SCSS");
-    write(Path::new("src").join("style.css"), css)?;
+    write(Path::new("src").join("style.css"), css).expect("Failed to write CSS");
 
     // Create words.txt
     if !Path::new("src/backend/words.txt").exists() {
-        if let Err(result) = parse_words() {
-            println!("cargo:warning=Error parsing words: {result:?}");
-        }
+        parse_words().expect("Failed to parse words");
     }
-
-    Ok(())
 }
 
 const EASY_CUTOFF: i32 = 3000;
@@ -47,9 +43,12 @@ fn parse_words() -> Result<()> {
         medium: subtlex_result.medium.intersection(&wordnet_result).cloned().collect(),
         hard: subtlex_result.hard.intersection(&wordnet_result).cloned().collect(),
     };
-    println!("cargo:warning=Easy words count: {:?}", word_sets.easy.len());
-    println!("cargo:warning=Medium words count: {:?}", word_sets.medium.len());
-    println!("cargo:warning=Hard words count: {:?}", word_sets.hard.len());
+    println!(
+        "cargo:warning=Word counts: Easy:{:?} Medium:{:?} Hard:{:?}",
+        word_sets.easy.len(),
+        word_sets.medium.len(),
+        word_sets.hard.len()
+    );
     println!("cargo:warning=Intersection time: {:?}", start_time.elapsed());
 
     // Write words to file
@@ -67,18 +66,16 @@ fn write_word_set(file: &mut BufWriter<File>, title: &str, words: &HashSet<Strin
     // Sort words alphabetically
     let mut words = words.iter().collect::<Vec<&String>>();
     words.sort();
-
-    writeln!(file, "[{title}]")?;
-    let words_string = words
+    // Capitalize first letter of each word
+    let words = words
         .iter()
         .map(|word| {
             let mut c = word.chars();
             c.next()
                 .map_or_else(String::new, |first| first.to_uppercase().collect::<String>() + c.as_str())
         })
-        .collect::<Vec<String>>()
-        .join(",");
-    writeln!(file, "{words_string}")?;
+        .collect::<Vec<String>>();
+    writeln!(file, "[{}]\n{}", title, words.join(","))?;
     Ok(())
 }
 

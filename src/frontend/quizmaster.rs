@@ -6,25 +6,16 @@ use dioxus::prelude::*;
 use strum::{EnumProperty, IntoEnumIterator};
 
 #[component]
-pub fn QuizmasterDisplay<'a>(
-    cx: Scope,
-    player_name: &'a str,
-    lobby_id: &'a str,
-    quizmaster_queue: Vec<QueuedQuestionQuizmaster>,
-) -> Element<'a> {
+pub fn QuizmasterDisplay(cx: Scope, player_name: String, lobby_id: String, quizmaster_queue: Vec<QueuedQuestionQuizmaster>) -> Element {
     cx.render(rsx! {
         div { class: "table-row",
-            rsx! {
-                div { class: "table-header-box", flex: "1", "Player" }
-                div { class: "table-header-box", flex: "3", "Question" }
-            }
+            div { class: "header-box", flex: "1", "Player" }
+            div { class: "header-box", flex: "3", "Question" }
         }
         quizmaster_queue.iter().map(|question| {
-            let question_string1 = question.question.clone();
-            let question_string2 = question.question.clone();
             rsx! {
                 div {
-                    class: "table-header-box",
+                    class: "header-box",
                     display: "flex",
                     flex_direction: "column",
                     gap: "5px",
@@ -32,16 +23,16 @@ pub fn QuizmasterDisplay<'a>(
                     div {
                         display: "flex",
                         gap: "5px",
-                        div { class: "table-body-box", "{question.player}" }
-                        div { class: "table-body-box", flex: "1", "{question.question}" }
+                        div { class: "body-box", "{question.player}" }
+                        div { class: "body-box", flex: "1", "{question.question}" }
                         button {
                             onclick: move |_| {
-                                quizmaster_submit(lobby_id, player_name, &question_string1);
+                                quizmaster_submit(lobby_id, player_name, &question.question);
                             },
                             background_color: "rgb(20, 100, 20)", "Submit" }
                         button {
                             onclick: move |_| {
-                                quizmaster_reject(lobby_id, player_name, &question_string2);
+                                quizmaster_reject(lobby_id, player_name, &question.question);
                             },
                             background_color: "rgb(100, 20, 20)", "Reject" }
                     }
@@ -49,17 +40,14 @@ pub fn QuizmasterDisplay<'a>(
                         display: "flex",
                         gap: "5px",
                         question.items.iter().map(|item| {
-                            let item = item.clone();
-                            let question_string = question_string1.clone();
-                            let answer_color = item.answer.get_str("color").unwrap().to_owned();
                             rsx! {
                                 div {
-                                    class: "table-body-box",
+                                    class: "body-box",
                                     flex: "1",
                                     display: "flex",
                                     flex_direction: "column",
                                     gap: "5px",
-                                    background_color: "{answer_color}",
+                                    background_color: item.answer.get_str("color").unwrap(),
                                     div {
                                         "{item.name}: {item.answer.to_string()}"
                                     },
@@ -67,17 +55,15 @@ pub fn QuizmasterDisplay<'a>(
                                         display: "flex",
                                         width: "100%",
                                         Answer::iter().map(|answer| {
-                                            let question_string = question_string.clone();
-                                            let answer_color = answer.get_str("color").unwrap().to_owned();
                                             rsx! {
                                                 button {
-                                                    class: "table-body-box",
+                                                    class: "body-box",
                                                     padding: "8px",
                                                     flex: "1",
                                                     border: "1px solid white",
-                                                    background_color: "{answer_color}",
+                                                    background_color: answer.get_str("color").unwrap(),
                                                     onclick: move |_| {
-                                                        quizmaster_change_answer(lobby_id, player_name, &question_string, item.id, answer);
+                                                        quizmaster_change_answer(lobby_id, player_name, &question.question, item.id, answer);
                                                     },
                                                 }
                                             }

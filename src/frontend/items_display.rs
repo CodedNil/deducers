@@ -44,11 +44,11 @@ pub fn ItemDisplay(cx: Scope, player_name: String, is_quizmaster: bool, items: V
 
     cx.render(rsx! {
         div { class: "table-row",
-            div { class: "table-header-box", flex: "1", "Question" }
+            div { class: "header-box", flex: "1", "Question" }
             items.iter().map(|item| {
                 let (content, width) = if *is_quizmaster { (item.name.clone(), "unset") } else { (item.id.to_string(), "20px") };
                 rsx! {
-                    div { class: "table-header-box", width: width, flex: "unset", text_align: "center", content }
+                    div { class: "header-box", width: width, flex: "unset", text_align: "center", content }
                 }
             })
         }
@@ -60,24 +60,21 @@ pub fn ItemDisplay(cx: Scope, player_name: String, is_quizmaster: bool, items: V
                 let question = &active_questions[question_index];
                 (question.id, question.question.clone())
             };
-            let items = items.clone();
             rsx! {
                 div { class: "table-row", flex: "1",
                     div {
-                        class: "table-body-box",
+                        class: "body-box",
                         flex: "1",
                         justify_content: "start",
                         div { font_weight: "bold", width: "20px", "{question_index + 1}" },
-                        div { "{question_string}" }
+                        div { question_string }
                     }
                     items.iter().map(|item| {
-                        let answer = if is_blank { None } else { item.questions.iter()
-                            .find(|&answer_question| answer_question.id == question_id)
-                            .map(|answer_question| answer_question.answer) };
+                        let answer = if is_blank { None } else { item.questions.iter().find(|&q| q.id == question_id).map(|q| q.answer) };
                         let box_fill = if answer.is_none() { "⭐" } else { "" };
-                        let answer_color = answer.map_or("rgb(60, 60, 80)".to_owned(), |answer| answer.get_str("color").unwrap().to_owned());
+                        let answer_color = answer.map_or("rgb(60, 60, 80)", |answer| answer.get_str("color").unwrap());
                         rsx! {
-                            div { class: "table-body-box", width: "20px", text_align: "center", background_color: "{answer_color}", box_fill }
+                            div { class: "body-box", width: "20px", text_align: "center", background_color: answer_color, box_fill }
                         }
                     })
                 }

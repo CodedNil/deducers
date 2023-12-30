@@ -90,14 +90,14 @@ form {
     gap: $size_small;
 }
 
-.table-header-box {
+.header-box {
     @include box-style($secondary_color, $size_small, $size_small);
     text-transform: uppercase;
     font-weight: bold;
     text-align: center;
 }
 
-.table-body-box {
+.body-box {
     @include box-style($tertiary_color, $size_small, $size_small);
     display: flex;
     justify-content: center;

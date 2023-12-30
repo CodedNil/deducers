@@ -5,7 +5,7 @@ build = "src/build.rs"
 version = "0.1.0"
 
 [dependencies]
-axum = { version = "0.6.1", features = ["ws"] }
+axum = { version = "0.6.20", features = ["ws"] }
 dioxus = "0.4.3"
 dioxus-liveview = { version = "0.4.3", features = ["axum"] }
 tokio = { version = "1.35.1", features = ["full"] }

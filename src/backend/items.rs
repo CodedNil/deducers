@@ -2,7 +2,7 @@ use crate::backend::{
     alert_popup, openai::query_ai, with_lobby_mut, with_player_mut, Answer, Item, Lobby, PlayerMessage, Question, QueuedQuestionQuizmaster,
     QuizmasterItem,
 };
-use anyhow::{bail, Result};
+use anyhow::{anyhow, bail, Result};
 use futures::future::join_all;
 use serde::Deserialize;
 use std::{cmp::Ordering, collections::HashMap, str::FromStr};
@@ -49,7 +49,7 @@ pub async fn ask_top_question(lobby_id: &str) -> Result<()> {
             .questions_queue
             .iter()
             .max_by_key(|question| question.votes)
-            .ok_or_else(|| anyhow::anyhow!("No questions in queue"))?;
+            .ok_or_else(|| anyhow!("No questions in queue"))?;
 
         if question.votes < lobby.settings.question_min_votes {
             bail!("Question needs at least {} votes", lobby.settings.question_min_votes);
@@ -201,7 +201,7 @@ pub fn quizmaster_change_answer(lobby_id: &str, player_name: &str, question: &St
         if !lobby.started {
             bail!("Lobby not started");
         }
-        let player = lobby.players.get(player_name).ok_or_else(|| anyhow::anyhow!("Player not found"))?;
+        let player = lobby.players.get(player_name).ok_or_else(|| anyhow!("Player not found"))?;
         if !player.quizmaster {
             bail!("Only quizmaster can use this");
         }
@@ -212,19 +212,19 @@ pub fn quizmaster_change_answer(lobby_id: &str, player_name: &str, question: &St
             .find(|q| &q.question == question)
             .and_then(|q| q.items.iter_mut().find(|i| i.id == item_id))
             .map(|i| i.answer = new_answer)
-            .ok_or_else(|| anyhow::anyhow!("Question or item not found"))
+            .ok_or_else(|| anyhow!("Question or item not found"))
     });
     if let Err(error) = result {
         alert_popup(lobby_id, player_name, &format!("Change answer failed {error}"));
     }
 }
 
-pub fn quizmaster_submit(lobby_id: &str, player_name: &str, question: &String) {
+pub fn quizmaster_submit(lobby_id: &str, player_name: &str, question: &str) {
     let result = with_lobby_mut(lobby_id, |lobby| {
         if !lobby.started {
             bail!("Lobby not started");
         }
-        let player = lobby.players.get(player_name).ok_or_else(|| anyhow::anyhow!("Player not found"))?;
+        let player = lobby.players.get(player_name).ok_or_else(|| anyhow!("Player not found"))?;
         if !player.quizmaster {
             bail!("Only quizmaster can use this");
         }
@@ -232,8 +232,8 @@ pub fn quizmaster_submit(lobby_id: &str, player_name: &str, question: &String) {
         let question_index = lobby
             .quizmaster_queue
             .iter()
-            .position(|q| &q.question == question)
-            .ok_or_else(|| anyhow::anyhow!("Question not found"))?;
+            .position(|q| q.question == question)
+            .ok_or_else(|| anyhow!("Question not found"))?;
         let question = lobby.quizmaster_queue.remove(question_index);
 
         let question_id = lobby.questions_counter;
@@ -280,12 +280,12 @@ pub fn quizmaster_submit(lobby_id: &str, player_name: &str, question: &String) {
     }
 }
 
-pub fn quizmaster_reject(lobby_id: &str, player_name: &str, question: &String) {
+pub fn quizmaster_reject(lobby_id: &str, player_name: &str, question: &str) {
     let result = with_lobby_mut(lobby_id, |lobby| {
         if !lobby.started {
             bail!("Lobby not started");
         }
-        let player = lobby.players.get(player_name).ok_or_else(|| anyhow::anyhow!("Player not found"))?;
+        let player = lobby.players.get(player_name).ok_or_else(|| anyhow!("Player not found"))?;
         if !player.quizmaster {
             bail!("Only quizmaster can use this");
         }
@@ -293,8 +293,8 @@ pub fn quizmaster_reject(lobby_id: &str, player_name: &str, question: &String) {
         let question_index = lobby
             .quizmaster_queue
             .iter()
-            .position(|q| &q.question == question)
-            .ok_or_else(|| anyhow::anyhow!("Question not found"))?;
+            .position(|q| q.question == question)
+            .ok_or_else(|| anyhow!("Question not found"))?;
         let question = lobby.quizmaster_queue.remove(question_index);
 
         // Refund the voters
@@ -377,7 +377,7 @@ pub fn player_guess_item(lobby_id: &str, player_name: &str, item_choice: usize, 
 
         return test_game_over(lobby_id);
     }
-    Err(anyhow::anyhow!("Failed to find item"))
+    bail!("Failed to find item");
 }
 
 pub fn test_game_over(lobby_id: &str) -> Result<()> {

@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use serde::{Deserialize, Serialize};
 use std::{env, fs::OpenOptions, io::Write, time::Duration};
 
@@ -69,11 +69,11 @@ pub async fn query_ai(prompt: &String, max_tokens: usize, temperature: f32) -> R
                 Some(&"u") => Ok("user".into()),
                 Some(&"s") => Ok("system".into()),
                 Some(&"a") => Ok("assistant".into()),
-                _ => Err(anyhow::anyhow!("Invalid role")),
+                _ => Err(anyhow!("Invalid role")),
             }?;
             let content: String = match parts.get(1) {
                 Some(&content) => Ok(content.into()),
-                _ => Err(anyhow::anyhow!("Invalid content")),
+                _ => Err(anyhow!("Invalid content")),
             }?;
             Ok(Message { role, content })
         })
@@ -117,7 +117,7 @@ pub async fn query_ai(prompt: &String, max_tokens: usize, temperature: f32) -> R
 
         return Ok(choice.message.content.clone());
     }
-    Err(anyhow::anyhow!("Failed to extract message content from the response"))
+    bail!("Failed to extract message content from the response")
 }
 
 #[allow(clippy::cast_precision_loss, clippy::suboptimal_flops)]

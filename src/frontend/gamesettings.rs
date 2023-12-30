@@ -162,7 +162,7 @@ fn item_settings<'a>(items_queue: Vec<String>, alter_setting: impl Fn(AlterLobby
                 let alter_setting = Rc::clone(&alter_setting);
                 rsx! {
                     div { display: "flex", flex_direction: "row", gap: "5px",
-                        class: "table-body-box",
+                        class: "body-box",
                         item.clone()
                         button {
                             padding: "2px",

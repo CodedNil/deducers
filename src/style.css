@@ -100,7 +100,7 @@ form {
   gap: 5px;
 }
 
-.table-header-box {
+.header-box {
   background-color: rgb(25, 25, 40);
   border-radius: 5px;
   padding: 5px;
@@ -109,7 +109,7 @@ form {
   text-align: center;
 }
 
-.table-body-box {
+.body-box {
   background-color: rgb(60, 60, 80);
   border-radius: 5px;
   padding: 5px;

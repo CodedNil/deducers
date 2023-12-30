@@ -2,9 +2,8 @@ use crate::{
     backend::{
         items::player_guess_item_wrapped,
         question_queue::{convert_score, submit_question_wrapped},
-        Item, LobbySettings, PlayerReduced, QueuedQuestionQuizmaster,
+        Item, LobbySettings,
     },
-    frontend::quizmaster::QuizmasterDisplay,
     ITEM_NAME_PATTERN, MAX_ITEM_NAME_LENGTH, MAX_QUESTION_LENGTH, QUESTION_PATTERN,
 };
 use dioxus::prelude::*;
@@ -15,22 +14,12 @@ pub fn Management(
     cx: Scope,
     player_name: String,
     lobby_id: String,
-    key_player: String,
     settings: LobbySettings,
-    players: Vec<PlayerReduced>,
+    players_coins: usize,
     items: Vec<Item>,
-    quizmaster_queue: Vec<QueuedQuestionQuizmaster>,
 ) -> Element {
     let question_masked = use_state(cx, || false);
-
     let submit_cost = settings.submit_question_cost + if *question_masked.get() { settings.masked_question_cost } else { 0 };
-    let players_coins = players.iter().find(|p| &p.name == player_name).map_or(0, |p| p.coins);
-
-    if player_name == key_player && settings.player_controlled {
-        return cx
-            .render(rsx! {QuizmasterDisplay { player_name: player_name, lobby_id: lobby_id, quizmaster_queue: quizmaster_queue.clone() }});
-    }
-
     cx.render(rsx! {
         div { align_self: "center", font_size: "larger", "{players_coins}🪙 Available" }
         form {

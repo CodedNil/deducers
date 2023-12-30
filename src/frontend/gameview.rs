@@ -5,7 +5,7 @@ use crate::{
     },
     frontend::{
         items_display::ItemDisplay, leaderboard_display::Leaderboard, management_display::Management,
-        question_queue_display::QuestionQueueDisplay,
+        question_queue_display::QuestionQueueDisplay, quizmaster::QuizmasterDisplay,
     },
     MAX_CHAT_LENGTH,
 };
@@ -91,15 +91,23 @@ pub fn GameView(
                         // Management
                         class: "background-box",
                         if *started {
-                            rsx! {
-                                Management {
-                                    player_name: player_name.to_owned(),
-                                    lobby_id: lobby_id.to_owned(),
-                                    key_player: key_player.to_owned(),
-                                    settings: *settings,
-                                    players: players.clone(),
-                                    items: items.clone(),
-                                    quizmaster_queue: quizmaster_queue.clone(),
+                            if player_name == key_player && settings.player_controlled {
+                                rsx! {
+                                    QuizmasterDisplay {
+                                        player_name: player_name.clone(),
+                                        lobby_id: lobby_id.clone(),
+                                        quizmaster_queue: quizmaster_queue.clone()
+                                    }
+                                }
+                            } else {
+                                rsx! {
+                                    Management {
+                                        player_name: player_name.to_owned(),
+                                        lobby_id: lobby_id.to_owned(),
+                                        settings: *settings,
+                                        players_coins: players.iter().find(|p| &p.name == player_name).map_or(0, |p| p.coins),
+                                        items: items.clone(),
+                                    }
                                 }
                             }
                         } else {
@@ -137,11 +145,11 @@ pub fn GameView(
                     flex: "1",
                     min_height: "150px",
                     overflow_y: "auto",
-                    div { class: "table-header-box", "Chat" }
+                    div { class: "header-box", "Chat" }
                     div { flex: "1", display: "flex", flex_direction: "column", gap: "3px", overflow_y: "auto",
                         chat_messages.iter().rev().map(|message| {
                             rsx! {
-                                div { class: "table-body-box", "{message.player}: {message.message}" }
+                                div { class: "body-box", "{message.player}: {message.message}" }
                             }
                         })
                     }

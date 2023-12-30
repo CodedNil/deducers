@@ -2,7 +2,7 @@ use crate::{
     backend::{alert_popup, openai::query_ai, with_lobby, with_lobby_mut, with_player, with_player_mut, QueuedQuestion},
     MAX_QUESTION_LENGTH,
 };
-use anyhow::{bail, Result};
+use anyhow::{anyhow, bail, Result};
 use serde::{Deserialize, Serialize};
 
 pub async fn submit_question_wrapped(lobby_id: &str, player_name: &str, question: String, masked: bool) {
@@ -70,7 +70,7 @@ pub async fn submit_question(lobby_id: &str, player_name: &str, question: String
         let player = lobby
             .players
             .get_mut(player_name)
-            .ok_or_else(|| anyhow::anyhow!("Player '{player_name}' not found"))?;
+            .ok_or_else(|| anyhow!("Player '{player_name}' not found"))?;
 
         // Deduct coins and add question to queue
         if player.coins < total_cost {
@@ -147,7 +147,7 @@ pub fn vote_question(lobby_id: &str, player_name: &str, question: &String) {
         let player = lobby
             .players
             .get_mut(player_name)
-            .ok_or_else(|| anyhow::anyhow!("Player '{player_name}' not found"))?;
+            .ok_or_else(|| anyhow!("Player '{player_name}' not found"))?;
 
         if !lobby.started {
             bail!("Lobby not started");
@@ -169,7 +169,7 @@ pub fn vote_question(lobby_id: &str, player_name: &str, question: &String) {
             queued_question.voters.push(player_name.to_owned());
             return Ok(());
         }
-        Err(anyhow::anyhow!("Question not found in queue"))
+        bail!("Question not found in queue");
     });
     if let Err(error) = result {
         alert_popup(lobby_id, player_name, &format!("Vote rejected {error}"));
