@@ -119,7 +119,7 @@ pub fn GameView(
                 div {
                     // Questions Queue
                     class: "background-box",
-                    min_height: "200px",
+                    min_height: "150px",
                     overflow_y: "auto",
                     QuestionQueueDisplay {
                         player_name: player_name.to_owned(),
@@ -135,7 +135,7 @@ pub fn GameView(
                     // Chat
                     class: "background-box",
                     flex: "1",
-                    min_height: "200px",
+                    min_height: "150px",
                     overflow_y: "auto",
                     div { class: "table-header-box", "Chat" }
                     div { flex: "1", display: "flex", flex_direction: "column", gap: "3px", overflow_y: "auto",

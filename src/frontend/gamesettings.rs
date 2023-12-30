@@ -23,7 +23,7 @@ pub fn GameSettings(cx: Scope, player_name: String, lobby_id: String, settings: 
     };
 
     cx.render(rsx! {
-        div { class: "dialog", display: "flex", gap: "20px", top: "50%",
+        div { class: "dialog true", display: "flex", gap: "20px",
             label { font_weight: "bold", font_size: "larger", "Lobby Settings" }
             label { font_size: "large", "Estimated game length {game_time}" }
             div { display: "flex", flex_direction: "column", gap: "5px",

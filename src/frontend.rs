@@ -81,7 +81,7 @@ impl AlertPopup {
 
 pub fn tutorial(tutorial_open: &UseState<bool>) -> LazyNodes<'_, '_> {
     rsx! {
-        div { class: "dialog", align_items: "normal", top: if *tutorial_open.get() { "50%" } else { "-100%" },
+        div { class: "dialog {tutorial_open.get()}", align_items: "normal",
             div {
                 "Welcome to the intriguing world of Deducers! Here's how you can become a master deducer in this multiplayer twist on 20 Questions:"
             }
@@ -258,7 +258,7 @@ pub fn app(cx: Scope) -> Element {
     });
 
     let render_error_dialog = rsx! {
-        div { class: "dialog", background_color: "rgb(100, 20, 20)", top: if error_message.get().show { "50%" } else { "-100%" },
+        div { class: "dialog {error_message.get().show}", background_color: "rgb(100, 20, 20)",
             "{error_message.get().str}"
             button {
                 onclick: move |_| {
@@ -302,7 +302,7 @@ pub fn app(cx: Scope) -> Element {
                         alert_popup_message: alert_popup.get().message.clone()
                     }
                     render_error_dialog,
-                    div { class: "dialog", background_color: reveal_message.revealtype.get_str("color").unwrap(), top: if reveal_message.show { "20%" } else { "-100%" }, "{reveal_message.str}" }
+                    div { class: "dialog {reveal_message.show}", background_color: reveal_message.revealtype.get_str("color").unwrap(), "{reveal_message.str}" }
                     if player_name == &lobby.key_player && !lobby.started {
                         rsx! { GameSettings {
                             player_name: player_name.get().clone(),

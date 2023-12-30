@@ -13,7 +13,8 @@ body {
     margin: 20px;
 }
 
-@mixin interactive-element {
+@mixin interactive-element($bg_color) {
+    background-color: $bg_color;
     color: white;
     border-radius: $size_small;
     border: 2px solid $secondary_color;
@@ -25,36 +26,26 @@ body {
         outline: none;
         background-color: white;
         color: black;
-        box-shadow: inset 0 0 1px white, 0 1px 3px $shadow_color, 0 1px 2px rgba($shadow_color, 0.24);
-    }
-    &:active {
-        box-shadow: inset 0 1px 3px $shadow_color, inset 0 1px 2px rgba($shadow_color, 0.24);
     }
 }
 
 button {
-    background-color: rgb(60, 60, 100);
-    @include interactive-element;
+    @include interactive-element(rgb(60, 60, 100));
     &.highlighted {
-        background-color: rgb(100, 100, 60);
-        &:hover,
-        &:focus {
-            background-color: white;
-            color: black;
-        }
+        @include interactive-element(rgb(100, 100, 60));
     }
 }
 
 input,
 select {
-    background-color: $tertiary_color;
-    @include interactive-element;
+    @include interactive-element($tertiary_color);
 }
 
-@mixin flex-column($gap: $size_small) {
+@mixin flex-column($gap, $color, $radius, $padding) {
     display: flex;
     flex-direction: column;
     gap: $gap;
+    @include box-style($color, $radius, $padding);
 }
 
 @mixin box-style($color, $radius, $padding) {
@@ -64,26 +55,27 @@ select {
 }
 
 .dialog {
-    @include box-style($primary_color, $size_large, $size_large);
-    @include flex-column($size_large);
-    position: fixed;
-    top: -100%;
-    left: 50%;
+    @include flex-column($size_large, $primary_color, $size_large, $size_large);
+    border: 2px solid white;
     transform: translate(-50%, -50%);
-    transition: top 0.5s;
     align-items: center;
-    box-shadow: 0 1px 2px rgba($shadow_color, 0.24);
+    box-shadow: 0px 0px 4px 2px rgba(255, 255, 255, 0.5);
+    position: fixed;
+    left: 50%;
+    top: -100%;
+    transition: top 0.5s;
+    &.true {
+        top: 50%;
+    }
 }
 
 .background-box {
-    @include box-style($primary_color, $size_large, $size_large);
-    @include flex-column;
+    @include flex-column($size_small, $primary_color, $size_large, $size_large);
     box-shadow: 0 1px 2px rgba($shadow_color, 0.24);
 }
 
 .dark-box {
-    @include box-style($secondary_color, $size_small, $size_large);
-    @include flex-column;
+    @include flex-column($size_small, $secondary_color, $size_small, $size_large);
     font-weight: bold;
     text-align: center;
 }
@@ -105,6 +97,5 @@ select {
     display: flex;
     justify-content: center;
     align-items: center;
-    text-align: center;
     gap: $size_small;
 }
