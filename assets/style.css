@@ -49,6 +49,11 @@ input:hover, input:focus, select:hover, select:focus {
   color: black;
 }
 
+form {
+  display: flex;
+  gap: 5px;
+}
+
 .dialog {
   display: flex;
   flex-direction: column;

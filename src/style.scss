@@ -41,6 +41,11 @@ select {
     @include interactive-element($tertiary_color);
 }
 
+form {
+    display: flex;
+    gap: $size_small;
+}
+
 @mixin flex-column($gap, $color, $radius, $padding) {
     display: flex;
     flex-direction: column;

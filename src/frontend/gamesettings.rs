@@ -192,8 +192,6 @@ fn item_settings<'a>(items_queue: Vec<String>, alter_setting: impl Fn(AlterLobby
                 }
             }),
             form {
-                display: "flex",
-                gap: "5px",
                 onsubmit: {
                     let alter_setting = Rc::clone(&alter_setting);
                     move |form_data| {

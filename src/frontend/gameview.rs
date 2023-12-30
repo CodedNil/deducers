@@ -146,8 +146,6 @@ pub fn GameView(
                         })
                     }
                     form {
-                        display: "flex",
-                        gap: "5px",
                         onsubmit: move |form_data| {
                             if let Some(message) = form_data.values.get("message").and_then(|m| m.first()) {
                                 add_chat_message(lobby_id, player_name, message);

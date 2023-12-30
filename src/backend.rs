@@ -33,6 +33,7 @@ pub struct Lobby {
     pub last_update: f64,
     pub key_player: String,
     pub players: HashMap<String, Player>,
+    pub coins_countdown: f64,
     pub chat_messages: Vec<ChatMessage>,
     pub questions_queue: Vec<QueuedQuestion>,
     pub questions_queue_countdown: f64,
@@ -496,46 +497,25 @@ pub fn alter_lobby_settings(lobby_id: &str, player_name: &str, setting: AlterLob
             AlterLobbySetting::RefreshItem(item) => {
                 let index = lobby.items_queue.iter().position(|i| i.to_lowercase() == item.to_lowercase());
                 if let Some(index) = index {
-                    let new_word = select_lobby_words_unique(&lobby.items_queue, lobby.settings.difficulty, 1)
+                    lobby.items_queue[index] = select_lobby_words_unique(&lobby.items_queue, lobby.settings.difficulty, 1)
                         .pop()
                         .unwrap();
-                    lobby.items_queue[index] = new_word;
                 }
             }
             AlterLobbySetting::RefreshAllItems => {
                 lobby.items_queue = select_lobby_words(lobby.settings.difficulty, lobby.settings.item_count);
             }
             AlterLobbySetting::Advanced(key, value) => match key.as_str() {
-                "starting_coins" => {
-                    lobby.settings.starting_coins = value;
-                }
-                "coin_every_x_seconds" => {
-                    lobby.settings.coin_every_x_seconds = value;
-                }
-                "submit_question_every_x_seconds" => {
-                    lobby.settings.submit_question_every_x_seconds = value;
-                }
-                "add_item_every_x_questions" => {
-                    lobby.settings.add_item_every_x_questions = value;
-                }
-                "submit_question_cost" => {
-                    lobby.settings.submit_question_cost = value;
-                }
-                "masked_question_cost" => {
-                    lobby.settings.masked_question_cost = value;
-                }
-                "guess_item_cost" => {
-                    lobby.settings.guess_item_cost = value;
-                }
-                "question_min_votes" => {
-                    lobby.settings.question_min_votes = value;
-                }
-                "score_to_coins_ratio" => {
-                    lobby.settings.score_to_coins_ratio = value;
-                }
-                _ => {
-                    return Err(anyhow!("Invalid advanced setting key"));
-                }
+                "starting_coins" => lobby.settings.starting_coins = value,
+                "coin_every_x_seconds" => lobby.settings.coin_every_x_seconds = value,
+                "submit_question_every_x_seconds" => lobby.settings.submit_question_every_x_seconds = value,
+                "add_item_every_x_questions" => lobby.settings.add_item_every_x_questions = value,
+                "submit_question_cost" => lobby.settings.submit_question_cost = value,
+                "masked_question_cost" => lobby.settings.masked_question_cost = value,
+                "guess_item_cost" => lobby.settings.guess_item_cost = value,
+                "question_min_votes" => lobby.settings.question_min_votes = value,
+                "score_to_coins_ratio" => lobby.settings.score_to_coins_ratio = value,
+                _ => return Err(anyhow!("Invalid advanced setting key")),
             },
         }
 
@@ -643,10 +623,6 @@ pub fn get_current_time() -> f64 {
     now.duration_since(time::UNIX_EPOCH).unwrap_or_default().as_secs_f64()
 }
 
-pub fn get_time_diff(start: f64) -> f64 {
-    get_current_time() - start
-}
-
 #[allow(clippy::cast_precision_loss)]
 pub fn lobby_loop() {
     let mut lobbys_lock = LOBBYS.lock().unwrap();
@@ -657,7 +633,7 @@ pub fn lobby_loop() {
 
         // Remove inactive players and check if key player is active
         lobby.players.retain(|player_id, player| {
-            if get_time_diff(player.last_contact) > IDLE_KICK_TIME {
+            if current_time - player.last_contact > IDLE_KICK_TIME {
                 println!("Kicking player '{player_id}' due to idle");
                 false
             } else {
@@ -673,12 +649,12 @@ pub fn lobby_loop() {
         } else {
             // Update lobby state if lobby is started
             if lobby.started && lobby_id != "debug" {
-                let elapsed_time_update = get_time_diff(lobby.last_update);
+                let elapsed_time_update = current_time - lobby.last_update;
 
-                // Distribute coins if the elapsed time has crossed a multiple of COINS_EVERY_X_SECONDS
-                let previous_coin_multiple = lobby.elapsed_time / lobby.settings.coin_every_x_seconds as f64;
-                let current_coin_multiple = (lobby.elapsed_time + elapsed_time_update) / lobby.settings.coin_every_x_seconds as f64;
-                if current_coin_multiple.trunc() > previous_coin_multiple.trunc() {
+                // Distribute coins if countdown is ready
+                lobby.coins_countdown -= elapsed_time_update;
+                if lobby.coins_countdown <= 0.0 {
+                    lobby.coins_countdown += lobby.settings.coin_every_x_seconds as f64;
                     for player in lobby.players.values_mut() {
                         if !player.quizmaster {
                             player.coins += 1;

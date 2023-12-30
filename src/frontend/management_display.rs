@@ -34,8 +34,6 @@ pub fn Management(
     cx.render(rsx! {
         div { align_self: "center", font_size: "larger", "{players_coins}🪙 Available" }
         form {
-            display: "flex",
-            gap: "5px",
             onsubmit: move |form_data| {
                 if let Some(question) = form_data.values.get("question").and_then(|m| m.first()) {
                     let question = question.to_owned();
@@ -84,8 +82,6 @@ pub fn Management(
             }
         }
         form {
-            display: "flex",
-            gap: "5px",
             onsubmit: move |form_data| {
                 let guess = form_data.values.get("guess").and_then(|m| m.first());
                 let key = form_data
