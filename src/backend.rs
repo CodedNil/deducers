@@ -277,6 +277,7 @@ where
 #[derive(PartialEq, Eq)]
 pub struct LobbyInfo {
     pub id: String,
+    pub started: bool,
     pub players_count: usize,
 }
 
@@ -284,12 +285,11 @@ pub fn get_lobby_info() -> Vec<LobbyInfo> {
     let lobbys_lock = LOBBYS.lock().unwrap();
     let mut lobby_infos = Vec::new();
     for (id, lobby) in &lobbys_lock.clone() {
-        if !lobby.started {
-            lobby_infos.push(LobbyInfo {
-                id: id.clone(),
-                players_count: lobby.players.len(),
-            });
-        }
+        lobby_infos.push(LobbyInfo {
+            id: id.clone(),
+            started: lobby.started,
+            players_count: lobby.players.len(),
+        });
     }
     lobby_infos
 }

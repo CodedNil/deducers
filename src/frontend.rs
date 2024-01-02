@@ -332,23 +332,27 @@ pub fn app(cx: Scope) -> Element {
                 img { src: "/assets/deducers_banner2.png", width: "400px", padding: "20px" }
                 div { class: "background-box",
                     for lobby in lobby_info.get() {
-                        div { display: "flex", flex_direction: "row", align_items: "center", gap: "5px",
-                            div { "{lobby.id}: {lobby.players_count} Players" }
-                            button {
-                                onclick: move |_| {
-                                    lobby_id.set(lobby.id.clone());
-                                    lobby_state.set(None);
-                                    if let Err(error) = connect_player(&lobby.id, player_name) {
-                                        error_message
-                                            .set(ErrorDialog {
-                                                show: true,
-                                                str: format!("Failed to connect to lobby: {error}"),
-                                            });
-                                    } else {
-                                        is_connected.set(true);
+                        if !lobby.started {
+                            rsx!{
+                                div { display: "flex", flex_direction: "row", align_items: "center", gap: "5px",
+                                    div { "{lobby.id}: {lobby.players_count} Players" }
+                                    button {
+                                        onclick: move |_| {
+                                            lobby_id.set(lobby.id.clone());
+                                            lobby_state.set(None);
+                                            if let Err(error) = connect_player(&lobby.id, player_name) {
+                                                error_message
+                                                    .set(ErrorDialog {
+                                                        show: true,
+                                                        str: format!("Failed to connect to lobby: {error}"),
+                                                    });
+                                            } else {
+                                                is_connected.set(true);
+                                            }
+                                        },
+                                        "Join"
                                     }
-                                },
-                                "Join"
+                                }
                             }
                         }
                     }
