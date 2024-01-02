@@ -204,6 +204,13 @@ pub fn app(cx: Scope) -> Element {
                     alert_popup.set(AlertPopup::message(message.clone()));
                     ""
                 }
+                PlayerMessage::PlayerKicked => {
+                    error_message.set(ErrorDialog {
+                        show: true,
+                        str: "You were kicked from the lobby".to_string(),
+                    });
+                    ""
+                }
             };
             if !sound.is_empty() {
                 new_sounds.push(SoundsQueue {
@@ -232,8 +239,7 @@ pub fn app(cx: Scope) -> Element {
         let lobby_state = lobby_state.clone();
         let lobby_info = lobby_info.clone();
         let messages_to_process = messages_to_process.clone();
-        let lobby_id = lobby_id.clone();
-        let player_name = player_name.clone();
+        let (lobby_id, player_name) = (lobby_id.get().clone(), player_name.get().clone());
         async move {
             loop {
                 if new_cancel_signal.load(atomic::Ordering::SeqCst) {
@@ -241,7 +247,7 @@ pub fn app(cx: Scope) -> Element {
                 }
 
                 if *is_connected.get() {
-                    if let Ok((lobby, messages)) = get_state(&lobby_id.get().clone(), &player_name.get().clone()) {
+                    if let Ok((lobby, messages)) = get_state(&lobby_id, &player_name) {
                         messages_to_process.set(messages);
                         lobby_state.set(Some(lobby));
                     } else {

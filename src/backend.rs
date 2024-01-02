@@ -122,7 +122,7 @@ pub enum AlterLobbySetting {
     Advanced(String, usize),
 }
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq)]
 pub enum PlayerMessage {
     ItemAdded,
     QuestionAsked,
@@ -134,6 +134,7 @@ pub enum PlayerMessage {
     GuessIncorrect,
     ItemRemoved(usize, String),
     Winner(Vec<String>),
+    PlayerKicked,
 }
 
 #[derive(Clone, Default)]
@@ -385,11 +386,15 @@ pub fn connect_player(lobby_id: &str, player_name: &str) -> Result<()> {
     if !regex::Regex::new(PLAYER_NAME_PATTERN).unwrap().is_match(player_name) {
         bail!("Player name must be alphabetic");
     }
+    if player_name == "SYSTEM" {
+        bail!("Player name cannot be 'SYSTEM'");
+    }
 
     if let Err(e) = create_lobby(lobby_id, player_name) {
         println!("Error creating lobby {e}");
     }
 
+    add_chat_message(lobby_id, "SYSTEM", &format!("Player '{player_name}' connected"));
     with_lobby_mut(lobby_id, |lobby| {
         if lobby.players.contains_key(player_name) {
             bail!("Player '{player_name}' is already connected to lobby '{lobby_id}'");
@@ -572,12 +577,12 @@ pub fn alert_popup(lobby_id: &str, player_name: &str, message: &str) {
     }
 }
 
-pub fn kick_player(lobby_id: &str, player_name: &str) {
-    let result = with_lobby_mut(lobby_id, |lobby| {
-        lobby.players.remove(player_name);
-        println!("Lobby '{lobby_id}' player '{player_name}' kicked by key player");
+pub fn kick_player(lobby_id: &str, player_name: &str, player_to_kick: &str) {
+    let result = with_player_mut(lobby_id, player_to_kick, |_, player| {
+        player.messages.push(PlayerMessage::PlayerKicked);
         Ok(())
     });
+    add_chat_message(lobby_id, "SYSTEM", &format!("Player '{player_to_kick}' was kicked"));
     if let Err(e) = result {
         alert_popup(lobby_id, player_name, &format!("Kick failed {e}"));
     }
@@ -609,12 +614,20 @@ pub fn add_chat_message(lobby_id: &str, player_name: &str, message: &str) {
 }
 
 pub fn get_state(lobby_id: &str, player_name: &str) -> Result<(Lobby, Vec<PlayerMessage>)> {
-    with_player_mut(lobby_id, player_name, |lobby, player| {
+    let mut should_kick = false;
+    let result = with_player_mut(lobby_id, player_name, |lobby, player| {
         player.last_contact = get_current_time();
         let messages = player.messages.clone();
+        if messages.contains(&PlayerMessage::PlayerKicked) {
+            should_kick = true;
+        }
         player.messages.clear();
         Ok((lobby, messages))
-    })
+    });
+    if should_kick {
+        disconnect_player(lobby_id, player_name);
+    }
+    result
 }
 
 pub fn get_current_time() -> f64 {

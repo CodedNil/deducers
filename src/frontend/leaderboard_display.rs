@@ -24,23 +24,20 @@ pub fn Leaderboard(cx: Scope, player_name: String, lobby_id: String, players: Ve
                 _ if player.name == *player_name => "rgb(60, 80, 80)",
                 _ => "rgb(60, 60, 80)",
             };
-            let row_player = player.name.clone();
+            let (row_player, row_score) = (player.name.clone(), player.score.to_string());
             rsx! {
                 div { class: "table-row",
                     div { class: "body-box", background_color: row_color, flex: "2", "{row_player}" }
-                    if player.quizmaster {
-                        rsx! { div { class: "body-box", background_color: row_color, flex: "1", "👑" } }
-                    }
                     div {
                         class: "body-box",
                         background_color: row_color,
                         flex: "1",
                         gap: "5px",
-                        "{player.score}",
+                        if player.quizmaster { "👑" } else { &row_score },
                         if *is_keyplayer && row_player != *player_name {
                             rsx! { button {
                                 onclick: move |_| {
-                                    kick_player(lobby_id, &row_player);
+                                    kick_player(lobby_id, player_name, &row_player);
                                 },
                                 padding: "2px",
                                 "💥"
