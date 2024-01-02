@@ -22,10 +22,10 @@ pub fn add_item_to_lobby(lobby: &mut Lobby) {
     println!("Adding item '{item_name}' to lobby '{lobby_id}'");
     lobby.items.push(Item {
         name: item_name.clone(),
-        id: lobby.items_history.len() + 1,
+        id: lobby.items_counter + 1,
         questions: Vec::new(),
     });
-    lobby.items_history.push(item_name);
+    lobby.items_counter += 1;
     // Send message to all players of item added
     for player in lobby.players.values_mut() {
         player.messages.push(PlayerMessage::ItemAdded);
@@ -103,7 +103,7 @@ pub async fn ask_top_question(lobby_id: &str) -> Result<()> {
     let mut successful_attempts = 0;
     let mut total_attempts = 0;
 
-    let prompt = format!("u:For each item in this list '{items_str}', answer the question '{question_text}', return compact one line JSON with key answers which is a list of yes, no, maybe or unknown, this is a 20 questions game, British English");
+    let prompt = format!("u:For each item in this list '{items_str}', in the items usual state answer the question '{question_text}', return compact one line JSON with key answers which is a list of yes, no, maybe or unknown, this is a 20 questions game, British English");
     while successful_attempts < 3 && total_attempts < 3 {
         let mut futures = Vec::new();
         for _ in 0..3 {

@@ -38,8 +38,8 @@ pub struct Lobby {
     pub questions_queue_countdown: f64,
     pub quizmaster_queue: Vec<QueuedQuestionQuizmaster>,
     pub items: Vec<Item>,
-    pub items_history: Vec<String>,
     pub items_queue: Vec<String>,
+    pub items_counter: usize,
     pub questions_counter: usize,
     pub settings: LobbySettings,
 }
