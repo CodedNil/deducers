@@ -1,0 +1,14 @@
+[Unit]
+Description=Deducers Service
+After=network.target
+
+[Service]
+ExecStart=<path-to-deducers-binary>
+WorkingDirectory=<path-to-deducers-directory>
+User=<username>
+Restart=always
+Environment="OPENAI_API_KEY=<openai-api-key>"
+Environment="SERVER_IP=<server-ip-address>"
+
+[Install]
+WantedBy=multi-user.target
