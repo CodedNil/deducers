@@ -47,7 +47,7 @@ pub fn QuizmasterDisplay(cx: Scope, player_name: String, lobby_id: String, quizm
                                     display: "flex",
                                     flex_direction: "column",
                                     gap: "5px",
-                                    background_color: item.answer.get_str("color").unwrap(),
+                                    background_color: item.answer.get_str("color").unwrap_or_default(),
                                     div {
                                         "{item.name}: {item.answer.to_string()}"
                                     },
@@ -61,7 +61,7 @@ pub fn QuizmasterDisplay(cx: Scope, player_name: String, lobby_id: String, quizm
                                                     padding: "8px",
                                                     flex: "1",
                                                     border: "1px solid white",
-                                                    background_color: answer.get_str("color").unwrap(),
+                                                    background_color: answer.get_str("color").unwrap_or_default(),
                                                     onclick: move |_| {
                                                         quizmaster_change_answer(lobby_id, player_name, &question.question, item.id, answer);
                                                     },

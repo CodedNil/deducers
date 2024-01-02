@@ -307,7 +307,7 @@ pub fn app(cx: Scope) -> Element {
                         alert_popup_message: alert_popup.get().message.clone()
                     }
                     render_error_dialog,
-                    div { class: "dialog {reveal_message.show}", background_color: reveal_message.revealtype.get_str("color").unwrap(), "{reveal_message.str}" }
+                    div { class: "dialog {reveal_message.show}", background_color: reveal_message.revealtype.get_str("color").unwrap_or_default(), "{reveal_message.str}" }
                     if player_name == &lobby.key_player && !lobby.started {
                         rsx! { GameSettings {
                             player_name: player_name.get().clone(),

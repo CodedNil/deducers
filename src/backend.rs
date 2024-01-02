@@ -605,7 +605,7 @@ pub fn add_chat_message(lobby_id: &str, player_name: &str, message: &str) {
             Ok(())
         }) {
             Ok(()) => None,
-            Err(e) => Some(format!("Chat message failed {e}")),
+            Err(e) => Some(format!("Chat message failed to send {e}")),
         }
     };
     if let Some(msg) = error_message {

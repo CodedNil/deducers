@@ -72,7 +72,7 @@ pub fn ItemDisplay(cx: Scope, player_name: String, is_quizmaster: bool, items: V
                     items.iter().map(|item| {
                         let answer = if is_blank { None } else { item.questions.iter().find(|&q| q.id == question_id).map(|q| q.answer) };
                         let box_fill = if answer.is_none() { "⭐" } else { "" };
-                        let answer_color = answer.map_or("rgb(60, 60, 80)", |answer| answer.get_str("color").unwrap());
+                        let answer_color = answer.map_or("rgb(60, 60, 80)", |answer| answer.get_str("color").unwrap_or_default());
                         rsx! {
                             div { class: "body-box", width: "20px", text_align: "center", background_color: answer_color, box_fill }
                         }
