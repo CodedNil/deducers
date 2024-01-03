@@ -1,7 +1,7 @@
 use crate::{
     backend::{
         items::{add_item_to_lobby, ask_top_question},
-        words::topup_lobby_words_if_available,
+        words::topup_lobby_if_available,
     },
     IDLE_KICK_TIME, ITEM_NAME_PATTERN, LOBBY_ID_PATTERN, MAX_CHAT_LENGTH, MAX_CHAT_MESSAGES, MAX_ITEM_NAME_LENGTH, MAX_LOBBY_ID_LENGTH,
     MAX_LOBBY_ITEMS, MAX_PLAYER_NAME_LENGTH, PLAYER_NAME_PATTERN,
@@ -289,9 +289,9 @@ fn create_debug_lobby(lobby_id: &str) -> Result<()> {
     with_lobby(lobby_id, |lobby| {
         lobby.started = true;
         lobby.last_update = get_current_time();
-        lobby.items_queue = vec!["Apple", "Banana", "Orange", "Pear", "Pineapple"]
+        lobby.items_queue = ["Apple", "Banana", "Orange", "Pear", "Pineapple"]
             .iter()
-            .map(|s| s.to_string())
+            .map(std::string::ToString::to_string)
             .collect();
         add_item_to_lobby(lobby);
         add_item_to_lobby(lobby);
@@ -303,10 +303,10 @@ fn create_debug_lobby(lobby_id: &str) -> Result<()> {
         }
         let questions = vec!["brown", "red", "yellow", "green", "blue", "purple", "orange", "black", "white"];
         for question in questions {
-            let question = format!("Is it {}", question);
+            let question = format!("Is it {question}");
             lobby.questions_queue.push(QueuedQuestion {
                 player: "debug".to_owned(),
-                question: question.to_owned(),
+                question: question.clone(),
                 votes: rand::random::<usize>() % 6,
                 voters: Vec::new(),
                 masked: rand::random::<usize>() % 5 == 0,
@@ -317,7 +317,7 @@ fn create_debug_lobby(lobby_id: &str) -> Result<()> {
                 item.questions.push(Question {
                     player: "debug".to_owned(),
                     id,
-                    text: question.to_owned(),
+                    text: question.clone(),
                     answer: Answer::iter().choose(&mut rand::thread_rng()).unwrap(),
                     masked: rand::random::<usize>() % 5 == 0,
                 });
@@ -566,7 +566,7 @@ fn regex_match(pattern: &str, haystack: &str) -> bool {
     Regex::new(pattern).unwrap().is_match(haystack)
 }
 
-pub async fn lobby_loop() {
+pub fn lobby_loop() {
     let mut lobbys_lock = LOBBYS.lock().unwrap();
 
     // Iterate through lobbys to update or remove
@@ -654,6 +654,6 @@ pub async fn lobby_loop() {
     });
 
     for lobby_id in lobbies_needing_words {
-        topup_lobby_words_if_available(&lobby_id);
+        topup_lobby_if_available(&lobby_id);
     }
 }

@@ -39,9 +39,10 @@ async fn main() {
     let server_address = format!("{server_ip}:{SERVER_PORT}");
 
     // Include the contents of CSS and JS files
-    let scss_content: &[u8] = include_str!("style.scss").as_bytes();
-    let css_content_bytes: Vec<u8> = rsass::compile_scss(scss_content, rsass::output::Format::default()).expect("Failed to compile SCSS");
-    let css_content = String::from_utf8_lossy(&css_content_bytes).to_string();
+    let css_content = String::from_utf8_lossy(
+        &rsass::compile_scss(include_bytes!("style.scss"), rsass::output::Format::default()).expect("Failed to compile SCSS"),
+    )
+    .to_string();
     let js_content: &str = include_str!("client.js");
 
     let view = dioxus_liveview::LiveViewPool::new();
@@ -83,7 +84,7 @@ async fn main() {
 
     tokio::spawn(async move {
         loop {
-            backend::lobby_loop().await;
+            backend::lobby_loop();
             sleep(Duration::from_millis(500)).await;
         }
     });

@@ -259,7 +259,7 @@ impl SettingDetail {
     fn new(key: &str, min: usize, max: usize, value: usize) -> Self {
         Self {
             key: key.to_owned(),
-            display_name: key.chars().next().unwrap().to_uppercase().to_string() + &key[1..].replace("_", " "),
+            display_name: key.chars().next().unwrap().to_uppercase().to_string() + &key[1..].replace('_', " "),
             min,
             max,
             value,
@@ -300,7 +300,7 @@ pub fn AdvancedSettings(cx: Scope, player_name: String, lobby_id: String, settin
                                     setting.key.clone(),
                                     e.value.parse::<usize>().unwrap_or(1),
                                 ),
-                            )
+                            );
                         }
                     }
                 }

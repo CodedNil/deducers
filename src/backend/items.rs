@@ -14,7 +14,7 @@ pub fn add_item_to_lobby(lobby: &mut Lobby) {
     let item_name = lobby.items_queue.remove(0);
     println!("Adding item '{}' to lobby '{}'", item_name, lobby.id);
     lobby.items.push(Item {
-        name: item_name.clone(),
+        name: item_name,
         id: lobby.items_counter + 1,
         questions: Vec::new(),
     });
@@ -181,7 +181,7 @@ pub async fn ask_top_question(lobby_id: &str) -> Result<()> {
         for player in lobby.players.values_mut() {
             player.messages.push(PlayerMessage::QuestionAsked);
         }
-        test_game_over(lobby)?;
+        test_game_over(lobby);
         Ok(())
     })
 }
@@ -321,10 +321,7 @@ pub fn player_guess_item(lobby_id: &str, player_name: &str, item_choice: usize, 
             }
 
             lobby.items.remove(item_index);
-            if lobby.items.is_empty() && !lobby.items_queue.is_empty() {
-                add_item_to_lobby(lobby);
-            }
-            test_game_over(lobby)?;
+            test_game_over(lobby);
 
             Ok(())
         } else {
@@ -343,7 +340,10 @@ pub fn player_guess_item(lobby_id: &str, player_name: &str, item_choice: usize, 
     }
 }
 
-pub fn test_game_over(lobby: &mut Lobby) -> Result<()> {
+pub fn test_game_over(lobby: &mut Lobby) {
+    if lobby.items.is_empty() && !lobby.items_queue.is_empty() {
+        add_item_to_lobby(lobby);
+    }
     if lobby.started && lobby.items.is_empty() {
         lobby.started = false;
 
@@ -375,5 +375,4 @@ pub fn test_game_over(lobby: &mut Lobby) -> Result<()> {
             player.messages.push(PlayerMessage::Winner(win_message.clone()));
         }
     }
-    Ok(())
 }
