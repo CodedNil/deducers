@@ -1,4 +1,4 @@
-use crate::backend::{openai::query_ai, with_lobby, with_lobby_mut, Difficulty};
+use crate::backend::{openai::query_ai, with_lobby, Difficulty};
 use once_cell::sync::Lazy;
 use serde::Deserialize;
 use std::sync::{Arc, Mutex};
@@ -73,7 +73,7 @@ pub async fn topup_lobby_words(lobby_id: &str) {
     }
 
     let words = get_ai_words(theme, difficulty, items_needed, items_queue).await;
-    let _result = with_lobby_mut(lobby_id, |lobby| {
+    let _result = with_lobby(lobby_id, |lobby| {
         let items_needed = lobby.settings.item_count - lobby.items_queue.len();
         if items_needed <= 0 {
             return Ok(());

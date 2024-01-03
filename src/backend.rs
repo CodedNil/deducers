@@ -11,7 +11,6 @@ use once_cell::sync::Lazy;
 use rand::prelude::*;
 use std::{
     collections::HashMap,
-    fmt,
     sync::{Arc, Mutex},
     time,
 };
@@ -87,19 +86,6 @@ impl Default for LobbySettings {
             question_min_votes: 2,
             score_to_coins_ratio: 2,
         }
-    }
-}
-
-impl fmt::Display for LobbySettings {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{} Items, theme {}, {}, {}",
-            self.item_count,
-            self.theme,
-            self.difficulty,
-            if self.player_controlled { "Quizmaster" } else { "AI Controlled" }
-        )
     }
 }
 
@@ -231,15 +217,6 @@ static LOBBYS: Lazy<Arc<Mutex<HashMap<String, Lobby>>>> = Lazy::new(|| Arc::new(
 
 pub fn with_lobby<F, T>(lobby_id: &str, f: F) -> Result<T>
 where
-    F: FnOnce(&Lobby) -> Result<T>,
-{
-    let lobbys_lock = LOBBYS.lock().unwrap();
-    let lobby = lobbys_lock.get(lobby_id).ok_or_else(|| anyhow!("Lobby '{lobby_id}' not found"))?;
-    f(lobby)
-}
-
-pub fn with_lobby_mut<F, T>(lobby_id: &str, f: F) -> Result<T>
-where
     F: FnOnce(&mut Lobby) -> Result<T>,
 {
     let mut lobbys_lock = LOBBYS.lock().unwrap();
@@ -251,22 +228,9 @@ where
 
 pub fn with_player<F, T>(lobby_id: &str, player_name: &str, f: F) -> Result<T>
 where
-    F: FnOnce(&Lobby, &Player) -> Result<T>,
-{
-    with_lobby(lobby_id, |lobby| {
-        let player = lobby
-            .players
-            .get(player_name)
-            .ok_or_else(|| anyhow!("Player '{player_name}' not found"))?;
-        f(lobby, player)
-    })
-}
-
-pub fn with_player_mut<F, T>(lobby_id: &str, player_name: &str, f: F) -> Result<T>
-where
     F: FnOnce(Lobby, &mut Player) -> Result<T>,
 {
-    with_lobby_mut(lobby_id, |lobby| {
+    with_lobby(lobby_id, |lobby| {
         let lobby_state = lobby.clone();
         let player = lobby
             .players
@@ -317,7 +281,7 @@ pub fn create_lobby(lobby_id: &str, player_name: &str) -> Result<()> {
     if lobby_id == "debug" {
         println!("Creating debug lobby");
         start_lobby(lobby_id, player_name);
-        with_lobby_mut(lobby_id, |lobby| {
+        with_lobby(lobby_id, |lobby| {
             for _ in 0..10 {
                 lobby.chat_messages.push(ChatMessage {
                     player: "debug".to_owned(),
@@ -395,7 +359,7 @@ pub fn connect_player(lobby_id: &str, player_name: &str) -> Result<()> {
     }
 
     add_chat_message(lobby_id, "SYSTEM", &format!("Player '{player_name}' connected"));
-    with_lobby_mut(lobby_id, |lobby| {
+    with_lobby(lobby_id, |lobby| {
         if lobby.players.contains_key(player_name) {
             bail!("Player '{player_name}' is already connected to lobby '{lobby_id}'");
         }
@@ -420,7 +384,7 @@ pub fn connect_player(lobby_id: &str, player_name: &str) -> Result<()> {
 }
 
 pub fn disconnect_player(lobby_id: &str, player_name: &str) {
-    let _result = with_lobby_mut(lobby_id, |lobby| {
+    let _result = with_lobby(lobby_id, |lobby| {
         lobby.players.remove(player_name);
         println!("Player '{player_name}' disconnected from lobby '{lobby_id}'");
         Ok(())
@@ -428,7 +392,7 @@ pub fn disconnect_player(lobby_id: &str, player_name: &str) {
 }
 
 pub fn alter_lobby_settings(lobby_id: &str, player_name: &str, setting: AlterLobbySetting) {
-    let result = with_lobby_mut(lobby_id, |lobby| {
+    let result = with_lobby(lobby_id, |lobby| {
         if lobby.started || lobby.starting {
             bail!("Lobby is started");
         }
@@ -518,7 +482,7 @@ pub fn alter_lobby_settings(lobby_id: &str, player_name: &str, setting: AlterLob
 }
 
 pub fn start_lobby(lobby_id: &str, player_name: &str) {
-    let result = with_lobby_mut(lobby_id, |lobby| {
+    let result = with_lobby(lobby_id, |lobby| {
         if lobby.started || lobby.starting {
             bail!("Lobby '{lobby_id}' already started");
         } else if player_name != lobby.key_player {
@@ -528,10 +492,19 @@ pub fn start_lobby(lobby_id: &str, player_name: &str) {
         if !lobby.settings.player_controlled {
             lobby.items_queue = Vec::new();
         }
-        println!(
-            "Lobby '{lobby_id}' started by key player '{player_name}' with settings {}",
-            lobby.settings
+        let lobby_settings_str = format!(
+            "{} Items, theme {}, {}, {}",
+            lobby.settings.item_count,
+            lobby.settings.theme,
+            lobby.settings.difficulty,
+            if lobby.settings.player_controlled {
+                "Quizmaster"
+            } else {
+                "AI Controlled"
+            }
         );
+
+        println!("Lobby '{lobby_id}' started by key player '{player_name}' with settings {lobby_settings_str}");
         Ok(())
     });
     if let Err(e) = result {
@@ -540,7 +513,7 @@ pub fn start_lobby(lobby_id: &str, player_name: &str) {
 }
 
 pub fn alert_popup(lobby_id: &str, player_name: &str, message: &str) {
-    let result = with_player_mut(lobby_id, player_name, |_, player| {
+    let result = with_player(lobby_id, player_name, |_, player| {
         player.messages.push(PlayerMessage::AlertPopup(message.to_owned()));
         Ok(())
     });
@@ -550,7 +523,7 @@ pub fn alert_popup(lobby_id: &str, player_name: &str, message: &str) {
 }
 
 pub fn kick_player(lobby_id: &str, player_name: &str, player_to_kick: &str) {
-    let result = with_player_mut(lobby_id, player_to_kick, |_, player| {
+    let result = with_player(lobby_id, player_to_kick, |_, player| {
         player.messages.push(PlayerMessage::PlayerKicked);
         Ok(())
     });
@@ -566,7 +539,7 @@ pub fn add_chat_message(lobby_id: &str, player_name: &str, message: &str) {
     } else if message.len() > MAX_CHAT_LENGTH {
         Some(format!("Chat message must be less than {MAX_CHAT_LENGTH} characters long"))
     } else {
-        match with_lobby_mut(lobby_id, |lobby| {
+        match with_lobby(lobby_id, |lobby| {
             lobby.chat_messages.push(ChatMessage {
                 player: player_name.to_owned(),
                 message: message.to_owned(),
@@ -597,7 +570,7 @@ pub fn add_chat_message_to_lobby(lobby: &mut Lobby, player_name: &str, message: 
 
 pub fn get_state(lobby_id: &str, player_name: &str) -> Result<(Lobby, Vec<PlayerMessage>)> {
     let mut should_kick = false;
-    let result = with_player_mut(lobby_id, player_name, |lobby, player| {
+    let result = with_player(lobby_id, player_name, |lobby, player| {
         player.last_contact = get_current_time();
         let messages = player.messages.clone();
         if messages.contains(&PlayerMessage::PlayerKicked) {

@@ -1,5 +1,5 @@
 use crate::backend::{
-    add_chat_message_to_lobby, alert_popup, openai::query_ai, with_lobby_mut, Answer, Item, Lobby, PlayerMessage, Question,
+    add_chat_message_to_lobby, alert_popup, openai::query_ai, with_lobby, Answer, Item, Lobby, PlayerMessage, Question,
     QueuedQuestionQuizmaster, QuizmasterItem,
 };
 use anyhow::{anyhow, bail, ensure, Result};
@@ -35,7 +35,7 @@ pub async fn ask_top_question(lobby_id: &str) -> Result<()> {
     let mut items = Vec::new();
     let mut is_quizmaster = false;
 
-    with_lobby_mut(lobby_id, |lobby| {
+    with_lobby(lobby_id, |lobby| {
         let question = lobby
             .questions_queue
             .iter()
@@ -75,7 +75,7 @@ pub async fn ask_top_question(lobby_id: &str) -> Result<()> {
                 answer: Answer::Maybe,
             })
             .collect();
-        with_lobby_mut(lobby_id, |lobby| {
+        with_lobby(lobby_id, |lobby| {
             lobby.quizmaster_queue.push(QueuedQuestionQuizmaster {
                 question: question_text.clone(),
                 player: question_player.clone(),
@@ -142,7 +142,7 @@ pub async fn ask_top_question(lobby_id: &str) -> Result<()> {
         answers.push(most_common_answer);
     }
 
-    with_lobby_mut(lobby_id, |lobby| {
+    with_lobby(lobby_id, |lobby| {
         if answers.len() != lobby.items.len() {
             bail!("Failed to get answers for question '{question_text}'");
         }
@@ -187,14 +187,10 @@ pub async fn ask_top_question(lobby_id: &str) -> Result<()> {
 }
 
 pub fn quizmaster_change_answer(lobby_id: &str, player_name: &str, question: &String, item_id: usize, new_answer: Answer) {
-    let result = with_lobby_mut(lobby_id, |lobby| {
-        if !lobby.started {
-            bail!("Lobby not started");
-        }
+    let result = with_lobby(lobby_id, |lobby| {
+        ensure!(lobby.started, "Lobby not started");
         let player = lobby.players.get(player_name).ok_or_else(|| anyhow!("Player not found"))?;
-        if !player.quizmaster {
-            bail!("Only quizmaster can use this");
-        }
+        ensure!(player.quizmaster, "Only quizmaster can use this");
         lobby
             .quizmaster_queue
             .iter_mut()
@@ -209,7 +205,7 @@ pub fn quizmaster_change_answer(lobby_id: &str, player_name: &str, question: &St
 }
 
 pub fn quizmaster_submit(lobby_id: &str, player_name: &str, question: &str) {
-    let result = with_lobby_mut(lobby_id, |lobby| {
+    let result = with_lobby(lobby_id, |lobby| {
         ensure!(lobby.started, "Lobby not started");
         let player = lobby.players.get(player_name).ok_or_else(|| anyhow!("Player not found"))?;
         ensure!(player.quizmaster, "Only quizmaster can use this");
@@ -266,7 +262,7 @@ pub fn quizmaster_submit(lobby_id: &str, player_name: &str, question: &str) {
 }
 
 pub fn quizmaster_reject(lobby_id: &str, player_name: &str, question: &str) {
-    let result = with_lobby_mut(lobby_id, |lobby| {
+    let result = with_lobby(lobby_id, |lobby| {
         ensure!(lobby.started, "Lobby not started");
         let player = lobby.players.get(player_name).ok_or_else(|| anyhow!("Player not found"))?;
         ensure!(player.quizmaster, "Only quizmaster can use this");
@@ -298,7 +294,7 @@ pub fn quizmaster_reject(lobby_id: &str, player_name: &str, question: &str) {
 }
 
 pub fn player_guess_item(lobby_id: &str, player_name: &str, item_choice: usize, guess: &str) {
-    let result = with_lobby_mut(lobby_id, |lobby| {
+    let result = with_lobby(lobby_id, |lobby| {
         ensure!(lobby.started, "Lobby not started");
         let player = lobby
             .players

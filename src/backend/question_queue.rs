@@ -1,9 +1,9 @@
 use crate::{
-    backend::{alert_popup, openai::query_ai, with_lobby_mut, with_player, with_player_mut, QueuedQuestion},
+    backend::{alert_popup, openai::query_ai, with_lobby, with_player, QueuedQuestion},
     MAX_QUESTION_LENGTH,
 };
 use anyhow::{anyhow, bail, ensure, Result};
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
 pub async fn submit_question(lobby_id: &str, player_name: &str, question: String, masked: bool) -> Result<()> {
     let mut total_cost = 0;
@@ -42,7 +42,7 @@ pub async fn submit_question(lobby_id: &str, player_name: &str, question: String
     };
 
     // Reacquire lock and add question to queue
-    with_lobby_mut(lobby_id, |lobby| {
+    with_lobby(lobby_id, |lobby| {
         let player = lobby
             .players
             .get_mut(player_name)
@@ -62,8 +62,7 @@ pub async fn submit_question(lobby_id: &str, player_name: &str, question: String
     })
 }
 
-// Helper function to validate a question
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize)]
 struct ValidateQuestionResponse {
     suitable: bool,
     reasoning: String,
@@ -106,7 +105,7 @@ async fn validate_question(question: &str, use_ai: bool) -> ValidateQuestionResp
 }
 
 pub fn vote_question(lobby_id: &str, player_name: &str, question: &String) {
-    let result = with_lobby_mut(lobby_id, |lobby| {
+    let result = with_lobby(lobby_id, |lobby| {
         let player = lobby
             .players
             .get_mut(player_name)
@@ -132,7 +131,7 @@ pub fn vote_question(lobby_id: &str, player_name: &str, question: &String) {
 }
 
 pub fn convert_score(lobby_id: &str, player_name: &str) {
-    let result = with_player_mut(lobby_id, player_name, |lobby, player| {
+    let result = with_player(lobby_id, player_name, |lobby, player| {
         ensure!(lobby.started, "Lobby not started");
         ensure!(!player.quizmaster, "Quizmaster cannot engage");
         ensure!(player.score >= 1, "Insufficient score");
