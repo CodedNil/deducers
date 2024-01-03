@@ -24,11 +24,9 @@ pub async fn submit_question(lobby_id: &str, player_name: &str, question: String
         Ok(())
     })?;
 
-    // Validate the question
     let validate_response = validate_question(&question, !has_quizmaster).await;
     ensure!(validate_response.suitable, validate_response.reasoning);
 
-    // Add question mark if missing, and capitalise first letter
     let question = {
         let mut question = question.trim().to_owned();
         if !question.ends_with('?') {
@@ -41,14 +39,12 @@ pub async fn submit_question(lobby_id: &str, player_name: &str, question: String
         question
     };
 
-    // Reacquire lock and add question to queue
     with_lobby(lobby_id, |lobby| {
         let player = lobby
             .players
             .get_mut(player_name)
             .ok_or_else(|| anyhow!("Player '{player_name}' not found"))?;
 
-        // Deduct coins and add question to queue
         ensure!(player.coins >= total_cost, "Insufficient coins to submit question");
         player.coins -= total_cost;
         lobby.questions_queue.push(QueuedQuestion {

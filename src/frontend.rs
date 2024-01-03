@@ -51,30 +51,26 @@ impl ItemRevealMessage {
 }
 
 #[derive(Default)]
-struct ErrorDialog {
-    show: bool,
-    str: String,
-}
-
-#[derive(Default, Clone, PartialEq)]
-struct SoundsQueue {
-    expiry: f64,
-    sound: String,
-}
-
-#[derive(Default)]
-pub struct AlertPopup {
+pub struct ExpiringMsg {
+    pub message: String,
     pub shown: bool,
     pub expiry: f64,
-    pub message: String,
 }
 
-impl AlertPopup {
-    pub fn message(message: String) -> Self {
+impl ExpiringMsg {
+    fn five(message: &str) -> Self {
         Self {
+            message: message.to_owned(),
             shown: true,
             expiry: get_current_time() + 5.0,
-            message,
+        }
+    }
+
+    fn inf(message: &str) -> Self {
+        Self {
+            message: message.to_owned(),
+            shown: true,
+            expiry: -1.0,
         }
     }
 }
@@ -132,7 +128,7 @@ pub fn app(cx: Scope) -> Element {
     let lobby_state = use_state(cx, || None::<Lobby>);
     let lobby_info = use_state(cx, Vec::new);
 
-    let error_message = use_state(cx, ErrorDialog::default);
+    let error_message = use_state(cx, ExpiringMsg::default);
 
     let tutorial_open = use_state(cx, || false);
 
@@ -143,27 +139,27 @@ pub fn app(cx: Scope) -> Element {
         });
     }
 
-    let sounds_to_play: &UseRef<Vec<SoundsQueue>> = use_ref(cx, Vec::new);
+    let sounds_to_play: &UseRef<Vec<ExpiringMsg>> = use_ref(cx, Vec::new);
     if sounds_to_play.read().iter().any(|sound| sound.expiry <= get_current_time()) {
         sounds_to_play.with_mut(|sounds| {
             sounds.retain(|sound| sound.expiry > get_current_time());
         });
     }
 
-    let alert_popup = use_state(cx, AlertPopup::default);
+    let alert_popup = use_state(cx, ExpiringMsg::default);
     if alert_popup.get().shown && alert_popup.get().expiry < get_current_time() {
-        alert_popup.set(AlertPopup::default());
+        alert_popup.set(ExpiringMsg::default());
     }
 
     let messages_to_process = use_state(cx, Vec::new);
     if !messages_to_process.get().is_empty() {
         let mut new_sounds = Vec::new();
         for message in messages_to_process.get() {
-            let sound = match message {
-                PlayerMessage::ItemAdded => "item_added",
-                PlayerMessage::QuestionAsked => "question_added",
-                PlayerMessage::GameStart => "game_start",
-                PlayerMessage::CoinGiven => "coin_added",
+            match message {
+                PlayerMessage::ItemAdded => new_sounds.push(ExpiringMsg::inf("item_added")),
+                PlayerMessage::QuestionAsked => new_sounds.push(ExpiringMsg::inf("question_added")),
+                PlayerMessage::GameStart => new_sounds.push(ExpiringMsg::inf("game_start")),
+                PlayerMessage::CoinGiven => new_sounds.push(ExpiringMsg::inf("coin_added")),
                 PlayerMessage::ItemGuessed(player_name, item_id, item_name) => {
                     if !(item_reveal_message.read().show && item_reveal_message.read().revealtype == RevealType::Victory) {
                         item_reveal_message.set(ItemRevealMessage::new(
@@ -172,9 +168,9 @@ pub fn app(cx: Scope) -> Element {
                             RevealType::Correct,
                         ));
                     }
-                    "guess_correct"
+                    new_sounds.push(ExpiringMsg::inf("guess_correct"));
                 }
-                PlayerMessage::GuessIncorrect => "guess_incorrect",
+                PlayerMessage::GuessIncorrect => new_sounds.push(ExpiringMsg::inf("guess_incorrect")),
                 PlayerMessage::ItemRemoved(item_id, item_name) => {
                     if !(item_reveal_message.read().show && item_reveal_message.read().revealtype == RevealType::Victory) {
                         item_reveal_message.set(ItemRevealMessage::new(
@@ -183,41 +179,23 @@ pub fn app(cx: Scope) -> Element {
                             RevealType::Incorrect,
                         ));
                     }
-                    "guess_incorrect"
+                    new_sounds.push(ExpiringMsg::inf("guess_incorrect"));
                 }
-                PlayerMessage::Winner(players) => {
-                    let win_message = if players.len() > 1 {
-                        format!("The tied winners are {}!", players.join(", "))
-                    } else if players.is_empty() {
-                        String::from("The game has ended with no winner!")
-                    } else {
-                        format!("The winner is {}!", players[0])
-                    };
-                    item_reveal_message.set(ItemRevealMessage::new(30.0, win_message, RevealType::Victory));
-                    "guess_correct"
+                PlayerMessage::Winner(win_message) => {
+                    item_reveal_message.set(ItemRevealMessage::new(30.0, win_message.clone(), RevealType::Victory));
+                    new_sounds.push(ExpiringMsg::inf("guess_correct"));
                 }
                 PlayerMessage::QuestionRejected(message) => {
-                    alert_popup.set(AlertPopup::message(format!("Question '{message}' rejected by quizmaster")));
-                    "guess_incorrect"
+                    alert_popup.set(ExpiringMsg::five(&format!("Question '{message}' rejected by quizmaster")));
+                    new_sounds.push(ExpiringMsg::inf("guess_incorrect"));
                 }
                 PlayerMessage::AlertPopup(message) => {
-                    alert_popup.set(AlertPopup::message(message.clone()));
-                    ""
+                    alert_popup.set(ExpiringMsg::five(message));
                 }
                 PlayerMessage::PlayerKicked => {
-                    error_message.set(ErrorDialog {
-                        show: true,
-                        str: "You were kicked from the lobby".to_string(),
-                    });
-                    ""
+                    error_message.set(ExpiringMsg::inf("You were kicked from the lobby"));
                 }
             };
-            if !sound.is_empty() {
-                new_sounds.push(SoundsQueue {
-                    expiry: get_current_time() + 5.0,
-                    sound: String::from(sound),
-                });
-            }
         }
         if !new_sounds.is_empty() {
             sounds_to_play.with_mut(|sounds| {
@@ -236,16 +214,11 @@ pub fn app(cx: Scope) -> Element {
         let new_cancel_signal = Arc::new(atomic::AtomicBool::new(false));
         cancel_signal.set(Arc::<atomic::AtomicBool>::clone(&new_cancel_signal));
 
-        let lobby_state = lobby_state.clone();
-        let lobby_info = lobby_info.clone();
+        let (lobby_state, lobby_info) = (lobby_state.clone(), lobby_info.clone());
         let messages_to_process = messages_to_process.clone();
         let (lobby_id, player_name) = (lobby_id.get().clone(), player_name.get().clone());
         async move {
-            loop {
-                if new_cancel_signal.load(atomic::Ordering::SeqCst) {
-                    break;
-                }
-
+            while !new_cancel_signal.load(atomic::Ordering::SeqCst) {
                 if *is_connected.get() {
                     if let Ok((lobby, messages)) = get_state(&lobby_id, &player_name) {
                         messages_to_process.set(messages);
@@ -263,14 +236,15 @@ pub fn app(cx: Scope) -> Element {
     });
 
     let render_error_dialog = rsx! {
-        div { class: "dialog {error_message.get().show}", background_color: "rgb(100, 20, 20)",
-            "{error_message.get().str}"
+        div { class: "dialog {error_message.get().shown}", background_color: "rgb(100, 20, 20)",
+            "{error_message.get().message}"
             button {
                 onclick: move |_| {
                     error_message
-                        .set(ErrorDialog {
-                            show: false,
-                            str: error_message.get().str.clone(),
+                        .set(ExpiringMsg {
+                            shown: false,
+                            expiry: -1.0,
+                            message: error_message.get().message.clone(),
                         });
                 },
                 "OK"
@@ -285,7 +259,7 @@ pub fn app(cx: Scope) -> Element {
                 let sounds_str = sounds_to_play
                     .read()
                     .iter()
-                    .map(|sound| format!("{};{}", sound.expiry.round(), sound.sound))
+                    .map(|sound| format!("{};{}", sound.expiry.round(), sound.message))
                     .collect::<Vec<_>>()
                     .join(",");
                 let reveal_message = item_reveal_message.read().clone();
@@ -339,11 +313,7 @@ pub fn app(cx: Scope) -> Element {
                                     lobby_id.set(lobby.id.clone());
                                     lobby_state.set(None);
                                     if let Err(error) = connect_player(&lobby.id, player_name) {
-                                        error_message
-                                            .set(ErrorDialog {
-                                                show: true,
-                                                str: format!("Failed to connect to lobby: {error}"),
-                                            });
+                                        error_message.set(ExpiringMsg::inf(&format!("Failed to connect to lobby: {error}")));
                                     } else {
                                         is_connected.set(true);
                                     }
@@ -364,11 +334,7 @@ pub fn app(cx: Scope) -> Element {
                     onsubmit: move |_| {
                         lobby_state.set(None);
                         if let Err(error) = connect_player(lobby_id, player_name) {
-                            error_message
-                                .set(ErrorDialog {
-                                    show: true,
-                                    str: format!("Failed to connect to lobby: {error}"),
-                                });
+                            error_message.set(ExpiringMsg::inf(&format!("Failed to connect to lobby: {error}")));
                         } else {
                             is_connected.set(true);
                         }
@@ -379,7 +345,7 @@ pub fn app(cx: Scope) -> Element {
                         pattern: PLAYER_NAME_PATTERN,
                         maxlength: MAX_PLAYER_NAME_LENGTH as i64,
                         oninput: move |e| {
-                            player_name.set(e.value.clone());
+                            player_name.set(e.value.trim().to_owned());
                         }
                     }
                     input {

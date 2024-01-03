@@ -312,6 +312,7 @@ pub fn player_guess_item(lobby_id: &str, player_name: &str, item_choice: usize, 
 
         player.coins -= lobby.settings.guess_item_cost;
         if item.name.eq_ignore_ascii_case(guess) {
+            // Correct guess
             player.score += 20 - item.questions.len();
 
             for p in lobby.players.values_mut() {
@@ -327,6 +328,7 @@ pub fn player_guess_item(lobby_id: &str, player_name: &str, item_choice: usize, 
 
             Ok(())
         } else {
+            // Incorrect guess
             player.messages.push(PlayerMessage::GuessIncorrect);
             add_chat_message_to_lobby(
                 lobby,
@@ -361,9 +363,16 @@ pub fn test_game_over(lobby: &mut Lobby) -> Result<()> {
                 Ordering::Less => {}
             }
         }
+        let win_message = if winners.len() > 1 {
+            format!("The tied winners are {}!", winners.join(", "))
+        } else if winners.is_empty() {
+            String::from("The game has ended with no winner!")
+        } else {
+            format!("The winner is {}!", winners[0])
+        };
 
         for player in lobby.players.values_mut() {
-            player.messages.push(PlayerMessage::Winner(winners.clone()));
+            player.messages.push(PlayerMessage::Winner(win_message.clone()));
         }
     }
     Ok(())

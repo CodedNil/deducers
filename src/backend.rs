@@ -9,6 +9,7 @@ use crate::{
 use anyhow::{anyhow, bail, ensure, Result};
 use once_cell::sync::Lazy;
 use rand::prelude::*;
+use regex::Regex;
 use std::{
     collections::HashMap,
     sync::{Arc, Mutex},
@@ -121,7 +122,7 @@ pub enum PlayerMessage {
     ItemGuessed(String, usize, String),
     GuessIncorrect,
     ItemRemoved(usize, String),
-    Winner(Vec<String>),
+    Winner(String),
     PlayerKicked,
 }
 
@@ -277,78 +278,67 @@ pub fn create_lobby(lobby_id: &str, player_name: &str) -> Result<()> {
     drop(lobbys_lock);
     println!("Lobby '{lobby_id}' created by key player '{player_name}'");
 
-    // If lobby_id is debug, create a loaded lobby
     if lobby_id == "debug" {
-        println!("Creating debug lobby");
-        start_lobby(lobby_id, player_name);
-        with_lobby(lobby_id, |lobby| {
-            for _ in 0..10 {
-                lobby.chat_messages.push(ChatMessage {
-                    player: "debug".to_owned(),
-                    message: rand::random::<usize>().to_string(),
-                });
-            }
-            let questions: Vec<&str> = vec![
-                "Is it a living thing?",
-                "Is it bigger than a breadbox?",
-                "Is it made by humans?",
-                "Can it be found indoors?",
-                "Is it used for communication?",
-                "Is it a type of food?",
-                "Is it electronic?",
-                "Can it move?",
-                "Is it usually colorful?",
-                "Does it make a sound?",
-                "Is it found in nature?",
-                "Is it related to sports?",
-                "Does it have a specific smell?",
-                "Is it heavier than a person?",
-                "Can it be worn?",
-            ];
-            for question in questions {
-                lobby.questions_queue.push(QueuedQuestion {
-                    player: "debug".to_owned(),
-                    question: question.to_owned(),
-                    votes: rand::random::<usize>() % 6,
-                    voters: Vec::new(),
-                    masked: rand::random::<usize>() % 5 == 0,
-                });
-                let question_id = lobby.questions_counter;
-                lobby.questions_counter += 1;
-                let masked = rand::random::<usize>() % 5 == 0;
-                for item in &mut lobby.items {
-                    item.questions.push(Question {
-                        player: "debug".to_owned(),
-                        id: question_id,
-                        text: question.to_owned(),
-                        answer: Answer::iter().choose(&mut rand::thread_rng()).unwrap(),
-                        masked,
-                    });
-                }
-                if lobby.questions_counter % lobby.settings.add_item_every_x_questions == 0 {
-                    add_item_to_lobby(lobby);
-                }
-            }
-            Ok(())
-        })?;
+        create_debug_lobby(lobby_id)?;
     }
     Ok(())
 }
 
+fn create_debug_lobby(lobby_id: &str) -> Result<()> {
+    println!("Creating debug lobby");
+    with_lobby(lobby_id, |lobby| {
+        lobby.started = true;
+        lobby.last_update = get_current_time();
+        lobby.items_queue = vec!["Apple", "Banana", "Orange", "Pear", "Pineapple"]
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
+        add_item_to_lobby(lobby);
+        add_item_to_lobby(lobby);
+        for _ in 0..10 {
+            lobby.chat_messages.push(ChatMessage {
+                player: "debug".to_owned(),
+                message: rand::random::<usize>().to_string(),
+            });
+        }
+        let questions = vec!["brown", "red", "yellow", "green", "blue", "purple", "orange", "black", "white"];
+        for question in questions {
+            let question = format!("Is it {}", question);
+            lobby.questions_queue.push(QueuedQuestion {
+                player: "debug".to_owned(),
+                question: question.to_owned(),
+                votes: rand::random::<usize>() % 6,
+                voters: Vec::new(),
+                masked: rand::random::<usize>() % 5 == 0,
+            });
+            let id = lobby.questions_counter;
+            lobby.questions_counter += 1;
+            for item in &mut lobby.items {
+                item.questions.push(Question {
+                    player: "debug".to_owned(),
+                    id,
+                    text: question.to_owned(),
+                    answer: Answer::iter().choose(&mut rand::thread_rng()).unwrap(),
+                    masked: rand::random::<usize>() % 5 == 0,
+                });
+            }
+            if lobby.questions_counter % lobby.settings.add_item_every_x_questions == 0 {
+                add_item_to_lobby(lobby);
+            }
+        }
+        Ok(())
+    })
+}
+
 pub fn connect_player(lobby_id: &str, player_name: &str) -> Result<()> {
-    let lobby_id = lobby_id.trim();
-    let player_name = player_name.trim();
-    if lobby_id.len() < 3 || lobby_id.len() > MAX_LOBBY_ID_LENGTH {
+    if !(3..=MAX_LOBBY_ID_LENGTH).contains(&lobby_id.len()) {
         bail!("Lobby ID must be between 3 and {MAX_LOBBY_ID_LENGTH} characters long");
     }
-    if player_name.len() < 3 || player_name.len() > MAX_PLAYER_NAME_LENGTH {
+    if !(3..=MAX_PLAYER_NAME_LENGTH).contains(&player_name.len()) {
         bail!("Player name must be between 3 and {MAX_PLAYER_NAME_LENGTH} characters long");
     }
-    if !regex::Regex::new(LOBBY_ID_PATTERN).unwrap().is_match(lobby_id) {
-        bail!("Lobby ID must be alphabetic");
-    }
-    if !regex::Regex::new(PLAYER_NAME_PATTERN).unwrap().is_match(player_name) {
-        bail!("Player name must be alphabetic");
+    if !regex_match(LOBBY_ID_PATTERN, lobby_id) || !regex_match(PLAYER_NAME_PATTERN, player_name) {
+        bail!("Lobby ID and Player name must be alphabetic");
     }
     ensure!(player_name != "SYSTEM", "Player name cannot be 'SYSTEM'");
 
@@ -357,20 +347,16 @@ pub fn connect_player(lobby_id: &str, player_name: &str) -> Result<()> {
     }
 
     with_lobby(lobby_id, |lobby| {
-        if lobby.players.contains_key(player_name) {
-            bail!("Player '{player_name}' is already connected to lobby '{lobby_id}'");
-        }
-
-        let coins = if lobby.started {
-            lobby.settings.starting_coins + (lobby.elapsed_time / lobby.settings.coin_every_x_seconds as f64).floor() as usize
-        } else {
-            0
-        };
+        ensure!(!lobby.players.contains_key(player_name), "Player '{player_name}' already in lobby");
 
         lobby.players.entry(player_name.to_owned()).or_insert(Player {
             name: player_name.to_owned(),
             last_contact: get_current_time(),
-            coins,
+            coins: if lobby.started {
+                lobby.settings.starting_coins + (lobby.elapsed_time / lobby.settings.coin_every_x_seconds as f64).floor() as usize
+            } else {
+                0
+            },
             ..Default::default()
         });
 
@@ -389,22 +375,13 @@ pub fn disconnect_player(lobby_id: &str, player_name: &str) {
 
 pub fn alter_lobby_settings(lobby_id: &str, player_name: &str, setting: AlterLobbySetting) {
     let result = with_lobby(lobby_id, |lobby| {
-        if lobby.started || lobby.starting {
-            bail!("Lobby is started");
-        }
-        if player_name != lobby.key_player {
-            bail!("Only the key player can alter the lobby settings");
-        }
-
+        ensure!(!lobby.started && !lobby.starting, "Lobby is started");
+        ensure!(player_name == lobby.key_player, "Only the key player can alter the lobby settings");
         match setting {
             AlterLobbySetting::ItemCount(item_count) => {
-                if !(1..=MAX_LOBBY_ITEMS).contains(&item_count) {
-                    bail!("Item count must be between 1 and 20");
-                }
+                ensure!((1..=MAX_LOBBY_ITEMS).contains(&item_count), "Items must be 1 to {MAX_LOBBY_ITEMS}");
                 lobby.settings.item_count = item_count;
-                if lobby.items_queue.len() > item_count {
-                    lobby.items_queue.truncate(item_count);
-                }
+                lobby.items_queue.truncate(item_count);
             }
             AlterLobbySetting::Difficulty(difficulty) => {
                 lobby.settings.difficulty = difficulty;
@@ -422,15 +399,11 @@ pub fn alter_lobby_settings(lobby_id: &str, player_name: &str, setting: AlterLob
                     return Ok(());
                 }
                 // Else check if the item is valid and add it to the queue
-                if !regex::Regex::new(ITEM_NAME_PATTERN).unwrap().is_match(&item) {
-                    bail!("Item name must be alphabetic");
-                }
-                if item.len() < 3 || item.len() > MAX_ITEM_NAME_LENGTH {
+                ensure!(regex_match(ITEM_NAME_PATTERN, &item), "Item name must be alphabetic");
+                if !(3..=MAX_ITEM_NAME_LENGTH).contains(&item.len()) {
                     bail!("Item name must be between 3 and {MAX_ITEM_NAME_LENGTH} characters long");
                 }
-                if lobby.items_queue.contains(&item) {
-                    bail!("Item '{item}' already exists in the lobby");
-                }
+                ensure!(!lobby.items_queue.contains(&item), "Item already exists in the lobby");
                 // Capitalise the first letter of the item
                 let item = item
                     .chars()
@@ -441,20 +414,20 @@ pub fn alter_lobby_settings(lobby_id: &str, player_name: &str, setting: AlterLob
                 lobby.settings.item_count += 1;
             }
             AlterLobbySetting::RemoveItem(item) => {
-                let index = lobby.items_queue.iter().position(|i| i.to_lowercase() == item.to_lowercase());
+                let index = lobby.items_queue.iter().position(|i| i == &item);
                 if let Some(index) = index {
                     lobby.items_queue.remove(index);
                     lobby.settings.item_count -= 1;
                 }
             }
             AlterLobbySetting::RefreshItem(item) => {
-                let index = lobby.items_queue.iter().position(|i| i.to_lowercase() == item.to_lowercase());
+                let index = lobby.items_queue.iter().position(|i| i == &item);
                 if let Some(index) = index {
                     lobby.items_queue.remove(index);
                 }
             }
             AlterLobbySetting::RefreshAllItems => {
-                lobby.items_queue = Vec::new();
+                lobby.items_queue.clear();
             }
             AlterLobbySetting::Advanced(key, value) => match key.as_str() {
                 "starting_coins" => lobby.settings.starting_coins = value,
@@ -587,6 +560,10 @@ pub fn get_state(lobby_id: &str, player_name: &str) -> Result<(Lobby, Vec<Player
 pub fn get_current_time() -> f64 {
     let now = time::SystemTime::now();
     now.duration_since(time::UNIX_EPOCH).unwrap_or_default().as_secs_f64()
+}
+
+fn regex_match(pattern: &str, haystack: &str) -> bool {
+    Regex::new(pattern).unwrap().is_match(haystack)
 }
 
 pub async fn lobby_loop() {

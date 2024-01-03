@@ -38,6 +38,13 @@ async fn get_ai_words(theme: String, difficulty: Difficulty, items: usize, item_
             if let Ok(items_response) = serde_json::from_str::<ItemsResponse>(&message) {
                 for item in items_response.items {
                     if item.len() > 2 && !item.contains(' ') && items_return.len() < items && !items_return.contains(&item) {
+                        // Capitalise the first letter of the item
+                        let item = item
+                            .to_lowercase()
+                            .chars()
+                            .enumerate()
+                            .map(|(i, c)| if i == 0 { c.to_ascii_uppercase() } else { c })
+                            .collect::<String>();
                         items_return.push(item);
                     }
                 }
