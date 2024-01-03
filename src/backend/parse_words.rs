@@ -45,6 +45,9 @@ async fn get_ai_words(theme: String, difficulty: Difficulty, items: usize, item_
         }
         attempts += 1;
     }
+    if attempts >= 2 {
+        println!("Failed to get words from AI");
+    }
 
     items_return
 }

@@ -671,7 +671,7 @@ pub async fn lobby_loop() {
                 if lobby.items_queue.len() > lobby.settings.item_count {
                     lobby.items_queue.truncate(lobby.settings.item_count);
                 }
-                if !lobby.starting && lobby.settings.player_controlled && lobby.items_queue.len() < lobby.settings.item_count {
+                if (lobby.starting || lobby.settings.player_controlled) && lobby.items_queue.len() < lobby.settings.item_count {
                     lobbies_needing_words.push(lobby_id.clone());
                 }
                 if lobby.starting && lobby.items_queue.len() == lobby.settings.item_count {
