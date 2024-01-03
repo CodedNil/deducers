@@ -74,21 +74,18 @@ impl Default for LobbySettings {
     fn default() -> Self {
         Self {
             item_count: 6,
-            difficulty: Difficulty::Easy,
+            difficulty: Difficulty::default(),
             player_controlled: false,
             theme: String::new(),
-
             starting_coins: 4,
-            coin_every_x_seconds: 8,
+            coin_every_x_seconds: 6,
             submit_question_every_x_seconds: 10,
             add_item_every_x_questions: 5,
-
             submit_question_cost: 4,
             masked_question_cost: 8,
             guess_item_cost: 3,
             question_min_votes: 2,
-
-            score_to_coins_ratio: 3,
+            score_to_coins_ratio: 2,
         }
     }
 }
@@ -106,8 +103,9 @@ impl fmt::Display for LobbySettings {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, EnumString, Display, EnumIter)]
+#[derive(Clone, Copy, PartialEq, Eq, EnumString, Default, Display, EnumIter)]
 pub enum Difficulty {
+    #[default]
     Easy,
     Medium,
     Hard,
@@ -309,7 +307,6 @@ pub fn create_lobby(lobby_id: &str, player_name: &str) -> Result<()> {
             id: lobby_id.to_owned(),
             last_update: get_current_time(),
             key_player: player_name.to_owned(),
-            settings: LobbySettings::default(),
             ..Default::default()
         },
     );
