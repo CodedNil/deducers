@@ -6,7 +6,7 @@ use crate::{
     IDLE_KICK_TIME, ITEM_NAME_PATTERN, LOBBY_ID_PATTERN, MAX_CHAT_LENGTH, MAX_CHAT_MESSAGES, MAX_ITEM_NAME_LENGTH, MAX_LOBBY_ID_LENGTH,
     MAX_LOBBY_ITEMS, MAX_PLAYER_NAME_LENGTH, PLAYER_NAME_PATTERN,
 };
-use anyhow::{anyhow, bail, Result};
+use anyhow::{anyhow, bail, ensure, Result};
 use once_cell::sync::Lazy;
 use rand::prelude::*;
 use std::{
@@ -350,21 +350,17 @@ pub fn connect_player(lobby_id: &str, player_name: &str) -> Result<()> {
     if !regex::Regex::new(PLAYER_NAME_PATTERN).unwrap().is_match(player_name) {
         bail!("Player name must be alphabetic");
     }
-    if player_name == "SYSTEM" {
-        bail!("Player name cannot be 'SYSTEM'");
-    }
+    ensure!(player_name != "SYSTEM", "Player name cannot be 'SYSTEM'");
 
     if let Err(e) = create_lobby(lobby_id, player_name) {
         println!("Error creating lobby {e}");
     }
 
-    add_chat_message(lobby_id, "SYSTEM", &format!("Player '{player_name}' connected"));
     with_lobby(lobby_id, |lobby| {
         if lobby.players.contains_key(player_name) {
             bail!("Player '{player_name}' is already connected to lobby '{lobby_id}'");
         }
 
-        // If lobby is started already, give starting coins plus coins for game time
         let coins = if lobby.started {
             lobby.settings.starting_coins + (lobby.elapsed_time / lobby.settings.coin_every_x_seconds as f64).floor() as usize
         } else {
@@ -378,15 +374,15 @@ pub fn connect_player(lobby_id: &str, player_name: &str) -> Result<()> {
             ..Default::default()
         });
 
-        println!("Player '{player_name}' connected to lobby '{lobby_id}'");
+        add_chat_message_to_lobby(lobby, "SYSTEM", &format!("Player '{player_name}' connected"));
         Ok(())
     })
 }
 
 pub fn disconnect_player(lobby_id: &str, player_name: &str) {
     let _result = with_lobby(lobby_id, |lobby| {
+        add_chat_message_to_lobby(lobby, "SYSTEM", &format!("Player '{player_name}' left"));
         lobby.players.remove(player_name);
-        println!("Player '{player_name}' disconnected from lobby '{lobby_id}'");
         Ok(())
     });
 }
@@ -580,7 +576,10 @@ pub fn get_state(lobby_id: &str, player_name: &str) -> Result<(Lobby, Vec<Player
         Ok((lobby, messages))
     });
     if should_kick {
-        disconnect_player(lobby_id, player_name);
+        let _result = with_lobby(lobby_id, |lobby| {
+            lobby.players.remove(player_name);
+            Ok(())
+        });
     }
     result
 }
