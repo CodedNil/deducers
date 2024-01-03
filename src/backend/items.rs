@@ -8,25 +8,17 @@ use serde::Deserialize;
 use std::{cmp::Ordering, collections::HashMap, str::FromStr};
 
 pub fn add_item_to_lobby(lobby: &mut Lobby) {
-    if !lobby.started {
-        return;
-    }
-    // Get first item in queue, if no items return
-    if lobby.items_queue.is_empty() {
+    if !lobby.started || lobby.items_queue.is_empty() {
         return;
     }
     let item_name = lobby.items_queue.remove(0);
-
-    // Add item to lobby
-    let lobby_id = lobby.id.clone();
-    println!("Adding item '{item_name}' to lobby '{lobby_id}'");
+    println!("Adding item '{}' to lobby '{}'", item_name, lobby.id);
     lobby.items.push(Item {
         name: item_name.clone(),
         id: lobby.items_counter + 1,
         questions: Vec::new(),
     });
     lobby.items_counter += 1;
-    // Send message to all players of item added
     for player in lobby.players.values_mut() {
         player.messages.push(PlayerMessage::ItemAdded);
     }
@@ -204,7 +196,6 @@ pub fn quizmaster_change_answer(lobby_id: &str, player_name: &str, question: &St
         if !player.quizmaster {
             bail!("Only quizmaster can use this");
         }
-
         lobby
             .quizmaster_queue
             .iter_mut()

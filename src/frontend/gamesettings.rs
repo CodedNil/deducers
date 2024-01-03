@@ -1,9 +1,9 @@
 use crate::{
     backend::{alter_lobby_settings, AlterLobbySetting, Difficulty, LobbySettings},
-    ITEM_NAME_PATTERN, MAX_ITEM_NAME_LENGTH, MAX_LOBBY_ITEMS,
+    ITEM_NAME_PATTERN, MAX_ITEM_NAME_LENGTH, MAX_LOBBY_ITEMS, QUESTION_PATTERN,
 };
 use dioxus::prelude::*;
-use std::{collections::HashMap, rc::Rc};
+use std::collections::HashMap;
 use strum::IntoEnumIterator;
 
 #[component]
@@ -27,7 +27,11 @@ pub fn GameSettings(cx: Scope, player_name: String, lobby_id: String, settings: 
             label { font_weight: "bold", font_size: "larger", "Lobby Settings" }
             label { font_size: "large", "Estimated game length {game_time}" }
             div { display: "flex", flex_direction: "column", gap: "5px",
-                standard_settings(*settings, alter_setting),
+                StandardSettings {
+                    player_name: player_name.clone(),
+                    lobby_id: lobby_id.clone(),
+                    settings: settings.clone()
+                }
                 div { class: "dark-box",
                     label {
                         "Host as Quizmaster: "
@@ -42,7 +46,11 @@ pub fn GameSettings(cx: Scope, player_name: String, lobby_id: String, settings: 
                         }
                     }
                     if player_controlled {
-                        item_settings(items_queue.clone(), alter_setting)
+                        rsx! { ItemSettings {
+                            player_name: player_name.clone(),
+                            lobby_id: lobby_id.clone(),
+                            items_queue: items_queue.clone(),
+                        }}
                     }
                 }
                 div { class: "dark-box",
@@ -57,7 +65,11 @@ pub fn GameSettings(cx: Scope, player_name: String, lobby_id: String, settings: 
                         }
                     }
                     if *advanced_settings_toggle.get() {
-                        advanced_settings(*settings, alter_setting)
+                        rsx! { AdvancedSettings {
+                            player_name: player_name.clone(),
+                            lobby_id: lobby_id.clone(),
+                            settings: settings.clone(),
+                        }}
                     }
                 }
             }
@@ -94,26 +106,44 @@ fn calculate_game_time(items_count: usize, question_every_x_seconds: usize, item
     }
 }
 
-fn standard_settings<'a>(settings: LobbySettings, alter_setting: impl Fn(AlterLobbySetting) + 'a) -> LazyNodes<'a, 'a> {
-    let alter_setting = Rc::new(alter_setting);
-    rsx! {
+#[component]
+pub fn StandardSettings(cx: Scope, player_name: String, lobby_id: String, settings: LobbySettings) -> Element {
+    let alter_setting = {
+        move |setting: AlterLobbySetting| {
+            alter_lobby_settings(lobby_id, player_name, setting);
+        }
+    };
+    cx.render(rsx! {
         div { display: "flex", gap: "5px",
-            "Difficulty:"
-            Difficulty::iter().map(|variant| {
-                let alter_setting = Rc::clone(&alter_setting);
-                rsx! {
-                    button {
-                        class: if settings.difficulty == variant { "highlighted" } else { "" },
-                        onclick: {
-                            let alter_setting = Rc::clone(&alter_setting);
-                            move |_| {
-                                alter_setting(AlterLobbySetting::Difficulty(variant));
-                            }
-                        },
-                        "{variant}"
+            label {
+                "Theme: "
+                input {
+                    r#type: "text",
+                    placeholder: "None",
+                    maxlength: 20,
+                    pattern: QUESTION_PATTERN,
+                    value: "{settings.theme}",
+                    oninput: {
+                        move |e| {
+                            alter_setting(AlterLobbySetting::Theme(e.value.clone()));
+                        }
                     }
                 }
-            })
+            }
+        }
+        div { display: "flex", gap: "5px",
+            "Difficulty:"
+            for variant in Difficulty::iter() {
+                button {
+                    class: if settings.difficulty == variant { "highlighted" } else { "" },
+                    onclick: {
+                        move |_| {
+                            alter_setting(AlterLobbySetting::Difficulty(variant));
+                        }
+                    },
+                    "{variant}"
+                }
+            }
         }
         if !settings.player_controlled {
             rsx! { label {
@@ -132,12 +162,17 @@ fn standard_settings<'a>(settings: LobbySettings, alter_setting: impl Fn(AlterLo
                 }
             }}
         }
-    }
+    })
 }
 
-fn item_settings<'a>(items_queue: Vec<String>, alter_setting: impl Fn(AlterLobbySetting) + 'a) -> LazyNodes<'a, 'a> {
-    let alter_setting = Rc::new(alter_setting);
-    rsx! {
+#[component]
+pub fn ItemSettings(cx: Scope, player_name: String, lobby_id: String, items_queue: Vec<String>) -> Element {
+    let alter_setting = {
+        move |setting: AlterLobbySetting| {
+            alter_lobby_settings(lobby_id, player_name, setting);
+        }
+    };
+    cx.render(rsx! {
         div { display: "flex", flex_direction: "column", gap: "5px",
             div {
                 "Items "
@@ -146,7 +181,6 @@ fn item_settings<'a>(items_queue: Vec<String>, alter_setting: impl Fn(AlterLobby
                     padding_top: "0px",
                     background_color: "rgb(20, 100, 150)",
                     onclick: {
-                        let alter_setting = Rc::clone(&alter_setting);
                         move |_| {
                             alter_setting(AlterLobbySetting::RefreshAllItems);
                         }
@@ -154,43 +188,35 @@ fn item_settings<'a>(items_queue: Vec<String>, alter_setting: impl Fn(AlterLobby
                     "↻"
                 }
             }
-            items_queue.into_iter().map(|item| {
-                let item1 = item.clone();
-                let alter_setting = Rc::clone(&alter_setting);
-                rsx! {
-                    div { display: "flex", flex_direction: "row", gap: "5px",
-                        class: "body-box",
-                        item.clone()
-                        button {
-                            padding: "2px",
-                            padding_top: "0px",
-                            background_color: "rgb(20, 100, 150)",
-                            onclick: {
-                                let alter_setting = Rc::clone(&alter_setting);
-                                move |_| {
-                                    alter_setting(AlterLobbySetting::RefreshItem(item.clone()));
-                                }
-                            },
-                            "↻"
-                        }
-                        button {
-                            padding: "2px",
-                            padding_top: "0px",
-                            background_color: "rgb(100, 20, 20)",
-                            onclick: {
-                                let alter_setting = Rc::clone(&alter_setting);
-                                move |_| {
-                                    alter_setting(AlterLobbySetting::RemoveItem(item1.clone()));
-                                }
-                            },
-                            "-"
-                        }
+            for item in items_queue {
+                div { display: "flex", flex_direction: "row", gap: "5px", class: "body-box",
+                    "{item}"
+                    button {
+                        padding: "2px",
+                        padding_top: "0px",
+                        background_color: "rgb(20, 100, 150)",
+                        onclick: {
+                            move |_| {
+                                alter_setting(AlterLobbySetting::RefreshItem(item.clone()));
+                            }
+                        },
+                        "↻"
+                    }
+                    button {
+                        padding: "2px",
+                        padding_top: "0px",
+                        background_color: "rgb(100, 20, 20)",
+                        onclick: {
+                            move |_| {
+                                alter_setting(AlterLobbySetting::RemoveItem(item.clone()));
+                            }
+                        },
+                        "-"
                     }
                 }
-            }),
+            }
             form {
                 onsubmit: {
-                    let alter_setting = Rc::clone(&alter_setting);
                     move |form_data| {
                         if let Some(item_name)
                             = form_data.values.get("item_name").and_then(|m| m.first())
@@ -210,7 +236,7 @@ fn item_settings<'a>(items_queue: Vec<String>, alter_setting: impl Fn(AlterLobby
                 button { background_color: "rgb(20, 100, 20)", r#type: "submit", "+" }
             }
         }
-    }
+    })
 }
 
 struct SettingDetail {
@@ -235,8 +261,8 @@ impl SettingDetail {
     }
 }
 
-fn advanced_settings<'a>(settings: LobbySettings, alter_setting: impl Fn(AlterLobbySetting) + 'a) -> LazyNodes<'a, 'a> {
-    let alter_setting = Rc::new(alter_setting);
+#[component]
+pub fn AdvancedSettings(cx: Scope, player_name: String, lobby_id: String, settings: LobbySettings) -> Element {
     let setting_details = vec![
         SettingDetail::new("starting_coins", 1, 100),
         SettingDetail::new("coin_every_x_seconds", 1, 20),
@@ -264,9 +290,8 @@ fn advanced_settings<'a>(settings: LobbySettings, alter_setting: impl Fn(AlterLo
     .copied()
     .collect();
 
-    rsx! {
+    cx.render(rsx! {
         setting_details.into_iter().map(|setting| {
-            let alter_setting = Rc::clone(&alter_setting);
             setting_values.get(setting.key.as_str()).map_or_else(|| rsx! { div {} }, |&setting_value|
                 rsx! {
                     label {
@@ -279,7 +304,7 @@ fn advanced_settings<'a>(settings: LobbySettings, alter_setting: impl Fn(AlterLo
                             max_width: "50px",
                             oninput: {
                                 move |e| {
-                                    alter_setting(AlterLobbySetting::Advanced(setting.key.clone(), e.value.parse::<usize>().unwrap_or(1)));
+                                    alter_lobby_settings(lobby_id, player_name, AlterLobbySetting::Advanced(setting.key.clone(), e.value.parse::<usize>().unwrap_or(1)))
                                 }
                             }
                         }
@@ -287,5 +312,5 @@ fn advanced_settings<'a>(settings: LobbySettings, alter_setting: impl Fn(AlterLo
                 }
             )
         })
-    }
+    })
 }

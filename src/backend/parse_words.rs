@@ -1,6 +1,7 @@
-use crate::backend::Difficulty;
+use crate::backend::{openai::query_ai, Difficulty};
 use once_cell::sync::Lazy;
 use rand::seq::SliceRandom;
+use serde::Deserialize;
 use std::collections::HashSet;
 
 pub static WORD_SETS: Lazy<WordSets> = Lazy::new(|| parse_words(include_str!("words.txt")));
@@ -67,4 +68,45 @@ pub fn select_lobby_words_unique(current_words: &[String], difficulty: Difficult
         }
     }
     unique_new_words.into_iter().collect()
+}
+
+#[derive(Deserialize)]
+struct ItemsResponse {
+    items: Vec<String>,
+}
+
+pub async fn get_ai_words(theme: String, difficulty: Difficulty, items: usize) -> Vec<String> {
+    let difficulty_description = match difficulty {
+        Difficulty::Easy => "choose easy difficulty words",
+        Difficulty::Medium => "choose easy or medium difficulty words",
+        Difficulty::Hard => "choose easy, medium or hard difficulty words",
+    };
+    let theme_description = if !theme.is_empty() {
+        format!("with theme {}, ", theme)
+    } else {
+        String::new()
+    };
+
+    let mut items_return = Vec::new();
+    let mut attempts = 0;
+
+    while attempts < 3 && items_return.len() < items {
+        let response = query_ai(
+            &format!("u:Create {items} unique single word items to be used in a 20 questions game, such as Phone Bird Crystal, return compact one line JSON with key items, aim for variety, British English, categories are [plant, animal, object], {theme_description}{difficulty_description}"),
+            100, 2.0
+        ).await;
+
+        if let Ok(message) = response {
+            if let Ok(items_response) = serde_json::from_str::<ItemsResponse>(&message) {
+                for item in items_response.items {
+                    if item.len() > 2 && !item.contains(' ') && items_return.len() < items && !items_return.contains(&item) {
+                        items_return.push(item);
+                    }
+                }
+            }
+        }
+        attempts += 1;
+    }
+
+    items_return
 }

@@ -296,7 +296,7 @@ pub fn app(cx: Scope) -> Element {
                         key_player: lobby.key_player.clone(),
                         started: lobby.started,
                         elapsed_time: lobby.elapsed_time.round() as usize,
-                        settings: lobby.settings,
+                        settings: lobby.settings.clone(),
                         questions_queue: lobby.questions_queue.clone(),
                         questions_queue_active: lobby.questions_queue_active(),
                         questions_queue_countdown: lobby.questions_queue_countdown.round() as usize,
@@ -312,7 +312,7 @@ pub fn app(cx: Scope) -> Element {
                         rsx! { GameSettings {
                             player_name: player_name.get().clone(),
                             lobby_id: lobby_id.get().clone(),
-                            settings: lobby.settings,
+                            settings: lobby.settings.clone(),
                             items_queue: lobby.items_queue.clone(),
                         }}
                     }

@@ -50,11 +50,12 @@ impl Lobby {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct LobbySettings {
     pub item_count: usize,
     pub difficulty: Difficulty,
     pub player_controlled: bool,
+    pub theme: String,
 
     pub starting_coins: usize,
     pub coin_every_x_seconds: usize,
@@ -75,6 +76,7 @@ impl Default for LobbySettings {
             item_count: 6,
             difficulty: Difficulty::Easy,
             player_controlled: false,
+            theme: String::new(),
 
             starting_coins: 4,
             coin_every_x_seconds: 8,
@@ -95,8 +97,9 @@ impl fmt::Display for LobbySettings {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "{} Items, {}, {}",
+            "{} Items, theme {}, {}, {}",
             self.item_count,
+            self.theme,
             self.difficulty,
             if self.player_controlled { "Quizmaster" } else { "AI Controlled" }
         )
@@ -115,6 +118,7 @@ pub enum AlterLobbySetting {
     ItemCount(usize),
     Difficulty(Difficulty),
     PlayerControlled(bool),
+    Theme(String),
     AddItem(String),
     RemoveItem(String),
     RefreshItem(String),
@@ -460,6 +464,9 @@ pub fn alter_lobby_settings(lobby_id: &str, player_name: &str, setting: AlterLob
             }
             AlterLobbySetting::PlayerControlled(player_controlled) => {
                 lobby.settings.player_controlled = player_controlled;
+            }
+            AlterLobbySetting::Theme(theme) => {
+                lobby.settings.theme = theme;
             }
             AlterLobbySetting::AddItem(item) => {
                 // If item is empty, pick a random unique word from the difficulty

@@ -103,7 +103,7 @@ pub fn GameView(
                                     Management {
                                         player_name: player_name.to_owned(),
                                         lobby_id: lobby_id.to_owned(),
-                                        settings: *settings,
+                                        settings: settings.clone(),
                                         players_coins: players.iter().find(|p| &p.name == player_name).map_or(0, |p| p.coins),
                                         items: items.clone(),
                                     }
@@ -134,7 +134,7 @@ pub fn GameView(
                         questions_queue: questions_queue.clone(),
                         questions_queue_active: *questions_queue_active,
                         questions_queue_countdown: *questions_queue_countdown,
-                        settings: *settings,
+                        settings: settings.clone(),
                         is_quizmaster: is_quizmaster
                     }
                 }
