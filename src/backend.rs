@@ -588,6 +588,16 @@ pub fn add_chat_message(lobby_id: &str, player_name: &str, message: &str) {
     }
 }
 
+pub fn add_chat_message_to_lobby(lobby: &mut Lobby, player_name: &str, message: &str) {
+    lobby.chat_messages.push(ChatMessage {
+        player: player_name.to_owned(),
+        message: message.to_owned(),
+    });
+    if lobby.chat_messages.len() > MAX_CHAT_MESSAGES {
+        lobby.chat_messages.remove(0);
+    }
+}
+
 pub fn get_state(lobby_id: &str, player_name: &str) -> Result<(Lobby, Vec<PlayerMessage>)> {
     let mut should_kick = false;
     let result = with_player_mut(lobby_id, player_name, |lobby, player| {
@@ -675,6 +685,7 @@ pub async fn lobby_loop() {
                     lobbies_needing_words.push(lobby_id.clone());
                 }
                 if lobby.starting && lobby.items_queue.len() == lobby.settings.item_count {
+                    add_chat_message_to_lobby(lobby, "SYSTEM", "The game has started, good luck!");
                     lobby.started = true;
                     lobby.last_update = get_current_time();
 

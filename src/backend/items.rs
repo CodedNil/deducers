@@ -1,6 +1,6 @@
 use crate::backend::{
-    alert_popup, openai::query_ai, with_lobby_mut, with_player_mut, Answer, Item, Lobby, PlayerMessage, Question, QueuedQuestionQuizmaster,
-    QuizmasterItem,
+    add_chat_message, alert_popup, openai::query_ai, with_lobby_mut, with_player_mut, Answer, Item, Lobby, PlayerMessage, Question,
+    QueuedQuestionQuizmaster, QuizmasterItem,
 };
 use anyhow::{anyhow, bail, Result};
 use futures::future::join_all;
@@ -309,6 +309,13 @@ pub fn quizmaster_reject(lobby_id: &str, player_name: &str, question: &str) {
 pub fn player_guess_item_wrapped(lobby_id: &str, player_name: &str, item_choice: usize, guess: &str) {
     if let Err(error) = player_guess_item(lobby_id, player_name, item_choice, guess) {
         alert_popup(lobby_id, player_name, &format!("Guess rejected {error}"));
+        if error.to_string().contains("Incorrect guess") {
+            add_chat_message(
+                lobby_id,
+                "SYSTEM",
+                &format!("'{player_name}' incorrectly guessed '{guess}' for item {item_choice}"),
+            );
+        }
     }
 }
 
