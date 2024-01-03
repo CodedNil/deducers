@@ -1,7 +1,7 @@
 use crate::{
     backend::{
         items::{add_item_to_lobby, ask_top_question},
-        parse_words::topup_lobby_words_if_available,
+        words::topup_lobby_words_if_available,
     },
     IDLE_KICK_TIME, ITEM_NAME_PATTERN, LOBBY_ID_PATTERN, MAX_CHAT_LENGTH, MAX_CHAT_MESSAGES, MAX_ITEM_NAME_LENGTH, MAX_LOBBY_ID_LENGTH,
     MAX_LOBBY_ITEMS, MAX_PLAYER_NAME_LENGTH, PLAYER_NAME_PATTERN,
@@ -20,8 +20,8 @@ use strum_macros::{Display, EnumIter, EnumProperty, EnumString};
 
 pub mod items;
 pub mod openai;
-pub mod parse_words;
 pub mod question_queue;
+pub mod words;
 
 #[derive(Clone, Default)]
 pub struct Lobby {

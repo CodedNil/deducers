@@ -31,7 +31,7 @@ async fn get_ai_words(theme: String, difficulty: Difficulty, items: usize, item_
     while attempts < 2 && items_return.len() < items {
         let response = query_ai(
             &format!("u:Create {items} unique single word items to be used in a 20 questions game, such as Phone Bird Crystal, return compact one line JSON with key items, {item_history}aim for variety, British English, categories are [plant, animal, object], {theme_description}{difficulty_description}"),
-            100, 2.0
+            items * 3 + 20, 1.8
         ).await;
 
         if let Ok(message) = response {
@@ -41,12 +41,16 @@ async fn get_ai_words(theme: String, difficulty: Difficulty, items: usize, item_
                         items_return.push(item);
                     }
                 }
+            } else {
+                println!("Failed to parse words from AI {}", message);
             }
+        } else {
+            println!("Failed to get words from AI {}", response.unwrap_err());
         }
         attempts += 1;
     }
     if attempts >= 2 {
-        println!("Failed to get words from AI");
+        println!("Failed to get words from AI after 2 attempts");
     }
 
     items_return

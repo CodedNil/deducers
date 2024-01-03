@@ -126,7 +126,7 @@ fn log_details(prompt: &String, result: &MessageResponse, tokens: &Usage) -> Res
     let price = ((tokens.prompt_tokens as f64 * 0.0015) + (tokens.completion_tokens as f64 * 0.002)) / 1000.0;
 
     // Format the log entry.
-    let result = result.content.clone();
+    let result = result.content.clone().replace("\n", " ");
     let log_entry = format!(
         "Prompt: {:} | Result: {:} | Tokens: {}/{}/{} ${}\n",
         &prompt[..100.min(prompt.len())],

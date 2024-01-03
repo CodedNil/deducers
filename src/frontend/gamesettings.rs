@@ -3,7 +3,6 @@ use crate::{
     ITEM_NAME_PATTERN, MAX_ITEM_NAME_LENGTH, MAX_LOBBY_ITEMS, QUESTION_PATTERN,
 };
 use dioxus::prelude::*;
-use std::collections::HashMap;
 use strum::IntoEnumIterator;
 
 #[component]
@@ -253,19 +252,17 @@ struct SettingDetail {
     display_name: String,
     min: usize,
     max: usize,
+    value: usize,
 }
 
 impl SettingDetail {
-    fn new(key: &str, min: usize, max: usize) -> Self {
+    fn new(key: &str, min: usize, max: usize, value: usize) -> Self {
         Self {
             key: key.to_owned(),
-            display_name: key
-                .split('_')
-                .map(|word| word.chars().next().unwrap().to_uppercase().to_string() + &word.chars().skip(1).collect::<String>())
-                .collect::<Vec<String>>()
-                .join(" "),
+            display_name: key.chars().next().unwrap().to_uppercase().to_string() + &key[1..].replace("_", " "),
             min,
             max,
+            value,
         }
     }
 }
@@ -273,53 +270,41 @@ impl SettingDetail {
 #[component]
 pub fn AdvancedSettings(cx: Scope, player_name: String, lobby_id: String, settings: LobbySettings) -> Element {
     let setting_details = vec![
-        SettingDetail::new("starting_coins", 1, 100),
-        SettingDetail::new("coin_every_x_seconds", 1, 20),
-        SettingDetail::new("submit_question_every_x_seconds", 1, 30),
-        SettingDetail::new("add_item_every_x_questions", 1, 20),
-        SettingDetail::new("submit_question_cost", 1, 100),
-        SettingDetail::new("masked_question_cost", 1, 100),
-        SettingDetail::new("guess_item_cost", 1, 100),
-        SettingDetail::new("question_min_votes", 1, 20),
-        SettingDetail::new("score_to_coins_ratio", 1, 100),
+        SettingDetail::new("starting_coins", 1, 100, settings.starting_coins),
+        SettingDetail::new("coin_every_x_seconds", 1, 20, settings.coin_every_x_seconds),
+        SettingDetail::new("submit_question_every_x_seconds", 1, 30, settings.submit_question_every_x_seconds),
+        SettingDetail::new("add_item_every_x_questions", 1, 20, settings.add_item_every_x_questions),
+        SettingDetail::new("submit_question_cost", 1, 100, settings.submit_question_cost),
+        SettingDetail::new("masked_question_cost", 1, 100, settings.masked_question_cost),
+        SettingDetail::new("guess_item_cost", 1, 100, settings.guess_item_cost),
+        SettingDetail::new("question_min_votes", 1, 20, settings.question_min_votes),
+        SettingDetail::new("score_to_coins_ratio", 1, 100, settings.score_to_coins_ratio),
     ];
 
-    let setting_values: HashMap<&str, usize> = [
-        ("starting_coins", settings.starting_coins),
-        ("coin_every_x_seconds", settings.coin_every_x_seconds),
-        ("submit_question_every_x_seconds", settings.submit_question_every_x_seconds),
-        ("add_item_every_x_questions", settings.add_item_every_x_questions),
-        ("submit_question_cost", settings.submit_question_cost),
-        ("masked_question_cost", settings.masked_question_cost),
-        ("guess_item_cost", settings.guess_item_cost),
-        ("question_min_votes", settings.question_min_votes),
-        ("score_to_coins_ratio", settings.score_to_coins_ratio),
-    ]
-    .iter()
-    .copied()
-    .collect();
-
     cx.render(rsx! {
-        setting_details.into_iter().map(|setting| {
-            setting_values.get(setting.key.as_str()).map_or_else(|| rsx! { div {} }, |&setting_value|
-                rsx! {
-                    label {
-                        "{setting.display_name}: "
-                        input {
-                            r#type: "number",
-                            min: "{setting.min}",
-                            max: "{setting.max}",
-                            value: "{setting_value}",
-                            max_width: "50px",
-                            oninput: {
-                                move |e| {
-                                    alter_lobby_settings(lobby_id, player_name, AlterLobbySetting::Advanced(setting.key.clone(), e.value.parse::<usize>().unwrap_or(1)))
-                                }
-                            }
+        for setting in setting_details.into_iter() {
+            label {
+                "{setting.display_name}: "
+                input {
+                    r#type: "number",
+                    min: "{setting.min}",
+                    max: "{setting.max}",
+                    value: "{setting.value}",
+                    max_width: "50px",
+                    oninput: {
+                        move |e| {
+                            alter_lobby_settings(
+                                lobby_id,
+                                player_name,
+                                AlterLobbySetting::Advanced(
+                                    setting.key.clone(),
+                                    e.value.parse::<usize>().unwrap_or(1),
+                                ),
+                            )
                         }
                     }
                 }
-            )
-        })
+            }
+        }
     })
 }

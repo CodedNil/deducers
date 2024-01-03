@@ -99,7 +99,7 @@ pub async fn ask_top_question(lobby_id: &str) -> Result<()> {
     while successful_attempts < 3 && total_attempts < 3 {
         let mut futures = Vec::new();
         for _ in 0..3 {
-            let future = query_ai(&prompt, 100, 1.0);
+            let future = query_ai(&prompt, items.len() * 3 + 20, 1.0);
             futures.push(future);
         }
 
