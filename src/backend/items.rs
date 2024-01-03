@@ -1,8 +1,8 @@
 use crate::backend::{
-    add_chat_message, alert_popup, openai::query_ai, with_lobby_mut, with_player_mut, Answer, Item, Lobby, PlayerMessage, Question,
+    add_chat_message_to_lobby, alert_popup, openai::query_ai, with_lobby_mut, Answer, Item, Lobby, PlayerMessage, Question,
     QueuedQuestionQuizmaster, QuizmasterItem,
 };
-use anyhow::{anyhow, bail, Result};
+use anyhow::{anyhow, bail, ensure, Result};
 use futures::future::join_all;
 use serde::Deserialize;
 use std::{cmp::Ordering, collections::HashMap, str::FromStr};
@@ -181,10 +181,9 @@ pub async fn ask_top_question(lobby_id: &str) -> Result<()> {
         for player in lobby.players.values_mut() {
             player.messages.push(PlayerMessage::QuestionAsked);
         }
+        test_game_over(lobby)?;
         Ok(())
-    })?;
-
-    test_game_over(lobby_id)
+    })
 }
 
 pub fn quizmaster_change_answer(lobby_id: &str, player_name: &str, question: &String, item_id: usize, new_answer: Answer) {
@@ -211,13 +210,9 @@ pub fn quizmaster_change_answer(lobby_id: &str, player_name: &str, question: &St
 
 pub fn quizmaster_submit(lobby_id: &str, player_name: &str, question: &str) {
     let result = with_lobby_mut(lobby_id, |lobby| {
-        if !lobby.started {
-            bail!("Lobby not started");
-        }
+        ensure!(lobby.started, "Lobby not started");
         let player = lobby.players.get(player_name).ok_or_else(|| anyhow!("Player not found"))?;
-        if !player.quizmaster {
-            bail!("Only quizmaster can use this");
-        }
+        ensure!(player.quizmaster, "Only quizmaster can use this");
 
         let question_index = lobby
             .quizmaster_queue
@@ -272,13 +267,9 @@ pub fn quizmaster_submit(lobby_id: &str, player_name: &str, question: &str) {
 
 pub fn quizmaster_reject(lobby_id: &str, player_name: &str, question: &str) {
     let result = with_lobby_mut(lobby_id, |lobby| {
-        if !lobby.started {
-            bail!("Lobby not started");
-        }
+        ensure!(lobby.started, "Lobby not started");
         let player = lobby.players.get(player_name).ok_or_else(|| anyhow!("Player not found"))?;
-        if !player.quizmaster {
-            bail!("Only quizmaster can use this");
-        }
+        ensure!(player.quizmaster, "Only quizmaster can use this");
 
         let question_index = lobby
             .quizmaster_queue
@@ -306,104 +297,78 @@ pub fn quizmaster_reject(lobby_id: &str, player_name: &str, question: &str) {
     }
 }
 
-pub fn player_guess_item_wrapped(lobby_id: &str, player_name: &str, item_choice: usize, guess: &str) {
-    if let Err(error) = player_guess_item(lobby_id, player_name, item_choice, guess) {
-        alert_popup(lobby_id, player_name, &format!("Guess rejected {error}"));
-        if error.to_string().contains("Incorrect guess") {
-            add_chat_message(
-                lobby_id,
-                "SYSTEM",
-                &format!("'{player_name}' incorrectly guessed '{guess}' for item {item_choice}"),
-            );
-        }
-    }
-}
+pub fn player_guess_item(lobby_id: &str, player_name: &str, item_choice: usize, guess: &str) {
+    let result = with_lobby_mut(lobby_id, |lobby| {
+        ensure!(lobby.started, "Lobby not started");
+        let player = lobby
+            .players
+            .get_mut(player_name)
+            .ok_or_else(|| anyhow!("Player '{player_name}' not found"))?;
+        ensure!(!player.quizmaster, "Quizmaster cannot engage");
+        ensure!(player.coins >= lobby.settings.guess_item_cost, "Insufficient coins to guess");
 
-pub fn player_guess_item(lobby_id: &str, player_name: &str, item_choice: usize, guess: &str) -> Result<()> {
-    let mut found_item = None;
-    with_player_mut(lobby_id, player_name, |lobby, player| {
-        if !lobby.started {
-            bail!("Lobby not started");
-        }
-        if player.quizmaster {
-            bail!("Quizmaster cannot engage");
-        }
+        let item_index = lobby
+            .items
+            .iter()
+            .position(|i| i.id == item_choice)
+            .ok_or_else(|| anyhow!("Item not found"))?;
+        let item = &lobby.items[item_index];
 
-        let Some(item) = lobby.items.iter().find(|i| i.id == item_choice) else {
-            bail!("Item not found");
-        };
-        found_item = Some(item.clone());
-
-        if player.coins < lobby.settings.guess_item_cost {
-            bail!("Insufficient coins to guess");
-        }
         player.coins -= lobby.settings.guess_item_cost;
+        if item.name.eq_ignore_ascii_case(guess) {
+            player.score += 20 - item.questions.len();
 
-        if item.name.to_lowercase() != guess.to_lowercase() {
-            player.messages.push(PlayerMessage::GuessIncorrect);
-            bail!("Incorrect guess");
-        }
-
-        // Add score to player based on how many questions the item had remaining
-        let remaining_questions = 20 - item.questions.len();
-        player.score += remaining_questions;
-        Ok(())
-    })?;
-
-    if let Some(item) = found_item {
-        with_lobby_mut(lobby_id, |lobby| {
-            // Remove item
-            let item_id = item.id;
-            let item_name = item.name.clone();
-            lobby.items.retain(|i| i.id != item_id);
-
-            // Send message to all players of item guessed
-            for player_n in lobby.players.values_mut() {
-                player_n
-                    .messages
-                    .push(PlayerMessage::ItemGuessed(player_name.to_owned(), item_id, item_name.clone()));
+            for p in lobby.players.values_mut() {
+                p.messages
+                    .push(PlayerMessage::ItemGuessed(player_name.to_owned(), item.id, item.name.clone()));
             }
 
-            // If lobby items is empty but theres still items in the item_queue, add another item
+            lobby.items.remove(item_index);
             if lobby.items.is_empty() && !lobby.items_queue.is_empty() {
                 add_item_to_lobby(lobby);
             }
+            test_game_over(lobby)?;
 
             Ok(())
-        })?;
-
-        return test_game_over(lobby_id);
+        } else {
+            player.messages.push(PlayerMessage::GuessIncorrect);
+            add_chat_message_to_lobby(
+                lobby,
+                "SYSTEM",
+                &format!("'{player_name}' incorrectly guessed '{guess}' for item {item_choice}",),
+            );
+            bail!("Incorrect guess");
+        }
+    });
+    if let Err(error) = result {
+        alert_popup(lobby_id, player_name, &format!("Guess rejected {error}"));
     }
-    bail!("Failed to find item");
 }
 
-pub fn test_game_over(lobby_id: &str) -> Result<()> {
-    with_lobby_mut(lobby_id, |lobby| {
-        if lobby.started && lobby.items.is_empty() {
-            lobby.started = false;
+pub fn test_game_over(lobby: &mut Lobby) -> Result<()> {
+    if lobby.started && lobby.items.is_empty() {
+        lobby.started = false;
 
-            // Find winner, player with max score, or if tied multiple players, or if 0 score no winner
-            let mut max_score = 0;
-            let mut winners = Vec::new();
-            for player in lobby.players.values() {
-                match player.score.cmp(&max_score) {
-                    Ordering::Greater => {
-                        max_score = player.score;
-                        winners.clear();
-                        winners.push(player.name.clone());
-                    }
-                    Ordering::Equal => {
-                        winners.push(player.name.clone());
-                    }
-                    Ordering::Less => {}
+        // Find winner, player with max score, or if tied multiple players, or if 0 score no winner
+        let mut max_score = 0;
+        let mut winners = Vec::new();
+        for player in lobby.players.values() {
+            match player.score.cmp(&max_score) {
+                Ordering::Greater => {
+                    max_score = player.score;
+                    winners.clear();
+                    winners.push(player.name.clone());
                 }
-            }
-
-            for player in lobby.players.values_mut() {
-                player.messages.push(PlayerMessage::Winner(winners.clone()));
+                Ordering::Equal => {
+                    winners.push(player.name.clone());
+                }
+                Ordering::Less => {}
             }
         }
-        Ok(())
-    })?;
+
+        for player in lobby.players.values_mut() {
+            player.messages.push(PlayerMessage::Winner(winners.clone()));
+        }
+    }
     Ok(())
 }

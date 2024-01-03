@@ -30,7 +30,7 @@ async fn get_ai_words(theme: String, difficulty: Difficulty, items: usize, item_
 
     while attempts < 2 && items_return.len() < items {
         let response = query_ai(
-            &format!("u:Create {items} unique single word items to be used in a 20 questions game, such as Phone Bird Crystal, return compact one line JSON with key items, {item_history}aim for variety, British English, categories are [plant, animal, object], {theme_description}{difficulty_description}"),
+            &format!("u:Create {items} unique single word items to be used in a 20 questions game, such as Phone Bird Crystal, return compact one line JSON with key items, {theme_description}{item_history}aim for variety, British English, categories are [plant, animal, object] unless theme specifies otherwise, {difficulty_description}"),
             items * 3 + 20, 1.8
         ).await;
 

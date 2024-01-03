@@ -1,7 +1,8 @@
 use crate::{
     backend::{
-        items::player_guess_item_wrapped,
-        question_queue::{convert_score, submit_question_wrapped},
+        alert_popup,
+        items::player_guess_item,
+        question_queue::{convert_score, submit_question},
         Item, LobbySettings,
     },
     ITEM_NAME_PATTERN, MAX_ITEM_NAME_LENGTH, MAX_QUESTION_LENGTH, QUESTION_PATTERN,
@@ -26,16 +27,19 @@ pub fn Management(
                 if let Some(question) = form_data.values.get("question").and_then(|m| m.first()) {
                     let question = question.to_owned();
                     let (lobby_id, player_name) = (lobby_id.to_owned(), player_name.to_owned());
-                    let masked = question_masked.clone();
+                    let masked = *question_masked.get();
+                    question_masked.set(false);
                     cx.spawn(async move {
-                        submit_question_wrapped(
+                        if let Err(error)
+                            = submit_question(&lobby_id, &player_name, question.clone(), masked)
+                                .await
+                        {
+                            alert_popup(
                                 &lobby_id,
                                 &player_name,
-                                question.clone(),
-                                *masked.get(),
-                            )
-                            .await;
-                        masked.set(false);
+                                &format!("Question rejected {error}"),
+                            );
+                        }
                     });
                 }
             },
@@ -72,13 +76,13 @@ pub fn Management(
         form {
             onsubmit: move |form_data| {
                 let guess = form_data.values.get("guess").and_then(|m| m.first());
-                let key = form_data
+                let item_choice = form_data
                     .values
                     .get("key")
                     .and_then(|m| m.first())
                     .and_then(|k| k.parse::<usize>().ok());
-                if let (Some(guess), Some(key)) = (guess, key) {
-                    player_guess_item_wrapped(lobby_id, player_name, key, guess);
+                if let (Some(guess), Some(item_choice)) = (guess, item_choice) {
+                    player_guess_item(lobby_id, player_name, item_choice, guess);
                 }
             },
             input {
