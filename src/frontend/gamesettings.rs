@@ -50,6 +50,7 @@ pub fn GameSettings(cx: Scope, player_name: String, lobby_id: String, settings: 
                             player_name: player_name.clone(),
                             lobby_id: lobby_id.clone(),
                             items_queue: items_queue.clone(),
+                            settings: settings.clone(),
                         }}
                     }
                 }
@@ -122,7 +123,6 @@ pub fn StandardSettings(cx: Scope, player_name: String, lobby_id: String, settin
                     placeholder: "None",
                     maxlength: 20,
                     pattern: QUESTION_PATTERN,
-                    value: "{settings.theme}",
                     oninput: {
                         move |e| {
                             alter_setting(AlterLobbySetting::Theme(e.value.clone()));
@@ -166,12 +166,16 @@ pub fn StandardSettings(cx: Scope, player_name: String, lobby_id: String, settin
 }
 
 #[component]
-pub fn ItemSettings(cx: Scope, player_name: String, lobby_id: String, items_queue: Vec<String>) -> Element {
+pub fn ItemSettings(cx: Scope, player_name: String, lobby_id: String, items_queue: Vec<String>, settings: LobbySettings) -> Element {
     let alter_setting = {
         move |setting: AlterLobbySetting| {
             alter_lobby_settings(lobby_id, player_name, setting);
         }
     };
+    let mut items_queue = items_queue.clone();
+    while items_queue.len() < settings.item_count {
+        items_queue.push("Loading...".to_owned());
+    }
     cx.render(rsx! {
         div { display: "flex", flex_direction: "column", gap: "5px",
             div {
@@ -191,27 +195,32 @@ pub fn ItemSettings(cx: Scope, player_name: String, lobby_id: String, items_queu
             for item in items_queue {
                 div { display: "flex", flex_direction: "row", gap: "5px", class: "body-box",
                     "{item}"
-                    button {
-                        padding: "2px",
-                        padding_top: "0px",
-                        background_color: "rgb(20, 100, 150)",
-                        onclick: {
-                            move |_| {
-                                alter_setting(AlterLobbySetting::RefreshItem(item.clone()));
+                    if item != "Loading..." {
+                        let item1 = item.clone();
+                        rsx! {
+                            button {
+                                padding: "2px",
+                                padding_top: "0px",
+                                background_color: "rgb(20, 100, 150)",
+                                onclick: {
+                                    move |_| {
+                                        alter_setting(AlterLobbySetting::RefreshItem(item.clone()));
+                                    }
+                                },
+                                "↻"
                             }
-                        },
-                        "↻"
-                    }
-                    button {
-                        padding: "2px",
-                        padding_top: "0px",
-                        background_color: "rgb(100, 20, 20)",
-                        onclick: {
-                            move |_| {
-                                alter_setting(AlterLobbySetting::RemoveItem(item.clone()));
+                            button {
+                                padding: "2px",
+                                padding_top: "0px",
+                                background_color: "rgb(100, 20, 20)",
+                                onclick: {
+                                    move |_| {
+                                        alter_setting(AlterLobbySetting::RemoveItem(item1.clone()));
+                                    }
+                                },
+                                "-"
                             }
-                        },
-                        "-"
+                        }
                     }
                 }
             }

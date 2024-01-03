@@ -55,6 +55,9 @@ pub fn GameView(
                             "Lobby "
                             span { font_weight: "normal", "{lobby_id}" }
                         }
+                        if !settings.theme.trim().is_empty() {
+                            rsx! { div { font_weight: "bold", "Theme ", span { font_weight: "normal", "{settings.theme}" } } }
+                        }
                         div { font_weight: "bold",
                             "Time "
                             span { font_weight: "normal", "{elapsed_time}s" }

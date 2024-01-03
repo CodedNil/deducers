@@ -1,7 +1,7 @@
 use crate::{
     backend::{
         items::{add_item_to_lobby, ask_top_question},
-        parse_words::{select_lobby_words, select_lobby_words_unique},
+        parse_words::topup_lobby_words_if_available,
     },
     IDLE_KICK_TIME, ITEM_NAME_PATTERN, LOBBY_ID_PATTERN, MAX_CHAT_LENGTH, MAX_CHAT_MESSAGES, MAX_ITEM_NAME_LENGTH, MAX_LOBBY_ID_LENGTH,
     MAX_LOBBY_ITEMS, MAX_PLAYER_NAME_LENGTH, PLAYER_NAME_PATTERN,
@@ -10,7 +10,6 @@ use anyhow::{anyhow, bail, Result};
 use once_cell::sync::Lazy;
 use rand::prelude::*;
 use std::{
-    cmp::Ordering,
     collections::HashMap,
     fmt,
     sync::{Arc, Mutex},
@@ -28,6 +27,7 @@ pub mod question_queue;
 pub struct Lobby {
     pub id: String,
     pub started: bool,
+    pub starting: bool,
     pub elapsed_time: f64,
     pub last_update: f64,
     pub key_player: String,
@@ -291,7 +291,7 @@ pub fn get_lobby_info() -> Vec<LobbyInfo> {
     for (id, lobby) in &lobbys_lock.clone() {
         lobby_infos.push(LobbyInfo {
             id: id.clone(),
-            started: lobby.started,
+            started: lobby.started || lobby.starting,
             players_count: lobby.players.len(),
         });
     }
@@ -309,7 +309,6 @@ pub fn create_lobby(lobby_id: &str, player_name: &str) -> Result<()> {
             id: lobby_id.to_owned(),
             last_update: get_current_time(),
             key_player: player_name.to_owned(),
-            items_queue: select_lobby_words(LobbySettings::default().difficulty, LobbySettings::default().item_count),
             settings: LobbySettings::default(),
             ..Default::default()
         },
@@ -325,7 +324,7 @@ pub fn create_lobby(lobby_id: &str, player_name: &str) -> Result<()> {
             for _ in 0..10 {
                 lobby.chat_messages.push(ChatMessage {
                     player: "debug".to_owned(),
-                    message: select_lobby_words(Difficulty::Easy, 1).pop().unwrap(),
+                    message: rand::random::<usize>().to_string(),
                 });
             }
             let questions: Vec<&str> = vec![
@@ -433,7 +432,7 @@ pub fn disconnect_player(lobby_id: &str, player_name: &str) {
 
 pub fn alter_lobby_settings(lobby_id: &str, player_name: &str, setting: AlterLobbySetting) {
     let result = with_lobby_mut(lobby_id, |lobby| {
-        if lobby.started {
+        if lobby.started || lobby.starting {
             bail!("Lobby is started");
         }
         if player_name != lobby.key_player {
@@ -446,17 +445,8 @@ pub fn alter_lobby_settings(lobby_id: &str, player_name: &str, setting: AlterLob
                     bail!("Item count must be between 1 and 20");
                 }
                 lobby.settings.item_count = item_count;
-                // Expand or shrink the items queue to match the new item count
-                match lobby.items_queue.len().cmp(&item_count) {
-                    Ordering::Less => {
-                        lobby
-                            .items_queue
-                            .extend(select_lobby_words_unique(&lobby.items_queue, lobby.settings.difficulty, item_count));
-                    }
-                    Ordering::Greater => {
-                        lobby.items_queue.truncate(item_count);
-                    }
-                    Ordering::Equal => {}
+                if lobby.items_queue.len() > item_count {
+                    lobby.items_queue.truncate(item_count);
                 }
             }
             AlterLobbySetting::Difficulty(difficulty) => {
@@ -471,12 +461,7 @@ pub fn alter_lobby_settings(lobby_id: &str, player_name: &str, setting: AlterLob
             AlterLobbySetting::AddItem(item) => {
                 // If item is empty, pick a random unique word from the difficulty
                 if item.is_empty() {
-                    lobby.items_queue.push(
-                        select_lobby_words_unique(&lobby.items_queue, lobby.settings.difficulty, 1)
-                            .pop()
-                            .unwrap(),
-                    );
-                    lobby.settings.item_count = lobby.items_queue.len();
+                    lobby.settings.item_count += 1;
                     return Ok(());
                 }
                 // Else check if the item is valid and add it to the queue
@@ -496,25 +481,23 @@ pub fn alter_lobby_settings(lobby_id: &str, player_name: &str, setting: AlterLob
                     .map(|(i, c)| if i == 0 { c.to_ascii_uppercase() } else { c })
                     .collect::<String>();
                 lobby.items_queue.push(item);
-                lobby.settings.item_count = lobby.items_queue.len();
+                lobby.settings.item_count += 1;
             }
             AlterLobbySetting::RemoveItem(item) => {
                 let index = lobby.items_queue.iter().position(|i| i.to_lowercase() == item.to_lowercase());
                 if let Some(index) = index {
                     lobby.items_queue.remove(index);
+                    lobby.settings.item_count -= 1;
                 }
-                lobby.settings.item_count = lobby.items_queue.len();
             }
             AlterLobbySetting::RefreshItem(item) => {
                 let index = lobby.items_queue.iter().position(|i| i.to_lowercase() == item.to_lowercase());
                 if let Some(index) = index {
-                    lobby.items_queue[index] = select_lobby_words_unique(&lobby.items_queue, lobby.settings.difficulty, 1)
-                        .pop()
-                        .unwrap();
+                    lobby.items_queue.remove(index);
                 }
             }
             AlterLobbySetting::RefreshAllItems => {
-                lobby.items_queue = select_lobby_words(lobby.settings.difficulty, lobby.settings.item_count);
+                lobby.items_queue = Vec::new();
             }
             AlterLobbySetting::Advanced(key, value) => match key.as_str() {
                 "starting_coins" => lobby.settings.starting_coins = value,
@@ -539,30 +522,15 @@ pub fn alter_lobby_settings(lobby_id: &str, player_name: &str, setting: AlterLob
 
 pub fn start_lobby(lobby_id: &str, player_name: &str) {
     let result = with_lobby_mut(lobby_id, |lobby| {
-        if lobby.started {
+        if lobby.started || lobby.starting {
             bail!("Lobby '{lobby_id}' already started");
         } else if player_name != lobby.key_player {
             bail!("Only the key player can start the lobby '{lobby_id}'",);
         }
-        lobby.started = true;
-        lobby.last_update = get_current_time();
-
-        for player in lobby.players.values_mut() {
-            player.messages.push(PlayerMessage::GameStart);
-            player.coins = lobby.settings.starting_coins;
-            if player.name == lobby.key_player && lobby.settings.player_controlled {
-                player.quizmaster = true;
-            }
-        }
-
+        lobby.starting = true;
         if !lobby.settings.player_controlled {
-            lobby.items_queue = select_lobby_words(lobby.settings.difficulty, lobby.settings.item_count);
+            lobby.items_queue = Vec::new();
         }
-        add_item_to_lobby(lobby);
-        if lobby.settings.item_count > 1 {
-            add_item_to_lobby(lobby);
-        }
-
         println!(
             "Lobby '{lobby_id}' started by key player '{player_name}' with settings {}",
             lobby.settings
@@ -642,10 +610,11 @@ pub fn get_current_time() -> f64 {
     now.duration_since(time::UNIX_EPOCH).unwrap_or_default().as_secs_f64()
 }
 
-pub fn lobby_loop() {
+pub async fn lobby_loop() {
     let mut lobbys_lock = LOBBYS.lock().unwrap();
 
     // Iterate through lobbys to update or remove
+    let mut lobbies_needing_words = Vec::new();
     lobbys_lock.retain(|lobby_id, lobby| {
         let current_time = get_current_time();
 
@@ -666,7 +635,7 @@ pub fn lobby_loop() {
             false
         } else {
             // Update lobby state if lobby is started
-            if lobby.started && lobby_id != "debug" {
+            if lobby.started {
                 let elapsed_time_update = current_time - lobby.last_update;
 
                 // Distribute coins if countdown is ready
@@ -698,8 +667,36 @@ pub fn lobby_loop() {
                 // Update the elapsed time and last update time for the lobby
                 lobby.elapsed_time += elapsed_time_update;
                 lobby.last_update = current_time;
+            } else {
+                if lobby.items_queue.len() > lobby.settings.item_count {
+                    lobby.items_queue.truncate(lobby.settings.item_count);
+                }
+                if !lobby.starting && lobby.settings.player_controlled && lobby.items_queue.len() < lobby.settings.item_count {
+                    lobbies_needing_words.push(lobby_id.clone());
+                }
+                if lobby.starting && lobby.items_queue.len() == lobby.settings.item_count {
+                    lobby.started = true;
+                    lobby.last_update = get_current_time();
+
+                    for player in lobby.players.values_mut() {
+                        player.messages.push(PlayerMessage::GameStart);
+                        player.coins = lobby.settings.starting_coins;
+                        if player.name == lobby.key_player && lobby.settings.player_controlled {
+                            player.quizmaster = true;
+                        }
+                    }
+
+                    add_item_to_lobby(lobby);
+                    if lobby.settings.item_count > 1 {
+                        add_item_to_lobby(lobby);
+                    }
+                }
             }
             true
         }
     });
+
+    for lobby_id in lobbies_needing_words {
+        topup_lobby_words_if_available(&lobby_id);
+    }
 }

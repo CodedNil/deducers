@@ -85,7 +85,7 @@ async fn main() {
 
     tokio::spawn(async move {
         loop {
-            backend::lobby_loop();
+            backend::lobby_loop().await;
             sleep(Duration::from_millis(500)).await;
         }
     });

@@ -294,7 +294,7 @@ pub fn app(cx: Scope) -> Element {
                         player_name: player_name.get().clone(),
                         lobby_id: lobby_id.get().clone(),
                         key_player: lobby.key_player.clone(),
-                        started: lobby.started,
+                        started: lobby.started || lobby.starting,
                         elapsed_time: lobby.elapsed_time.round() as usize,
                         settings: lobby.settings.clone(),
                         questions_queue: lobby.questions_queue.clone(),
@@ -308,7 +308,7 @@ pub fn app(cx: Scope) -> Element {
                     }
                     render_error_dialog,
                     div { class: "dialog {reveal_message.show}", background_color: reveal_message.revealtype.get_str("color").unwrap_or_default(), "{reveal_message.str}" }
-                    if player_name == &lobby.key_player && !lobby.started {
+                    if player_name == &lobby.key_player && !{lobby.started || lobby.starting} {
                         rsx! { GameSettings {
                             player_name: player_name.get().clone(),
                             lobby_id: lobby_id.get().clone(),
