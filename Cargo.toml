@@ -1,7 +1,6 @@
 [package]
 name = "deducers"
 edition = "2021"
-build = "src/build.rs"
 version = "0.1.0"
 
 [dependencies]
@@ -20,9 +19,4 @@ once_cell = "1.19.0"
 rand = "0.8.5"
 strum = "0.25.0"
 strum_macros = "0.25.3"
-
-[build-dependencies]
-anyhow = "1.0.79"
 rsass = "0.28.8"
-csv = "1.3.0"
-serde = { version = "1.0.194", features = ["derive"] }

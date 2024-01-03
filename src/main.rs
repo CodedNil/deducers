@@ -39,8 +39,10 @@ async fn main() {
     let server_address = format!("{server_ip}:{SERVER_PORT}");
 
     // Include the contents of CSS and JS files
-    let css_content = include_str!("style.css");
-    let js_content = include_str!("client.js");
+    let scss_content: &[u8] = include_str!("style.scss").as_bytes();
+    let css_content_bytes: Vec<u8> = rsass::compile_scss(scss_content, rsass::output::Format::default()).expect("Failed to compile SCSS");
+    let css_content = String::from_utf8_lossy(&css_content_bytes).to_string();
+    let js_content: &str = include_str!("client.js");
 
     let view = dioxus_liveview::LiveViewPool::new();
     let index_page_with_glue = move |glue: &str| {
@@ -66,10 +68,6 @@ async fn main() {
         .route(
             "/",
             get(move || async move { index_page_with_glue(&dioxus_liveview::interpreter_glue(&format!("ws://{server_address}/ws"))) }),
-        )
-        .route(
-            "/as-path",
-            get(move || async move { index_page_with_glue(&dioxus_liveview::interpreter_glue("/ws")) }),
         )
         .route(
             "/ws",
