@@ -274,6 +274,12 @@ pub fn quizmaster_reject(lobby_id: &str, player_name: &str, question: &str) {
             .ok_or_else(|| anyhow!("Question not found"))?;
         let question = lobby.quizmaster_queue.remove(question_index);
 
+        add_chat_message_to_lobby(
+            lobby,
+            "SYSTEM",
+            &format!("Quizmaster has rejected question '{}'", question.question.clone()),
+        );
+
         // Refund the voters
         for voter in question.voters {
             if let Some(player) = lobby.players.get_mut(&voter) {

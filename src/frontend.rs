@@ -319,7 +319,7 @@ pub fn app(cx: Scope) -> Element {
                 height: "calc(100vh - 40px)",
                 img { src: "/assets/deducers_banner2.png", width: "400px", padding: "20px" }
                 div { class: "background-box",
-                    for lobby in lobby_info.get().iter().filter(|lobby| lobby.started) {
+                    for lobby in lobby_info.get().iter().filter(|lobby| !lobby.started) {
                         div { display: "flex", flex_direction: "row", align_items: "center", gap: "5px",
                             div { "{lobby.id}: {lobby.players_count} Players" }
                             button {
