@@ -58,7 +58,7 @@ struct Usage {
     total_tokens: usize,
 }
 
-pub async fn query_ai(prompt: &String, max_tokens: usize, temperature: f32) -> Result<String> {
+pub async fn query_ai(prompt: &String, max_tokens: usize, temperature: f32, use_json: bool) -> Result<String> {
     let api_key = env::var("OPENAI_API_KEY").context("No OPENAI_API_KEY found in environment")?;
 
     let messages: Result<Vec<Message>> = prompt
@@ -86,9 +86,13 @@ pub async fn query_ai(prompt: &String, max_tokens: usize, temperature: f32) -> R
         max_tokens,
         temperature,
         messages,
-        response_format: Some(ResponseFormat {
-            response_type: "json_object".into(),
-        }),
+        response_format: if use_json {
+            Some(ResponseFormat {
+                response_type: "json_object".into(),
+            })
+        } else {
+            None
+        },
     };
     let body_str = serde_json::to_string(&body).context("Failed to serialize the request body")?;
 

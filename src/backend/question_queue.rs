@@ -87,7 +87,7 @@ async fn validate_question(question: &str, use_ai: bool) -> ValidateQuestionResp
 
     let response = query_ai(
         &format!("u:Check '{trimmed}' for suitability in a 20 Questions game, return a compact one line JSON with two keys reasoning and suitable, reasoning (concise up to 4 word explanation for suitability, is it a question with clear yes/no/maybe answerability, is it relevant to identifying an item), suitable (bool, if uncertain err on allowing the question unless it clearly fails criteria), British English"),
-        100, 1.0
+        100, 1.0, true
     ).await;
     if let Ok(message) = response {
         if let Ok(validate_response) = serde_json::from_str::<ValidateQuestionResponse>(&message) {

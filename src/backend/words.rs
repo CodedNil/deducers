@@ -1,19 +1,29 @@
 use crate::backend::{openai::query_ai, with_lobby, Difficulty};
 use anyhow::ensure;
 use once_cell::sync::Lazy;
-use serde::Deserialize;
+use rand::{
+    distributions::{Distribution, WeightedIndex},
+    thread_rng,
+};
 use std::sync::{Arc, Mutex};
 
-#[derive(Deserialize)]
-struct ItemsResponse {
-    items: Vec<String>,
+fn generate_weighted_string(length: usize) -> Vec<String> {
+    let letters = [
+        'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
+    ];
+    let weights = [8, 2, 3, 4, 12, 2, 2, 6, 7, 1, 1, 4, 3, 7, 8, 2, 1, 6, 6, 9, 3, 2, 2, 1, 2, 1];
+
+    let mut rng = thread_rng();
+    let dist = WeightedIndex::new(weights).unwrap();
+
+    (0..length).map(|_| letters[dist.sample(&mut rng)].to_string()).collect()
 }
 
 async fn get_ai_words(theme: String, difficulty: Difficulty, items: usize, item_history: Vec<String>) -> Vec<String> {
     let difficulty_description = match difficulty {
-        Difficulty::Easy => "choose easy difficulty words",
-        Difficulty::Medium => "choose easy or medium difficulty words",
-        Difficulty::Hard => "choose easy, medium or hard difficulty words",
+        Difficulty::Easy => "choose simple words",
+        Difficulty::Medium => "choose simple or middling difficulty words",
+        Difficulty::Hard => "choose simple or complex words",
     };
     let theme_description = if theme.trim().is_empty() {
         String::new()
@@ -25,36 +35,38 @@ async fn get_ai_words(theme: String, difficulty: Difficulty, items: usize, item_
     } else {
         format!("previous items chosen were {}, ", item_history.join(", "))
     };
+    let characters_prompt = format!(
+        "words should start with each of these letters in order {}",
+        generate_weighted_string(items).join(";").to_uppercase()
+    );
 
     let mut items_return = Vec::new();
     let mut attempts = 0;
 
     while attempts < 2 && items_return.len() < items {
         let response = query_ai(
-            &format!("u:Create {items} unique single word items to be used in a 20 questions game, such as Phone Bird Crystal, return compact one line JSON with key items, {theme_description}{item_history}aim for variety, British English, categories are [plant, animal, object] unless theme specifies otherwise, {difficulty_description}"),
-            items * 3 + 20, 1.8
+            &format!("u:Create {items} unique single word items to be used in a 20 questions game, such as Phone Bird Crystal, return a comma separated list of items no additional text or spaces, {characters_prompt}, {theme_description}{item_history}aim for variety, British English, categories are [plant, animal, object] unless theme specifies otherwise, {difficulty_description}"),
+            items * 3 + 20, 2.0, false
         ).await;
-        response.map_or_else(
-            |e| println!("Failed to get words from AI {e}"),
-            |message| {
-                if let Ok(items_response) = serde_json::from_str::<ItemsResponse>(&message) {
-                    for item in items_response.items {
-                        if item.len() > 2 && !item.contains(' ') && items_return.len() < items && !items_return.contains(&item) {
-                            // Capitalise the first letter of the item
-                            let item = item
-                                .to_lowercase()
-                                .chars()
-                                .enumerate()
-                                .map(|(i, c)| if i == 0 { c.to_ascii_uppercase() } else { c })
-                                .collect::<String>();
-                            items_return.push(item);
-                        }
-                    }
-                } else {
-                    println!("Failed to parse words from AI {message}");
+        if let Ok(message) = response {
+            for item in message.split(',') {
+                if item.len() > 2
+                    && item.len() < 15
+                    && !item.contains(' ')
+                    && items_return.len() < items
+                    && !items_return.contains(&item.to_owned())
+                {
+                    // Capitalise the first letter of the item
+                    let item = item
+                        .to_lowercase()
+                        .chars()
+                        .enumerate()
+                        .map(|(i, c)| if i == 0 { c.to_ascii_uppercase() } else { c })
+                        .collect::<String>();
+                    items_return.push(item);
                 }
-            },
-        );
+            }
+        }
         attempts += 1;
     }
     if attempts >= 2 {
