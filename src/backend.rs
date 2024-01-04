@@ -28,6 +28,7 @@ pub struct Lobby {
     pub id: String,
     pub started: bool,
     pub starting: bool,
+    pub ended: bool,
     pub elapsed_time: f64,
     pub last_update: f64,
     pub key_player: String,
@@ -593,6 +594,10 @@ pub fn lobby_loop() {
             // Update lobby state if lobby is started
             if lobby.started {
                 let elapsed_time_update = current_time - lobby.last_update;
+                if lobby.ended && lobby.elapsed_time > 10.0 {
+                    println!("Removing lobby '{lobby_id}' due to ended and elapsed time");
+                    return false;
+                }
 
                 // Distribute coins if countdown is ready
                 lobby.coins_countdown -= elapsed_time_update;
@@ -627,12 +632,16 @@ pub fn lobby_loop() {
                 if lobby.items_queue.len() > lobby.settings.item_count {
                     lobby.items_queue.truncate(lobby.settings.item_count);
                 }
-                if (lobby.starting || lobby.settings.player_controlled) && lobby.items_queue.len() < lobby.settings.item_count {
+                if !lobby.started
+                    && (lobby.starting || lobby.settings.player_controlled)
+                    && lobby.items_queue.len() < lobby.settings.item_count
+                {
                     lobbies_needing_words.push(lobby_id.clone());
                 }
                 if lobby.starting && lobby.items_queue.len() == lobby.settings.item_count {
                     add_chat_message_to_lobby(lobby, "SYSTEM", "The game has started, good luck!");
                     lobby.started = true;
+                    lobby.starting = true;
                     lobby.last_update = get_current_time();
 
                     for player in lobby.players.values_mut() {

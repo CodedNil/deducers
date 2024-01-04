@@ -345,7 +345,8 @@ pub fn test_game_over(lobby: &mut Lobby) {
         add_item_to_lobby(lobby);
     }
     if lobby.started && lobby.items.is_empty() {
-        lobby.started = false;
+        lobby.ended = true;
+        lobby.elapsed_time = 0.0;
 
         // Find winner, player with max score, or if tied multiple players, or if 0 score no winner
         let mut max_score = 0;
