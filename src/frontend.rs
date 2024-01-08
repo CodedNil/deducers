@@ -318,6 +318,42 @@ pub fn app(cx: Scope) -> Element {
                 gap: "10px",
                 height: "calc(100vh - 40px)",
                 img { src: "/assets/deducers_banner2.png", width: "400px", padding: "20px" }
+                input {
+                    r#type: "text",
+                    placeholder: "Player Name",
+                    pattern: PLAYER_NAME_PATTERN,
+                    maxlength: MAX_PLAYER_NAME_LENGTH as i64,
+                    oninput: move |e| {
+                        player_name.set(e.value.trim().to_owned());
+                    }
+                }
+                form {
+                    class: "background-box",
+                    onsubmit: move |_| {
+                        lobby_state.set(None);
+                        if let Err(error) = connect_player(lobby_id, player_name) {
+                            error_message
+                                .set(ErrorDialog {
+                                    show: true,
+                                    str: format!("Failed to connect to lobby: {error}"),
+                                });
+                        } else {
+                            is_connected.set(true);
+                        }
+                    },
+                    input {
+                        r#type: "text",
+                        placeholder: "Lobby Id",
+                        pattern: LOBBY_ID_PATTERN,
+                        maxlength: MAX_LOBBY_ID_LENGTH as i64,
+                        oninput: move |e| {
+                            lobby_id.set(e.value.clone());
+                        }
+                    }
+                    button { r#type: "submit",
+                        if is_lobby_valid { "Join" } else { "Create Lobby" }
+                    }
+                }
                 div { class: "background-box",
                     for lobby in lobby_info.get().iter().filter(|lobby| !lobby.started) {
                         div { display: "flex", flex_direction: "row", align_items: "center", gap: "5px",
@@ -346,42 +382,6 @@ pub fn app(cx: Scope) -> Element {
                         tutorial_open.set(true);
                     },
                     "Learn How To Play"
-                }
-                form {
-                    class: "background-box",
-                    onsubmit: move |_| {
-                        lobby_state.set(None);
-                        if let Err(error) = connect_player(lobby_id, player_name) {
-                            error_message
-                                .set(ErrorDialog {
-                                    show: true,
-                                    str: format!("Failed to connect to lobby: {error}"),
-                                });
-                        } else {
-                            is_connected.set(true);
-                        }
-                    },
-                    input {
-                        r#type: "text",
-                        placeholder: "Player Name",
-                        pattern: PLAYER_NAME_PATTERN,
-                        maxlength: MAX_PLAYER_NAME_LENGTH as i64,
-                        oninput: move |e| {
-                            player_name.set(e.value.trim().to_owned());
-                        }
-                    }
-                    input {
-                        r#type: "text",
-                        placeholder: "Lobby Id",
-                        pattern: LOBBY_ID_PATTERN,
-                        maxlength: MAX_LOBBY_ID_LENGTH as i64,
-                        oninput: move |e| {
-                            lobby_id.set(e.value.clone());
-                        }
-                    }
-                    button { r#type: "submit",
-                        if is_lobby_valid { "Join" } else { "Create Lobby" }
-                    }
                 }
             }
             render_error_dialog,

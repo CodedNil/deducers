@@ -15,7 +15,7 @@ pub fn ItemDisplay(cx: Scope, player_name: String, is_quizmaster: bool, items: V
                 if &question.player != player_name && !is_quizmaster {
                     format!("MASKED - {}", question.player)
                 } else {
-                    format!("MASKED - {}", question.text)
+                    format!("MASKED {} - {}", question.text, question.player)
                 }
             } else {
                 question.text.clone()
@@ -48,12 +48,11 @@ pub fn ItemDisplay(cx: Scope, player_name: String, is_quizmaster: bool, items: V
                         class: "body-box",
                         flex: "1",
                         justify_content: "start",
-                        div { font_weight: "bold", width: "20px", "{question_index + 1}" },
                         div { font_style: font_style, question_string }
                     }
                     items.iter().map(|item| {
                         let answer = if is_blank { None } else { item.questions.iter().find(|&q| q.id == question_id).map(|q| q.answer) };
-                        let box_fill = if answer.is_none() { "⭐" } else { "" };
+                        let box_fill = if answer.is_none() && is_blank { "⭐" } else { "" };
                         let answer_color = answer.map_or("rgb(60, 60, 80)", |answer| answer.get_str("color").unwrap_or_default());
                         rsx! {
                             div { class: "body-box", width: "20px", text_align: "center", background_color: answer_color, box_fill }

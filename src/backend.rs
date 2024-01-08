@@ -210,7 +210,7 @@ pub enum Answer {
     No,
     #[strum(props(color = "rgb(140, 80, 0)"))]
     Maybe,
-    #[strum(props(color = "rgb(80, 80, 80)"))]
+    #[strum(props(color = "rgb(130, 130, 130)"))]
     Unknown,
 }
 

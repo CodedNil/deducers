@@ -43,13 +43,15 @@ pub fn QuestionQueueDisplay(
                     div { class: "{row_class}", flex: "1",
                         "{question.votes}"
                         if !is_quizmaster {
-                            rsx! { button {
-                                onclick: move |_| {
-                                    vote_question(lobby_id, player_name, &question.question);
-                                },
-                                padding: "2px",
-                                "1🪙"
-                            }}
+                            rsx! {
+                                button {
+                                    onclick: move |_| {
+                                        vote_question(lobby_id, player_name, &question.question);
+                                    },
+                                    padding: "2px",
+                                    "🪙"
+                                }
+                            }
                         }
                     }
                 }
