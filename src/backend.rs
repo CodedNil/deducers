@@ -504,8 +504,8 @@ pub fn kick_player(lobby_id: &str, player_name: &str, player_to_kick: &str) {
 }
 
 pub fn add_chat_message(lobby_id: &str, player_name: &str, message: &str) {
-    let error_message = if message.len() < 2 {
-        Some("Chat message must be at least 2 characters long".to_string())
+    let error_message = if message.is_empty() {
+        Some("Chat message must be at least 1 character long".to_string())
     } else if message.len() > MAX_CHAT_LENGTH {
         Some(format!("Chat message must be less than {MAX_CHAT_LENGTH} characters long"))
     } else {
@@ -576,14 +576,19 @@ pub fn lobby_loop() {
         let current_time = get_current_time();
 
         // Remove inactive players and check if key player is active
+        let mut players_kicked = Vec::new();
         lobby.players.retain(|player_id, player| {
             if current_time - player.last_contact > IDLE_KICK_TIME {
+                players_kicked.push(player_id.clone());
                 println!("Kicking player '{player_id}' due to idle");
                 false
             } else {
                 true
             }
         });
+        for player_id in players_kicked {
+            add_chat_message_to_lobby(lobby, "SYSTEM", &format!("Player '{player_id}' left"));
+        }
         let key_player_active = lobby.players.contains_key(&lobby.key_player);
 
         // Remove lobby if key player is inactive or no players are left

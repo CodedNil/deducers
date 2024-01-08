@@ -34,6 +34,7 @@ button {
     &.highlighted {
         @include interactive-element(rgb(100, 100, 60));
     }
+    cursor: pointer;
 }
 
 input,

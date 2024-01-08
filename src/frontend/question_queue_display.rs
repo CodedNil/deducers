@@ -27,8 +27,12 @@ pub fn QuestionQueueDisplay(
         }
         questions_queue.iter().map(|question| {
             let row_class = format!("body-box{}", if question.player == *player_name { " self" } else { "" });
-            let question_text = if question.masked && question.player != *player_name {
-                "MASKED".to_owned()
+            let question_text = if question.masked {
+                if question.player != *player_name && !is_quizmaster {
+                    "MASKED".to_owned()
+                } else {
+                    format!("MASKED - {}", question.question)
+                }
             } else {
                 question.question.clone()
             };

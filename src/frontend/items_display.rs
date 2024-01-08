@@ -11,13 +11,16 @@ pub fn ItemDisplay(cx: Scope, player_name: String, is_quizmaster: bool, items: V
         .flat_map(|item| &item.questions)
         .filter(|question| questions_found.insert(question.id))
         .map(|question| {
-            let is_masked = question.masked && &question.player != player_name;
-            let question_text = if is_masked {
-                format!("MASKED - {}", question.player)
+            let question_text = if question.masked {
+                if &question.player != player_name && !is_quizmaster {
+                    format!("MASKED - {}", question.player)
+                } else {
+                    format!("MASKED - {}", question.text)
+                }
             } else {
                 question.text.clone()
             };
-            let font_style = if is_masked { "italic" } else { "normal" };
+            let font_style = if question.masked { "italic" } else { "normal" };
             (question.id, question_text, font_style)
         })
         .collect();
@@ -26,7 +29,7 @@ pub fn ItemDisplay(cx: Scope, player_name: String, is_quizmaster: bool, items: V
         div { class: "table-row",
             div { class: "header-box", flex: "1", "Question" }
             items.iter().map(|item| {
-                let (content, width) = if *is_quizmaster { (item.name.clone(), "unset") } else { (item.id.to_string(), "20px") };
+                let (content, width) = if *is_quizmaster { (format!("{}: {}", item.id, item.name), "unset") } else { (item.id.to_string(), "20px") };
                 rsx! {
                     div { class: "header-box", width: width, flex: "unset", text_align: "center", content }
                 }

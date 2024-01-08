@@ -171,6 +171,13 @@ pub async fn ask_top_question(lobby_id: &str) -> Result<()> {
             }
         }
         if !remove_items.is_empty() {
+            for item in &remove_items {
+                add_chat_message_to_lobby(
+                    lobby,
+                    "SYSTEM",
+                    &format!("Item {} has been removed from play, it was '{}'", item.id, item.name),
+                );
+            }
             lobby.items.retain(|i| !remove_items.contains(i));
         }
 
@@ -327,6 +334,11 @@ pub fn player_guess_item(lobby_id: &str, player_name: &str, item_choice: usize, 
             }
 
             lobby.items.remove(item_index);
+            add_chat_message_to_lobby(
+                lobby,
+                "SYSTEM",
+                &format!("'{player_name}' guessed item {item_choice} as '{guess}'",),
+            );
             test_game_over(lobby);
 
             Ok(())
@@ -369,6 +381,9 @@ pub fn test_game_over(lobby: &mut Lobby) {
                 }
                 Ordering::Less => {}
             }
+        }
+        if max_score == 0 {
+            winners.clear();
         }
         let win_message = if winners.len() > 1 {
             format!("The tied winners are {}!", winners.join(", "))

@@ -160,10 +160,10 @@ pub fn app(cx: Scope) -> Element {
         let mut new_sounds = Vec::new();
         for message in messages_to_process.get() {
             let sound = match message {
-                PlayerMessage::ItemAdded => "item_added",
-                PlayerMessage::QuestionAsked => "question_added",
-                PlayerMessage::GameStart => "game_start",
-                PlayerMessage::CoinGiven => "coin_added",
+                PlayerMessage::ItemAdded => "item_added;0.5",
+                PlayerMessage::QuestionAsked => "question_added;0.5",
+                PlayerMessage::GameStart => "game_start;0.3",
+                PlayerMessage::CoinGiven => "coin_added;0.5",
                 PlayerMessage::ItemGuessed(player_name, item_id, item_name) => {
                     if !(item_reveal_message.read().show && item_reveal_message.read().revealtype == RevealType::Victory) {
                         item_reveal_message.set(ItemRevealMessage::new(
@@ -172,9 +172,9 @@ pub fn app(cx: Scope) -> Element {
                             RevealType::Correct,
                         ));
                     }
-                    "guess_correct"
+                    "guess_correct;0.5"
                 }
-                PlayerMessage::GuessIncorrect => "guess_incorrect",
+                PlayerMessage::GuessIncorrect => "guess_incorrect;0.5",
                 PlayerMessage::ItemRemoved(item_id, item_name) => {
                     if !(item_reveal_message.read().show && item_reveal_message.read().revealtype == RevealType::Victory) {
                         item_reveal_message.set(ItemRevealMessage::new(
@@ -183,15 +183,15 @@ pub fn app(cx: Scope) -> Element {
                             RevealType::Incorrect,
                         ));
                     }
-                    "guess_incorrect"
+                    "guess_incorrect;0.5"
                 }
                 PlayerMessage::Winner(win_message) => {
                     item_reveal_message.set(ItemRevealMessage::new(30.0, win_message.clone(), RevealType::Victory));
-                    "guess_correct"
+                    "guess_correct;0.5"
                 }
                 PlayerMessage::QuestionRejected(message) => {
                     alert_popup.set(AlertPopup::message(format!("Question '{message}' rejected by quizmaster")));
-                    "guess_incorrect"
+                    "guess_incorrect;0.5"
                 }
                 PlayerMessage::AlertPopup(message) => {
                     alert_popup.set(AlertPopup::message(message.clone()));
