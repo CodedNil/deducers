@@ -41,7 +41,7 @@ pub fn GameView(
                 overflow_y: "auto",
                 ItemDisplay { player_name: player_name.to_owned(), is_quizmaster: is_quizmaster, items: items.clone() }
             }
-            div { flex: "1", display: "flex", flex_direction: "column", gap: "20px",
+            div { flex: "1", display: "flex", flex_direction: "column", gap: "20px", overflow_y: "auto",
                 div { display: "flex", flex_direction: "column", gap: "5px",
                     div {
                         // Lobby info

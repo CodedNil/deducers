@@ -22,54 +22,56 @@ pub fn GameSettings(cx: Scope, player_name: String, lobby_id: String, settings: 
     };
 
     cx.render(rsx! {
-        div { class: "dialog true", display: "flex", gap: "20px",
+        div { class: "dialog true", display: "flex", gap: "20px", max_height: "80vh", overflow_y: "auto",
             label { font_weight: "bold", font_size: "larger", "Lobby Settings" }
             label { font_size: "large", "Estimated game length {game_time}" }
-            div { display: "flex", flex_direction: "column", gap: "5px",
+            div { display: "flex", flex_direction: "column", gap: "5px", align_items: "center",
                 StandardSettings {
                     player_name: player_name.clone(),
                     lobby_id: lobby_id.clone(),
                     settings: settings.clone()
                 }
-                div { class: "dark-box",
-                    label {
-                        "Host as Quizmaster: "
-                        input {
-                            r#type: "checkbox",
-                            checked: "{player_controlled}",
-                            oninput: move |e| {
-                                alter_setting(
-                                    AlterLobbySetting::PlayerControlled(e.value.parse::<bool>().unwrap_or(false)),
-                                );
+                div { display: "flex", flex_direction: "row", gap: "5px",
+                    div { class: "dark-box",
+                        label {
+                            "Host as Quizmaster: "
+                            input {
+                                r#type: "checkbox",
+                                checked: "{player_controlled}",
+                                oninput: move |e| {
+                                    alter_setting(
+                                        AlterLobbySetting::PlayerControlled(e.value.parse::<bool>().unwrap_or(false)),
+                                    );
+                                }
                             }
                         }
-                    }
-                    if player_controlled {
-                        rsx! { ItemSettings {
-                            player_name: player_name.clone(),
-                            lobby_id: lobby_id.clone(),
-                            items_queue: items_queue.clone(),
-                            settings: settings.clone(),
-                        }}
-                    }
-                }
-                div { class: "dark-box",
-                    label {
-                        "Advanced options: "
-                        input {
-                            r#type: "checkbox",
-                            checked: "{advanced_settings_toggle}",
-                            oninput: move |e| {
-                                advanced_settings_toggle.set(e.value.parse::<bool>().unwrap_or(false));
-                            }
+                        if player_controlled {
+                            rsx! { ItemSettings {
+                                player_name: player_name.clone(),
+                                lobby_id: lobby_id.clone(),
+                                items_queue: items_queue.clone(),
+                                settings: settings.clone(),
+                            }}
                         }
                     }
-                    if *advanced_settings_toggle.get() {
-                        rsx! { AdvancedSettings {
-                            player_name: player_name.clone(),
-                            lobby_id: lobby_id.clone(),
-                            settings: settings.clone(),
-                        }}
+                    div { class: "dark-box",
+                        label {
+                            "Advanced options: "
+                            input {
+                                r#type: "checkbox",
+                                checked: "{advanced_settings_toggle}",
+                                oninput: move |e| {
+                                    advanced_settings_toggle.set(e.value.parse::<bool>().unwrap_or(false));
+                                }
+                            }
+                        }
+                        if *advanced_settings_toggle.get() {
+                            rsx! { AdvancedSettings {
+                                player_name: player_name.clone(),
+                                lobby_id: lobby_id.clone(),
+                                settings: settings.clone(),
+                            }}
+                        }
                     }
                 }
             }

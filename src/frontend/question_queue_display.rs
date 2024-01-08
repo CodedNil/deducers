@@ -48,7 +48,7 @@ pub fn QuestionQueueDisplay(
                                     vote_question(lobby_id, player_name, &question.question);
                                 },
                                 padding: "2px",
-                                "🪙"
+                                "1🪙"
                             }}
                         }
                     }
