@@ -85,31 +85,21 @@ pub fn GameSettings(cx: Scope, player_name: String, lobby_id: String, settings: 
     })
 }
 
-// Function to estimate game time in seconds
 fn calculate_game_time(items_count: usize, question_every_x_seconds: usize, item_every_x_questions: usize) -> String {
-    // Initial items are added at the start, so we subtract them from the total count
-    let remaining_items = if items_count > 2 { items_count - 2 } else { 0 };
-
-    // Calculate the number of questions after which all items are added
-    let final_item_added_at_question = if items_count > 2 {
-        remaining_items * item_every_x_questions
+    // Calculate the total number of questions required
+    // Initial two items are added to begin with, additional items need 'item_every_x_questions' each
+    let total_questions = if items_count > 2 {
+        20 + (items_count - 2) * item_every_x_questions
     } else {
-        0
+        20
     };
+    let game_time_seconds = total_questions * question_every_x_seconds;
 
-    // Total questions required to remove all items (20 questions per item)
-    let total_questions_to_complete = 20 + final_item_added_at_question;
-
-    // Calculate total game time in seconds
-    let game_time = total_questions_to_complete * question_every_x_seconds;
-
-    if game_time < 60 {
-        // If less than a minute, display just in seconds
-        format!("{game_time} seconds")
+    if game_time_seconds < 60 {
+        format!("{game_time_seconds} seconds")
     } else {
-        // Calculate minutes and seconds
-        let minutes = game_time / 60;
-        let seconds = game_time % 60;
+        let minutes = game_time_seconds / 60;
+        let seconds = game_time_seconds % 60;
         format!("{minutes} minutes {seconds} seconds")
     }
 }
