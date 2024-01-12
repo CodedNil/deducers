@@ -36,7 +36,7 @@ pub fn QuestionQueueDisplay(
             } else {
                 question.question.clone()
             };
-            cx.render(rsx! {
+            rsx! {
                 div { class: "table-row",
                     div { class: "{row_class}", flex: "1", "{question.player}" }
                     div { class: "{row_class}", flex: "3", "{question_text}" }
@@ -55,7 +55,7 @@ pub fn QuestionQueueDisplay(
                         }
                     }
                 }
-            })
+            }
         })
     })
 }

@@ -1,7 +1,6 @@
 use crate::{
     backend::{
-        add_chat_message, disconnect_player, start_lobby, ChatMessage, Item, LobbySettings, PlayerReduced, QueuedQuestion,
-        QueuedQuestionQuizmaster,
+        add_chat_message, disconnect_player, ChatMessage, Item, LobbySettings, PlayerReduced, QueuedQuestion, QueuedQuestionQuizmaster,
     },
     frontend::{
         items_display::ItemDisplay, leaderboard_display::Leaderboard, management_display::Management,
@@ -34,23 +33,17 @@ pub fn GameView(
 
     cx.render(rsx! {
         div { display: "flex", height: "calc(100vh - 40px)", gap: "20px",
-            div {
-                // Items
-                class: "background-box",
-                flex: "1.5",
-                overflow_y: "auto",
+            div { class: "background-box", flex: "1.5", overflow_y: "auto",
                 ItemDisplay { player_name: player_name.to_owned(), is_quizmaster: is_quizmaster, items: items.clone() }
             }
             div { flex: "1", display: "flex", flex_direction: "column", gap: "20px", overflow_y: "auto",
                 div { display: "flex", flex_direction: "column", gap: "5px",
                     div {
-                        // Lobby info
                         class: "background-box",
                         flex_direction: "row",
                         gap: "20px",
                         justify_content: "space-between",
                         align_items: "center",
-
                         div { font_weight: "bold",
                             "Lobby "
                             span { font_weight: "normal", "{lobby_id}" }
@@ -63,23 +56,14 @@ pub fn GameView(
                             span { font_weight: "normal", "{elapsed_time}s" }
                         }
                         div { display: "flex", gap: "5px",
-                            if is_keyplayer && !started {
-                                rsx! { button { onclick: move |_| {
-                                    start_lobby(lobby_id, player_name);
-                                }, "Start" } }
-                            }
-                            button {
-                                onclick: move |_| {
+                            button { onclick: move |_| {
                                     disconnect_player(lobby_id, player_name);
                                 },
                                 "Disconnect"
                             }
                         }
                     }
-
-                    div {
-                        // Leaderboard
-                        class: "background-box",
+                    div { class: "background-box",
                         Leaderboard {
                             player_name: player_name.to_owned(),
                             lobby_id: lobby_id.to_owned(),
@@ -89,9 +73,7 @@ pub fn GameView(
                     }
                 }
                 div { display: "flex", flex_direction: "column", gap: "5px",
-                    div {
-                        // Management
-                        class: "background-box",
+                    div { class: "background-box",
                         if *started {
                             if player_name == key_player && settings.player_controlled {
                                 rsx! {
@@ -126,11 +108,7 @@ pub fn GameView(
                         }
                     }
                 }
-                div {
-                    // Questions Queue
-                    class: "background-box",
-                    min_height: "150px",
-                    overflow_y: "auto",
+                div { class: "background-box", min_height: "150px", overflow_y: "auto",
                     QuestionQueueDisplay {
                         player_name: player_name.to_owned(),
                         lobby_id: lobby_id.to_owned(),
@@ -141,12 +119,7 @@ pub fn GameView(
                         is_quizmaster: is_quizmaster
                     }
                 }
-                div {
-                    // Chat
-                    class: "background-box",
-                    flex: "1",
-                    min_height: "150px",
-                    overflow_y: "auto",
+                div { class: "background-box", flex: "1", min_height: "150px", overflow_y: "auto",
                     div { class: "header-box", "Chat" }
                     div { flex: "1", display: "flex", flex_direction: "column", gap: "3px", overflow_y: "auto",
                         chat_messages.iter().rev().map(|message| {

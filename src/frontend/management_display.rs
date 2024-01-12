@@ -75,13 +75,15 @@ pub fn Management(
         }
         form {
             onsubmit: move |form_data| {
-                let guess = form_data.values.get("guess").and_then(|m| m.first());
-                let item_choice = form_data
-                    .values
-                    .get("key")
-                    .and_then(|m| m.first())
-                    .and_then(|k| k.parse::<usize>().ok());
-                if let (Some(guess), Some(item_choice)) = (guess, item_choice) {
+                if let (Some(guess), Some(item_choice))
+                    = (
+                        form_data.values.get("guess").and_then(|m| m.first()),
+                        form_data
+                            .values
+                            .get("key")
+                            .and_then(|m| m.first())
+                            .and_then(|k| k.parse().ok()),
+                    ) {
                     player_guess_item(lobby_id, player_name, item_choice, guess);
                 }
             },

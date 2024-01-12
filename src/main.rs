@@ -13,6 +13,9 @@ mod frontend;
 
 pub const SERVER_PORT: u16 = 3013;
 
+pub const CLIENT_UPDATE_INTERVAL: f64 = 0.5;
+pub const SERVER_UPDATE_INTERVAL: f64 = 0.5;
+
 pub const IDLE_KICK_TIME: f64 = 10.0;
 
 pub const MAX_QUESTION_LENGTH: usize = 70;
@@ -85,7 +88,7 @@ async fn main() {
     tokio::spawn(async move {
         loop {
             backend::lobby_loop();
-            sleep(Duration::from_millis(500)).await;
+            sleep(Duration::from_secs_f64(SERVER_UPDATE_INTERVAL)).await;
         }
     });
 

@@ -1,13 +1,10 @@
 use crate::{
     backend::{connect_player, get_current_time, get_lobby_info, get_state, Lobby, Player, PlayerMessage},
     frontend::{gamesettings::GameSettings, gameview::GameView},
-    LOBBY_ID_PATTERN, MAX_LOBBY_ID_LENGTH, MAX_PLAYER_NAME_LENGTH, PLAYER_NAME_PATTERN,
+    CLIENT_UPDATE_INTERVAL, LOBBY_ID_PATTERN, MAX_LOBBY_ID_LENGTH, MAX_PLAYER_NAME_LENGTH, PLAYER_NAME_PATTERN,
 };
 use dioxus::prelude::*;
-use std::{
-    sync::{atomic, Arc},
-    time::Duration,
-};
+use std::time::Duration;
 use strum::EnumProperty;
 use strum_macros::{Display, EnumProperty};
 use tokio::time::sleep;
@@ -155,97 +152,88 @@ pub fn app(cx: Scope) -> Element {
         alert_popup.set(AlertPopup::default());
     }
 
-    let messages_to_process = use_state(cx, Vec::new);
-    if !messages_to_process.get().is_empty() {
-        let mut new_sounds = Vec::new();
-        for message in messages_to_process.get() {
-            let sound = match message {
-                PlayerMessage::ItemAdded => "item_added;0.5",
-                PlayerMessage::QuestionAsked => "question_added;0.5",
-                PlayerMessage::GameStart => "game_start;0.3",
-                PlayerMessage::CoinGiven => "coin_added;0.5",
-                PlayerMessage::ItemGuessed(player_name, item_id, item_name) => {
-                    if !(item_reveal_message.read().show && item_reveal_message.read().revealtype == RevealType::Victory) {
-                        item_reveal_message.set(ItemRevealMessage::new(
-                            5.0,
-                            format!("{player_name} guessed item {item_id} correctly as {item_name}!"),
-                            RevealType::Correct,
-                        ));
+    let last_update = use_state(cx, get_current_time);
+    if get_current_time() - last_update.get() > CLIENT_UPDATE_INTERVAL {
+        last_update.set(get_current_time());
+        if *is_connected.get() {
+            if let Ok((lobby, messages)) = get_state(lobby_id, player_name) {
+                let mut new_sounds = Vec::new();
+                for message in messages {
+                    let sound = match message {
+                        PlayerMessage::ItemAdded => "item_added;0.5",
+                        PlayerMessage::QuestionAsked => "question_added;0.5",
+                        PlayerMessage::GameStart => "game_start;0.3",
+                        PlayerMessage::CoinGiven => "coin_added;0.5",
+                        PlayerMessage::ItemGuessed(player_name, item_id, item_name) => {
+                            if !(item_reveal_message.read().show && item_reveal_message.read().revealtype == RevealType::Victory) {
+                                item_reveal_message.set(ItemRevealMessage::new(
+                                    5.0,
+                                    format!("{player_name} guessed item {item_id} correctly as {item_name}!"),
+                                    RevealType::Correct,
+                                ));
+                            }
+                            "guess_correct;0.5"
+                        }
+                        PlayerMessage::GuessIncorrect => "guess_incorrect;0.5",
+                        PlayerMessage::ItemRemoved(item_id, item_name) => {
+                            if !(item_reveal_message.read().show && item_reveal_message.read().revealtype == RevealType::Victory) {
+                                item_reveal_message.set(ItemRevealMessage::new(
+                                    5.0,
+                                    format!("Item {item_id} was removed from the game, it was {item_name}!"),
+                                    RevealType::Incorrect,
+                                ));
+                            }
+                            "guess_incorrect;0.5"
+                        }
+                        PlayerMessage::Winner(win_message) => {
+                            item_reveal_message.set(ItemRevealMessage::new(30.0, win_message.clone(), RevealType::Victory));
+                            "guess_correct;0.5"
+                        }
+                        PlayerMessage::QuestionRejected(message) => {
+                            alert_popup.set(AlertPopup::message(format!("Question '{message}' rejected by quizmaster")));
+                            "guess_incorrect;0.5"
+                        }
+                        PlayerMessage::AlertPopup(message) => {
+                            alert_popup.set(AlertPopup::message(message.clone()));
+                            ""
+                        }
+                        PlayerMessage::PlayerKicked => {
+                            error_message.set(ErrorDialog {
+                                show: true,
+                                str: "You were kicked from the lobby".to_string(),
+                            });
+                            ""
+                        }
+                    };
+                    if !sound.is_empty() {
+                        new_sounds.push(SoundsQueue {
+                            expiry: get_current_time() + 5.0,
+                            sound: String::from(sound),
+                        });
                     }
-                    "guess_correct;0.5"
                 }
-                PlayerMessage::GuessIncorrect => "guess_incorrect;0.5",
-                PlayerMessage::ItemRemoved(item_id, item_name) => {
-                    if !(item_reveal_message.read().show && item_reveal_message.read().revealtype == RevealType::Victory) {
-                        item_reveal_message.set(ItemRevealMessage::new(
-                            5.0,
-                            format!("Item {item_id} was removed from the game, it was {item_name}!"),
-                            RevealType::Incorrect,
-                        ));
-                    }
-                    "guess_incorrect;0.5"
-                }
-                PlayerMessage::Winner(win_message) => {
-                    item_reveal_message.set(ItemRevealMessage::new(30.0, win_message.clone(), RevealType::Victory));
-                    "guess_correct;0.5"
-                }
-                PlayerMessage::QuestionRejected(message) => {
-                    alert_popup.set(AlertPopup::message(format!("Question '{message}' rejected by quizmaster")));
-                    "guess_incorrect;0.5"
-                }
-                PlayerMessage::AlertPopup(message) => {
-                    alert_popup.set(AlertPopup::message(message.clone()));
-                    ""
-                }
-                PlayerMessage::PlayerKicked => {
-                    error_message.set(ErrorDialog {
-                        show: true,
-                        str: "You were kicked from the lobby".to_string(),
+                if !new_sounds.is_empty() {
+                    sounds_to_play.with_mut(|sounds| {
+                        sounds.extend(new_sounds);
                     });
-                    ""
                 }
-            };
-            if !sound.is_empty() {
-                new_sounds.push(SoundsQueue {
-                    expiry: get_current_time() + 5.0,
-                    sound: String::from(sound),
-                });
+                lobby_state.set(Some(lobby));
+            } else {
+                lobby_state.set(None);
+                is_connected.set(false);
             }
+        } else {
+            lobby_info.set(get_lobby_info());
         }
-        if !new_sounds.is_empty() {
-            sounds_to_play.with_mut(|sounds| {
-                sounds.extend(new_sounds);
-            });
-        }
-        messages_to_process.set(Vec::new());
     }
-
-    // Get lobby state every x seconds if connected or lobby info if not connected
-    let cancel_signal = use_state(cx, || Arc::new(atomic::AtomicBool::new(false)));
-    use_effect(cx, is_connected, |is_connected| {
-        // Set the cancellation signal for the previous loop
-        let cancel_signal = cancel_signal.clone();
-        cancel_signal.store(true, atomic::Ordering::SeqCst);
-        let new_cancel_signal = Arc::new(atomic::AtomicBool::new(false));
-        cancel_signal.set(Arc::<atomic::AtomicBool>::clone(&new_cancel_signal));
-
-        let (lobby_state, lobby_info) = (lobby_state.clone(), lobby_info.clone());
-        let messages_to_process = messages_to_process.clone();
-        let (lobby_id, player_name) = (lobby_id.get().clone(), player_name.get().clone());
+    // Force a refresh every CLIENT_UPDATE_INTERVAL
+    let count = use_state(cx, || 0);
+    use_effect(cx, (), |()| {
+        let count = count.clone();
         async move {
-            while !new_cancel_signal.load(atomic::Ordering::SeqCst) {
-                if *is_connected.get() {
-                    if let Ok((lobby, messages)) = get_state(&lobby_id, &player_name) {
-                        messages_to_process.set(messages);
-                        lobby_state.set(Some(lobby));
-                    } else {
-                        is_connected.set(false);
-                        break;
-                    }
-                } else {
-                    lobby_info.set(get_lobby_info());
-                }
-                sleep(Duration::from_millis(500)).await;
+            loop {
+                count.modify(|c| c + 1);
+                sleep(Duration::from_secs_f64(CLIENT_UPDATE_INTERVAL)).await;
             }
         }
     });

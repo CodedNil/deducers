@@ -1,5 +1,5 @@
 use crate::{
-    backend::{alter_lobby_settings, AlterLobbySetting, Difficulty, LobbySettings},
+    backend::{alter_lobby_settings, start_lobby, AlterLobbySetting, Difficulty, LobbySettings},
     ITEM_NAME_PATTERN, MAX_ITEM_NAME_LENGTH, MAX_LOBBY_ITEMS, QUESTION_PATTERN,
 };
 use dioxus::prelude::*;
@@ -25,6 +25,12 @@ pub fn GameSettings(cx: Scope, player_name: String, lobby_id: String, settings: 
         div { class: "dialog true", display: "flex", gap: "20px", max_height: "80vh", overflow_y: "auto",
             label { font_weight: "bold", font_size: "larger", "Lobby Settings" }
             label { font_size: "large", "Estimated game length {game_time}" }
+            button {
+                onclick: move |_| {
+                    start_lobby(lobby_id, player_name);
+                },
+                "Start"
+            }
             div { display: "flex", flex_direction: "column", gap: "5px", align_items: "center",
                 StandardSettings {
                     player_name: player_name.clone(),
