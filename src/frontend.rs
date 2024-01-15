@@ -262,7 +262,7 @@ pub fn app(cx: Scope) -> Element {
 
     if *is_connected.get() {
         lobby_state.get().as_ref().map_or_else(
-            || cx.render(rsx! { div { "Loading" } }),
+            || cx.render(rsx! { div {} }),
             |lobby| {
                 let sounds_str = sounds_to_play
                     .read()
@@ -285,6 +285,7 @@ pub fn app(cx: Scope) -> Element {
                         quizmaster_queue: lobby.quizmaster_queue.clone(),
                         players: lobby.players.values().map(Player::reduce).collect(),
                         items: lobby.items.clone(),
+                        questions: lobby.questions.clone(),
                         chat_messages: lobby.chat_messages.clone(),
                         alert_popup_message: alert_popup.get().message.clone()
                     }

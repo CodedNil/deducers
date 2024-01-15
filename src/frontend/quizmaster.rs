@@ -1,12 +1,18 @@
 use crate::backend::{
     items::{quizmaster_change_answer, quizmaster_reject, quizmaster_submit},
-    Answer, QueuedQuestionQuizmaster,
+    Answer, Item, QueuedQuestion,
 };
 use dioxus::prelude::*;
 use strum::IntoEnumIterator;
 
 #[component]
-pub fn QuizmasterDisplay(cx: Scope, player_name: String, lobby_id: String, quizmaster_queue: Vec<QueuedQuestionQuizmaster>) -> Element {
+pub fn QuizmasterDisplay(
+    cx: Scope,
+    player_name: String,
+    lobby_id: String,
+    quizmaster_queue: Vec<QueuedQuestion>,
+    items: Vec<Item>,
+) -> Element {
     cx.render(rsx! {
         div { class: "table-row",
             div { class: "header-box", flex: "1", "Player" }
@@ -33,31 +39,33 @@ pub fn QuizmasterDisplay(cx: Scope, player_name: String, lobby_id: String, quizm
                     }
                 }
                 div { display: "flex", gap: "5px",
-                    for item in question.items.iter() {
-                        div {
-                            class: "body-box",
-                            flex: "1",
-                            display: "flex",
-                            flex_direction: "column",
-                            gap: "5px",
-                            background_color: item.answer.to_color(),
-                            div { "{item.name}: {item.answer.to_string()}" }
-                            div { display: "flex", width: "100%",
-                                for answer in Answer::iter() {
-                                    button {
-                                        class: "body-box",
-                                        padding: "8px",
-                                        flex: "1",
-                                        border: "1px solid white",
-                                        background_color: answer.to_color(),
-                                        onclick: move |_| {
-                                            quizmaster_change_answer(lobby_id, player_name, &question.question, item.id, answer);
+                    question.answers.iter().map(|(item_id, answer)| {
+                        items.iter().find(|item| &item.id == item_id).map_or_else(|| rsx! { div { }}, |item|
+                            rsx! { div {
+                                class: "body-box",
+                                flex: "1",
+                                display: "flex",
+                                flex_direction: "column",
+                                gap: "5px",
+                                background_color: answer.to_color(),
+                                div { "{item.name}: {answer.to_string()}" }
+                                div { display: "flex", width: "100%",
+                                    for answer in Answer::iter() {
+                                        button {
+                                            class: "body-box",
+                                            padding: "8px",
+                                            flex: "1",
+                                            border: "1px solid white",
+                                            background_color: answer.to_color(),
+                                            onclick: move |_| {
+                                                quizmaster_change_answer(lobby_id, player_name, &question.question, item.id, answer);
+                                            }
                                         }
                                     }
                                 }
-                            }
-                        }
-                    }
+                            }}
+                        )
+                    })
                 }
             }
         }

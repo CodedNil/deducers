@@ -1,6 +1,6 @@
 use crate::backend::{
     add_chat_message_to_lobby, alert_popup, openai::query_ai, with_lobby, Answer, Item, Lobby, LobbyState, PlayerMessage, Question,
-    QueuedQuestionQuizmaster, QuizmasterItem,
+    QueuedQuestion,
 };
 use anyhow::{anyhow, bail, ensure, Result};
 use futures::future::join_all;
@@ -16,7 +16,7 @@ pub fn add_item_to_lobby(lobby: &mut Lobby) {
     lobby.items.push(Item {
         name: item_name,
         id: lobby.items_counter + 1,
-        questions: Vec::new(),
+        answers: HashMap::new(),
     });
     lobby.items_counter += 1;
     for player in lobby.players.values_mut() {
@@ -39,10 +39,10 @@ pub async fn ask_top_question(lobby_id: &str) -> Result<()> {
         let question = lobby
             .questions_queue
             .iter()
-            .max_by_key(|question| question.votes)
+            .max_by_key(|question| question.voters.len())
             .ok_or_else(|| anyhow!("No questions in queue"))?;
 
-        if question.votes < lobby.settings.question_min_votes {
+        if question.voters.len() < lobby.settings.question_min_votes {
             bail!("Question needs at least {} votes", lobby.settings.question_min_votes);
         }
 
@@ -67,21 +67,17 @@ pub async fn ask_top_question(lobby_id: &str) -> Result<()> {
 
     // If quizmaster end here and add to the quizmasters queue
     if is_quizmaster {
-        let items_list = items
+        let answers_hashmap = items
             .iter()
-            .map(|item| QuizmasterItem {
-                id: item.id,
-                name: item.name.clone(),
-                answer: Answer::Maybe,
-            })
-            .collect();
+            .map(|item| (item.id, Answer::Unknown))
+            .collect::<HashMap<usize, Answer>>();
         with_lobby(lobby_id, |lobby| {
-            lobby.quizmaster_queue.push(QueuedQuestionQuizmaster {
+            lobby.quizmaster_queue.push(QueuedQuestion {
                 question: question_text.clone(),
                 player: question_player.clone(),
                 masked: question_masked,
-                items: items_list,
                 voters: question_voters,
+                answers: answers_hashmap,
             });
             Ok(())
         })?;
@@ -150,20 +146,21 @@ pub async fn ask_top_question(lobby_id: &str) -> Result<()> {
         let question_id = lobby.questions_counter;
         lobby.questions_counter += 1;
 
+        lobby.questions.push(Question {
+            player: question_player.clone(),
+            id: question_id,
+            text: question_text.clone(),
+            masked: question_masked,
+        });
+
         // Ask question against each item
         let mut remove_items = Vec::new();
         for (index, item) in &mut lobby.items.iter_mut().enumerate() {
             let answer = answers.get(index).unwrap_or(&Answer::Unknown);
-            item.questions.push(Question {
-                player: question_player.clone(),
-                id: question_id,
-                text: question_text.clone(),
-                answer: *answer,
-                masked: question_masked,
-            });
+            item.answers.insert(question_id, *answer);
 
             // If item has 20 questions, remove the item
-            if item.questions.len() >= 20 {
+            if item.answers.len() >= 20 {
                 remove_items.push(item.clone());
                 for player_n in lobby.players.values_mut() {
                     player_n.messages.push(PlayerMessage::ItemRemoved(item.id, item.name.clone()));
@@ -198,13 +195,16 @@ pub fn quizmaster_change_answer(lobby_id: &str, player_name: &str, question: &St
         ensure!(lobby.state == LobbyState::Play, "Lobby not started");
         let player = lobby.players.get(player_name).ok_or_else(|| anyhow!("Player not found"))?;
         ensure!(player.quizmaster, "Only quizmaster can use this");
-        lobby
-            .quizmaster_queue
-            .iter_mut()
-            .find(|q| &q.question == question)
-            .and_then(|q| q.items.iter_mut().find(|i| i.id == item_id))
-            .map(|i| i.answer = new_answer)
-            .ok_or_else(|| anyhow!("Question or item not found"))
+        for queued_question in &mut lobby.quizmaster_queue {
+            if question == &queued_question.question {
+                for (id, answer) in &mut queued_question.answers {
+                    if id == &item_id {
+                        *answer = new_answer;
+                    }
+                }
+            }
+        }
+        Ok(())
     });
     if let Err(error) = result {
         alert_popup(lobby_id, player_name, &format!("Change answer failed {error}"));
@@ -226,21 +226,21 @@ pub fn quizmaster_submit(lobby_id: &str, player_name: &str, question: &str) {
 
         let question_id = lobby.questions_counter;
         lobby.questions_counter += 1;
+        lobby.questions.push(Question {
+            player: question.player.clone(),
+            id: question_id,
+            text: question.question.clone(),
+            masked: question.masked,
+        });
 
         let mut remove_items = Vec::new();
-        for quizmaster_item in question.items.clone() {
-            let item = lobby.items.iter_mut().find(|i| i.id == quizmaster_item.id);
+        for (item_id, answer) in question.answers {
+            let item = lobby.items.iter_mut().find(|i| i.id == item_id);
             if let Some(item) = item {
-                item.questions.push(Question {
-                    player: question.player.clone(),
-                    id: question_id,
-                    text: question.question.clone(),
-                    answer: quizmaster_item.answer,
-                    masked: question.masked,
-                });
+                item.answers.insert(question_id, answer);
 
                 // If item has 20 questions, remove the item
-                if item.questions.len() >= 20 {
+                if item.answers.len() >= 20 {
                     remove_items.push(item.clone());
                     for player_n in lobby.players.values_mut() {
                         player_n.messages.push(PlayerMessage::ItemRemoved(item.id, item.name.clone()));
@@ -326,7 +326,7 @@ pub fn player_guess_item(lobby_id: &str, player_name: &str, item_choice: usize, 
         player.coins -= lobby.settings.guess_item_cost;
         if item.name.eq_ignore_ascii_case(guess) {
             // Correct guess
-            player.score += 20 - item.questions.len();
+            player.score += 20 - item.answers.len();
 
             for p in lobby.players.values_mut() {
                 p.messages

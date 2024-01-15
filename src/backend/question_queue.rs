@@ -4,6 +4,7 @@ use crate::{
 };
 use anyhow::{anyhow, bail, ensure, Result};
 use serde::Deserialize;
+use std::collections::HashMap;
 
 pub async fn submit_question(lobby_id: &str, player_name: &str, question: String, masked: bool) -> Result<()> {
     let mut total_cost = 0;
@@ -50,9 +51,9 @@ pub async fn submit_question(lobby_id: &str, player_name: &str, question: String
         lobby.questions_queue.push(QueuedQuestion {
             player: player_name.to_owned(),
             question,
-            votes: 0,
             voters: Vec::new(),
             masked,
+            answers: HashMap::new(),
         });
         Ok(())
     })
@@ -117,7 +118,6 @@ pub fn vote_question(lobby_id: &str, player_name: &str, question: &String) {
             .ok_or_else(|| anyhow!("Question not found in queue"))?;
 
         player.coins -= 1;
-        queued_question.votes += 1;
         queued_question.voters.push(player_name.to_owned());
         Ok(())
     });

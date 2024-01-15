@@ -41,7 +41,7 @@ pub fn QuestionQueueDisplay(
                     div { class: "{row_class}", flex: "1", "{question.player}" }
                     div { class: "{row_class}", flex: "3", "{question_text}" }
                     div { class: "{row_class}", flex: "1",
-                        "{question.votes}"
+                        "{question.voters.len()}"
                         if !is_quizmaster {
                             rsx! {
                                 button {

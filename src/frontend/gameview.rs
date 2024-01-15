@@ -1,7 +1,5 @@
 use crate::{
-    backend::{
-        add_chat_message, disconnect_player, ChatMessage, Item, LobbySettings, PlayerReduced, QueuedQuestion, QueuedQuestionQuizmaster,
-    },
+    backend::{add_chat_message, disconnect_player, ChatMessage, Item, LobbySettings, PlayerReduced, Question, QueuedQuestion},
     frontend::{
         items_display::ItemDisplay, leaderboard_display::Leaderboard, management_display::Management,
         question_queue_display::QuestionQueueDisplay, quizmaster::QuizmasterDisplay,
@@ -22,9 +20,10 @@ pub fn GameView(
     questions_queue: Vec<QueuedQuestion>,
     questions_queue_active: bool,
     questions_queue_countdown: usize,
-    quizmaster_queue: Vec<QueuedQuestionQuizmaster>,
+    quizmaster_queue: Vec<QueuedQuestion>,
     players: Vec<PlayerReduced>,
     items: Vec<Item>,
+    questions: Vec<Question>,
     chat_messages: Vec<ChatMessage>,
     alert_popup_message: String,
 ) -> Element {
@@ -34,7 +33,12 @@ pub fn GameView(
     cx.render(rsx! {
         div { display: "flex", height: "calc(100vh - 40px)", gap: "20px",
             div { class: "background-box", flex: "1.5", overflow_y: "auto",
-                ItemDisplay { player_name: player_name.to_owned(), is_quizmaster: is_quizmaster, items: items.clone() }
+                ItemDisplay {
+                    player_name: player_name.to_owned(),
+                    is_quizmaster: is_quizmaster,
+                    items: items.clone(),
+                    questions: questions.clone()
+                }
             }
             div { flex: "1", display: "flex", flex_direction: "column", gap: "20px", overflow_y: "auto",
                 div { display: "flex", flex_direction: "column", gap: "5px",
@@ -80,7 +84,8 @@ pub fn GameView(
                                     QuizmasterDisplay {
                                         player_name: player_name.clone(),
                                         lobby_id: lobby_id.clone(),
-                                        quizmaster_queue: quizmaster_queue.clone()
+                                        quizmaster_queue: quizmaster_queue.clone(),
+                                        items: items.clone(),
                                     }
                                 }
                             } else {

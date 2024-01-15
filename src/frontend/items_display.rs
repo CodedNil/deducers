@@ -1,13 +1,16 @@
-use crate::backend::Item;
+use crate::backend::{Item, Question};
 use dioxus::prelude::*;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 #[component]
-pub fn ItemDisplay(cx: Scope, player_name: String, is_quizmaster: bool, items: Vec<Item>) -> Element {
+pub fn ItemDisplay(cx: Scope, player_name: String, is_quizmaster: bool, items: Vec<Item>, questions: Vec<Question>) -> Element {
+    let questions_by_id: HashMap<usize, &Question> = questions.iter().map(|q| (q.id, q)).collect();
     let mut questions_found = HashSet::new();
+
     let mut active_questions: Vec<_> = items
         .iter()
-        .flat_map(|item| &item.questions)
+        .flat_map(|item| &item.answers)
+        .filter_map(|(question_id, _)| questions_by_id.get(question_id))
         .filter(|question| questions_found.insert(question.id))
         .map(|question| {
             let question_text = if question.masked {
@@ -22,12 +25,13 @@ pub fn ItemDisplay(cx: Scope, player_name: String, is_quizmaster: bool, items: V
             let font_style = if question.masked { "italic" } else { "normal" };
             let answers = items
                 .iter()
-                .map(|item| item.questions.iter().find(|&q| q.id == question.id).map(|q| q.answer))
+                .map(|item| item.answers.iter().find(|&(id, _)| id == &question.id).map(|(_, a)| a))
                 .collect();
-            (question_text, font_style, answers)
+            (question.id, question_text, font_style, answers)
         })
         .collect();
-    active_questions.resize_with(20, || (String::new(), "normal", vec![None; items.len()]));
+    active_questions.sort_by(|(id_a, _, _, _), (id_b, _, _, _)| id_a.cmp(id_b));
+    active_questions.resize_with(20, || (0, String::new(), "normal", vec![None; items.len()]));
 
     cx.render(rsx! {
         div { class: "table-row",
@@ -38,7 +42,7 @@ pub fn ItemDisplay(cx: Scope, player_name: String, is_quizmaster: bool, items: V
                 }
             }
         }
-        for (question_string , font_style , answers) in active_questions {
+        for (_ , question_string , font_style , answers) in active_questions {
             div { class: "table-row", flex: "1",
                 div { class: "body-box", flex: "1", justify_content: "start", div { font_style: font_style, "{question_string}" } }
                 for answer in answers {

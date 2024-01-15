@@ -30,22 +30,28 @@ pub struct Lobby {
     pub elapsed_time: f64,
     pub last_update: f64,
     pub key_player: String,
+
     pub players: HashMap<String, Player>,
-    pub coins_countdown: f64,
     pub chat_messages: Vec<ChatMessage>,
     pub questions_queue: Vec<QueuedQuestion>,
-    pub questions_queue_countdown: f64,
-    pub quizmaster_queue: Vec<QueuedQuestionQuizmaster>,
+    pub quizmaster_queue: Vec<QueuedQuestion>,
     pub items: Vec<Item>,
     pub items_queue: Vec<String>,
+    pub questions: Vec<Question>,
+
+    pub settings: LobbySettings,
+
+    pub coins_countdown: f64,
+    pub questions_queue_countdown: f64,
     pub items_counter: usize,
     pub questions_counter: usize,
-    pub settings: LobbySettings,
 }
 
 impl Lobby {
     pub fn questions_queue_active(&self) -> bool {
-        self.questions_queue.iter().any(|q| q.votes >= self.settings.question_min_votes)
+        self.questions_queue
+            .iter()
+            .any(|q| q.voters.len() >= self.settings.question_min_votes)
     }
 }
 
@@ -173,31 +179,15 @@ pub struct QueuedQuestion {
     pub player: String,
     pub question: String,
     pub masked: bool,
-    pub votes: usize,
     pub voters: Vec<String>,
-}
-
-#[derive(Clone, PartialEq, Eq)]
-pub struct QueuedQuestionQuizmaster {
-    pub player: String,
-    pub question: String,
-    pub masked: bool,
-    pub items: Vec<QuizmasterItem>,
-    pub voters: Vec<String>,
-}
-
-#[derive(Clone, PartialEq, Eq)]
-pub struct QuizmasterItem {
-    pub name: String,
-    pub id: usize,
-    pub answer: Answer,
+    pub answers: HashMap<usize, Answer>,
 }
 
 #[derive(Clone, PartialEq, Eq)]
 pub struct Item {
     pub name: String,
     pub id: usize,
-    pub questions: Vec<Question>,
+    pub answers: HashMap<usize, Answer>,
 }
 
 #[derive(Clone, PartialEq, Eq)]
@@ -205,7 +195,6 @@ pub struct Question {
     pub player: String,
     pub id: usize,
     pub text: String,
-    pub answer: Answer,
     pub masked: bool,
 }
 
@@ -321,20 +310,22 @@ fn create_debug_lobby(lobby_id: &str) -> Result<()> {
             lobby.questions_queue.push(QueuedQuestion {
                 player: "debug".to_owned(),
                 question: question.clone(),
-                votes: rand::random::<usize>() % 6,
-                voters: Vec::new(),
+                voters: (0..rand::random::<usize>() % 6)
+                    .map(|_| rand::random::<usize>().to_string())
+                    .collect(),
                 masked: rand::random::<usize>() % 5 == 0,
+                answers: HashMap::new(),
             });
             let id = lobby.questions_counter;
             lobby.questions_counter += 1;
+            lobby.questions.push(Question {
+                player: "debug".to_owned(),
+                id,
+                text: question.clone(),
+                masked: rand::random::<usize>() % 5 == 0,
+            });
             for item in &mut lobby.items {
-                item.questions.push(Question {
-                    player: "debug".to_owned(),
-                    id,
-                    text: question.clone(),
-                    answer: Answer::iter().choose(&mut rand::thread_rng()).unwrap(),
-                    masked: rand::random::<usize>() % 5 == 0,
-                });
+                item.answers.insert(id, Answer::iter().choose(&mut rand::thread_rng()).unwrap());
             }
             if lobby.questions_counter % lobby.settings.add_item_every_x_questions == 0 {
                 add_item_to_lobby(lobby);
@@ -646,6 +637,7 @@ pub fn lobby_loop() {
                 lobby.elapsed_time += elapsed_time_update;
                 lobby.last_update = current_time;
             } else {
+                // Keep the items queue topped up
                 if lobby.items_queue.len() > lobby.settings.item_count {
                     lobby.items_queue.truncate(lobby.settings.item_count);
                 }
@@ -655,6 +647,7 @@ pub fn lobby_loop() {
                 {
                     lobbies_needing_words.push(lobby_id.clone());
                 }
+                // Start the game when ready
                 if lobby.state == LobbyState::Starting && lobby.items_queue.len() == lobby.settings.item_count {
                     add_chat_message_to_lobby(lobby, "SYSTEM", "The game has started, good luck!");
                     lobby.state = LobbyState::Play;
