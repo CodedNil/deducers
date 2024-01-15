@@ -16,7 +16,7 @@ use std::{
     time,
 };
 use strum::IntoEnumIterator;
-use strum_macros::{Display, EnumIter, EnumProperty, EnumString};
+use strum_macros::{Display, EnumIter, EnumString};
 
 pub mod items;
 pub mod openai;
@@ -209,16 +209,23 @@ pub struct Question {
     pub masked: bool,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Hash, EnumString, Display, EnumIter, EnumProperty)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, EnumString, Display, EnumIter)]
 pub enum Answer {
-    #[strum(props(color = "rgb(60, 130, 50)"))]
     Yes,
-    #[strum(props(color = "rgb(130, 50, 50)"))]
     No,
-    #[strum(props(color = "rgb(140, 80, 0)"))]
     Maybe,
-    #[strum(props(color = "rgb(130, 130, 130)"))]
     Unknown,
+}
+
+impl Answer {
+    pub const fn to_color(self) -> &'static str {
+        match self {
+            Self::Yes => "rgb(60, 130, 50)",
+            Self::No => "rgb(130, 50, 50)",
+            Self::Maybe => "rgb(140, 80, 0)",
+            Self::Unknown => "rgb(130, 130, 130)",
+        }
+    }
 }
 
 static LOBBYS: Lazy<Arc<Mutex<HashMap<String, Lobby>>>> = Lazy::new(|| Arc::new(Mutex::new(HashMap::new())));

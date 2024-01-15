@@ -1,7 +1,6 @@
 use crate::backend::Item;
 use dioxus::prelude::*;
 use std::collections::HashSet;
-use strum::EnumProperty;
 
 #[component]
 pub fn ItemDisplay(cx: Scope, player_name: String, is_quizmaster: bool, items: Vec<Item>) -> Element {
@@ -43,7 +42,7 @@ pub fn ItemDisplay(cx: Scope, player_name: String, is_quizmaster: bool, items: V
             div { class: "table-row", flex: "1",
                 div { class: "body-box", flex: "1", justify_content: "start", div { font_style: font_style, "{question_string}" } }
                 for answer in answers {
-                    div { class: "body-box", width: "20px", text_align: "center", background_color: answer.map_or("rgb(60, 60, 80)", |answer| answer.get_str("color").unwrap_or_default()),
+                    div { class: "body-box", width: "20px", text_align: "center", background_color: answer.map_or("rgb(60, 60, 80)", |answer| answer.to_color()),
                         if answer.is_none() && question_string.is_empty() { "⭐" } else { "" }
                     }
                 }

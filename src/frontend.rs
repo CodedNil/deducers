@@ -5,8 +5,7 @@ use crate::{
 };
 use dioxus::prelude::*;
 use std::time::Duration;
-use strum::EnumProperty;
-use strum_macros::{Display, EnumProperty};
+use strum_macros::Display;
 use tokio::time::sleep;
 
 mod gamesettings;
@@ -25,15 +24,22 @@ struct ItemRevealMessage {
     revealtype: RevealType,
 }
 
-#[derive(Clone, Copy, PartialEq, Default, Display, EnumProperty)]
+#[derive(Clone, Copy, PartialEq, Default, Display)]
 enum RevealType {
-    #[strum(props(color = "rgb(120, 110, 20)"))]
     Victory,
-    #[strum(props(color = "rgb(60, 130, 50)"))]
     Correct,
     #[default]
-    #[strum(props(color = "rgb(140, 80, 0)"))]
     Incorrect,
+}
+
+impl RevealType {
+    pub const fn to_color(self) -> &'static str {
+        match self {
+            Self::Victory => "rgb(120, 110, 20)",
+            Self::Correct => "rgb(60, 130, 50)",
+            Self::Incorrect => "rgb(140, 80, 0)",
+        }
+    }
 }
 
 impl ItemRevealMessage {
@@ -283,7 +289,7 @@ pub fn app(cx: Scope) -> Element {
                         alert_popup_message: alert_popup.get().message.clone()
                     }
                     render_error_dialog,
-                    div { class: "dialog {reveal_message.show}", background_color: reveal_message.revealtype.get_str("color").unwrap_or_default(), "{reveal_message.str}" }
+                    div { class: "dialog {reveal_message.show}", background_color: reveal_message.revealtype.to_color(), "{reveal_message.str}" }
                     if player_name == &lobby.key_player && !matches!(lobby.state, LobbyState::Play | LobbyState::Starting) {
                         rsx! { GameSettings {
                             player_name: player_name.get().clone(),

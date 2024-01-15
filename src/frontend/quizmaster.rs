@@ -3,7 +3,7 @@ use crate::backend::{
     Answer, QueuedQuestionQuizmaster,
 };
 use dioxus::prelude::*;
-use strum::{EnumProperty, IntoEnumIterator};
+use strum::IntoEnumIterator;
 
 #[component]
 pub fn QuizmasterDisplay(cx: Scope, player_name: String, lobby_id: String, quizmaster_queue: Vec<QueuedQuestionQuizmaster>) -> Element {
@@ -40,7 +40,7 @@ pub fn QuizmasterDisplay(cx: Scope, player_name: String, lobby_id: String, quizm
                             display: "flex",
                             flex_direction: "column",
                             gap: "5px",
-                            background_color: item.answer.get_str("color").unwrap_or_default(),
+                            background_color: item.answer.to_color(),
                             div { "{item.name}: {item.answer.to_string()}" }
                             div { display: "flex", width: "100%",
                                 for answer in Answer::iter() {
@@ -49,7 +49,7 @@ pub fn QuizmasterDisplay(cx: Scope, player_name: String, lobby_id: String, quizm
                                         padding: "8px",
                                         flex: "1",
                                         border: "1px solid white",
-                                        background_color: answer.get_str("color").unwrap_or_default(),
+                                        background_color: answer.to_color(),
                                         onclick: move |_| {
                                             quizmaster_change_answer(lobby_id, player_name, &question.question, item.id, answer);
                                         }
