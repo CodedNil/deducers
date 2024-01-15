@@ -1,5 +1,5 @@
 use crate::{
-    backend::{alert_popup, openai::query_ai, with_lobby, with_player, QueuedQuestion},
+    backend::{alert_popup, openai::query_ai, with_lobby, with_player, LobbyState, QueuedQuestion},
     MAX_QUESTION_LENGTH,
 };
 use anyhow::{anyhow, bail, ensure, Result};
@@ -9,7 +9,7 @@ pub async fn submit_question(lobby_id: &str, player_name: &str, question: String
     let mut total_cost = 0;
     let mut has_quizmaster = false;
     with_player(lobby_id, player_name, |lobby, player| {
-        ensure!(lobby.started, "Lobby not started");
+        ensure!(lobby.state == LobbyState::Play, "Lobby not started");
         total_cost = if masked {
             lobby.settings.submit_question_cost + lobby.settings.masked_question_cost
         } else {
@@ -106,7 +106,7 @@ pub fn vote_question(lobby_id: &str, player_name: &str, question: &String) {
             .players
             .get_mut(player_name)
             .ok_or_else(|| anyhow!("Player '{player_name}' not found"))?;
-        ensure!(lobby.started, "Lobby not started");
+        ensure!(lobby.state == LobbyState::Play, "Lobby not started");
         ensure!(!player.quizmaster, "Quizmaster cannot engage");
         ensure!(player.coins >= 1, "Insufficient coins");
 
@@ -128,7 +128,7 @@ pub fn vote_question(lobby_id: &str, player_name: &str, question: &String) {
 
 pub fn convert_score(lobby_id: &str, player_name: &str) {
     let result = with_player(lobby_id, player_name, |lobby, player| {
-        ensure!(lobby.started, "Lobby not started");
+        ensure!(lobby.state == LobbyState::Play, "Lobby not started");
         ensure!(!player.quizmaster, "Quizmaster cannot engage");
         ensure!(player.score >= 1, "Insufficient score");
         player.score -= 1;

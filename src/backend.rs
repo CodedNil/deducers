@@ -26,9 +26,7 @@ pub mod words;
 #[derive(Clone, Default)]
 pub struct Lobby {
     pub id: String,
-    pub started: bool,
-    pub starting: bool,
-    pub ended: bool,
+    pub state: LobbyState,
     pub elapsed_time: f64,
     pub last_update: f64,
     pub key_player: String,
@@ -49,6 +47,15 @@ impl Lobby {
     pub fn questions_queue_active(&self) -> bool {
         self.questions_queue.iter().any(|q| q.votes >= self.settings.question_min_votes)
     }
+}
+
+#[derive(Clone, Default, PartialEq)]
+pub enum LobbyState {
+    #[default]
+    Open,
+    Starting,
+    Play,
+    Ended,
 }
 
 #[derive(Clone, PartialEq, Eq)]
@@ -254,7 +261,7 @@ pub fn get_lobby_info() -> Vec<LobbyInfo> {
     for (id, lobby) in &lobbys_lock.clone() {
         lobby_infos.push(LobbyInfo {
             id: id.clone(),
-            started: lobby.started || lobby.starting,
+            started: matches!(lobby.state, LobbyState::Play | LobbyState::Starting),
             players_count: lobby.players.len(),
         });
     }
@@ -287,7 +294,7 @@ pub fn create_lobby(lobby_id: &str, player_name: &str) -> Result<()> {
 fn create_debug_lobby(lobby_id: &str) -> Result<()> {
     println!("Creating debug lobby");
     with_lobby(lobby_id, |lobby| {
-        lobby.started = true;
+        lobby.state = LobbyState::Play;
         lobby.last_update = get_current_time();
         lobby.items_queue = ["Apple", "Banana", "Orange", "Pear", "Pineapple"]
             .iter()
@@ -352,7 +359,7 @@ pub fn connect_player(lobby_id: &str, player_name: &str) -> Result<()> {
         lobby.players.entry(player_name.to_owned()).or_insert(Player {
             name: player_name.to_owned(),
             last_contact: get_current_time(),
-            coins: if lobby.started {
+            coins: if lobby.state == LobbyState::Play {
                 lobby.settings.starting_coins + (lobby.elapsed_time / lobby.settings.coin_every_x_seconds as f64).floor() as usize
             } else {
                 0
@@ -375,7 +382,7 @@ pub fn disconnect_player(lobby_id: &str, player_name: &str) {
 
 pub fn alter_lobby_settings(lobby_id: &str, player_name: &str, setting: AlterLobbySetting) {
     let result = with_lobby(lobby_id, |lobby| {
-        ensure!(!lobby.started && !lobby.starting, "Lobby is started");
+        ensure!(lobby.state == LobbyState::Open, "Lobby is started");
         ensure!(player_name == lobby.key_player, "Only the key player can alter the lobby settings");
         match setting {
             AlterLobbySetting::ItemCount(item_count) => {
@@ -452,12 +459,12 @@ pub fn alter_lobby_settings(lobby_id: &str, player_name: &str, setting: AlterLob
 
 pub fn start_lobby(lobby_id: &str, player_name: &str) {
     let result = with_lobby(lobby_id, |lobby| {
-        if lobby.started || lobby.starting {
+        if matches!(lobby.state, LobbyState::Play | LobbyState::Starting) {
             bail!("Lobby '{lobby_id}' already started");
         } else if player_name != lobby.key_player {
             bail!("Only the key player can start the lobby '{lobby_id}'",);
         }
-        lobby.starting = true;
+        lobby.state = LobbyState::Starting;
         if !lobby.settings.player_controlled {
             lobby.items_queue = Vec::new();
         }
@@ -595,13 +602,13 @@ pub fn lobby_loop() {
             println!("Removing lobby '{lobby_id}' due to no key player or no players");
             false
         } else {
+            if lobby.state == LobbyState::Ended && lobby.elapsed_time > 10.0 {
+                println!("Removing lobby '{lobby_id}' due to ended and elapsed time");
+                return false;
+            }
             // Update lobby state if lobby is started
-            if lobby.started {
+            if lobby.state == LobbyState::Play {
                 let elapsed_time_update = current_time - lobby.last_update;
-                if lobby.ended && lobby.elapsed_time > 10.0 {
-                    println!("Removing lobby '{lobby_id}' due to ended and elapsed time");
-                    return false;
-                }
 
                 // Distribute coins if countdown is ready
                 lobby.coins_countdown -= elapsed_time_update;
@@ -636,16 +643,15 @@ pub fn lobby_loop() {
                 if lobby.items_queue.len() > lobby.settings.item_count {
                     lobby.items_queue.truncate(lobby.settings.item_count);
                 }
-                if !lobby.started
-                    && (lobby.starting || lobby.settings.player_controlled)
-                    && lobby.items_queue.len() < lobby.settings.item_count
+                if lobby.items_queue.len() < lobby.settings.item_count
+                    && ((lobby.state == LobbyState::Open && lobby.settings.player_controlled)
+                        || (lobby.state == LobbyState::Starting && !lobby.settings.player_controlled))
                 {
                     lobbies_needing_words.push(lobby_id.clone());
                 }
-                if lobby.starting && lobby.items_queue.len() == lobby.settings.item_count {
+                if lobby.state == LobbyState::Starting && lobby.items_queue.len() == lobby.settings.item_count {
                     add_chat_message_to_lobby(lobby, "SYSTEM", "The game has started, good luck!");
-                    lobby.started = true;
-                    lobby.starting = true;
+                    lobby.state = LobbyState::Play;
                     lobby.last_update = get_current_time();
 
                     for player in lobby.players.values_mut() {

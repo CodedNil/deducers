@@ -1,5 +1,5 @@
 use crate::backend::{
-    add_chat_message_to_lobby, alert_popup, openai::query_ai, with_lobby, Answer, Item, Lobby, PlayerMessage, Question,
+    add_chat_message_to_lobby, alert_popup, openai::query_ai, with_lobby, Answer, Item, Lobby, LobbyState, PlayerMessage, Question,
     QueuedQuestionQuizmaster, QuizmasterItem,
 };
 use anyhow::{anyhow, bail, ensure, Result};
@@ -8,7 +8,7 @@ use serde::Deserialize;
 use std::{cmp::Ordering, collections::HashMap, str::FromStr};
 
 pub fn add_item_to_lobby(lobby: &mut Lobby) {
-    if !lobby.started || lobby.items_queue.is_empty() {
+    if lobby.state != LobbyState::Play || lobby.items_queue.is_empty() {
         return;
     }
     let item_name = lobby.items_queue.remove(0);
@@ -195,7 +195,7 @@ pub async fn ask_top_question(lobby_id: &str) -> Result<()> {
 
 pub fn quizmaster_change_answer(lobby_id: &str, player_name: &str, question: &String, item_id: usize, new_answer: Answer) {
     let result = with_lobby(lobby_id, |lobby| {
-        ensure!(lobby.started, "Lobby not started");
+        ensure!(lobby.state == LobbyState::Play, "Lobby not started");
         let player = lobby.players.get(player_name).ok_or_else(|| anyhow!("Player not found"))?;
         ensure!(player.quizmaster, "Only quizmaster can use this");
         lobby
@@ -213,7 +213,7 @@ pub fn quizmaster_change_answer(lobby_id: &str, player_name: &str, question: &St
 
 pub fn quizmaster_submit(lobby_id: &str, player_name: &str, question: &str) {
     let result = with_lobby(lobby_id, |lobby| {
-        ensure!(lobby.started, "Lobby not started");
+        ensure!(lobby.state == LobbyState::Play, "Lobby not started");
         let player = lobby.players.get(player_name).ok_or_else(|| anyhow!("Player not found"))?;
         ensure!(player.quizmaster, "Only quizmaster can use this");
 
@@ -270,7 +270,7 @@ pub fn quizmaster_submit(lobby_id: &str, player_name: &str, question: &str) {
 
 pub fn quizmaster_reject(lobby_id: &str, player_name: &str, question: &str) {
     let result = with_lobby(lobby_id, |lobby| {
-        ensure!(lobby.started, "Lobby not started");
+        ensure!(lobby.state == LobbyState::Play, "Lobby not started");
         let player = lobby.players.get(player_name).ok_or_else(|| anyhow!("Player not found"))?;
         ensure!(player.quizmaster, "Only quizmaster can use this");
 
@@ -308,7 +308,7 @@ pub fn quizmaster_reject(lobby_id: &str, player_name: &str, question: &str) {
 
 pub fn player_guess_item(lobby_id: &str, player_name: &str, item_choice: usize, guess: &str) {
     let result = with_lobby(lobby_id, |lobby| {
-        ensure!(lobby.started, "Lobby not started");
+        ensure!(lobby.state == LobbyState::Play, "Lobby not started");
         let player = lobby
             .players
             .get_mut(player_name)
@@ -362,8 +362,8 @@ pub fn test_game_over(lobby: &mut Lobby) {
     if lobby.items.is_empty() && !lobby.items_queue.is_empty() {
         add_item_to_lobby(lobby);
     }
-    if lobby.started && lobby.items.is_empty() {
-        lobby.ended = true;
+    if lobby.state == LobbyState::Play && lobby.items.is_empty() {
+        lobby.state = LobbyState::Ended;
         lobby.elapsed_time = 0.0;
 
         // Find winner, player with max score, or if tied multiple players, or if 0 score no winner

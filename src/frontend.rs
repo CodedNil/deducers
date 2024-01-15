@@ -1,5 +1,5 @@
 use crate::{
-    backend::{connect_player, get_current_time, get_lobby_info, get_state, Lobby, Player, PlayerMessage},
+    backend::{connect_player, get_current_time, get_lobby_info, get_state, Lobby, LobbyState, Player, PlayerMessage},
     frontend::{gamesettings::GameSettings, gameview::GameView},
     CLIENT_UPDATE_INTERVAL, LOBBY_ID_PATTERN, MAX_LOBBY_ID_LENGTH, MAX_PLAYER_NAME_LENGTH, PLAYER_NAME_PATTERN,
 };
@@ -270,7 +270,7 @@ pub fn app(cx: Scope) -> Element {
                         player_name: player_name.get().clone(),
                         lobby_id: lobby_id.get().clone(),
                         key_player: lobby.key_player.clone(),
-                        started: lobby.started || lobby.starting,
+                        started: matches!(lobby.state, LobbyState::Play | LobbyState::Starting),
                         elapsed_time: lobby.elapsed_time.round() as usize,
                         settings: lobby.settings.clone(),
                         questions_queue: lobby.questions_queue.clone(),
@@ -284,7 +284,7 @@ pub fn app(cx: Scope) -> Element {
                     }
                     render_error_dialog,
                     div { class: "dialog {reveal_message.show}", background_color: reveal_message.revealtype.get_str("color").unwrap_or_default(), "{reveal_message.str}" }
-                    if player_name == &lobby.key_player && !{lobby.started || lobby.starting} {
+                    if player_name == &lobby.key_player && !matches!(lobby.state, LobbyState::Play | LobbyState::Starting) {
                         rsx! { GameSettings {
                             player_name: player_name.get().clone(),
                             lobby_id: lobby_id.get().clone(),
