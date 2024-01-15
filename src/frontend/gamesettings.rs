@@ -268,15 +268,15 @@ impl SettingDetail {
 #[component]
 pub fn AdvancedSettings(cx: Scope, player_name: String, lobby_id: String, settings: LobbySettings) -> Element {
     let setting_details = vec![
-        SettingDetail::new("starting_coins", 1, 100, settings.starting_coins),
-        SettingDetail::new("coin_every_x_seconds", 1, 20, settings.coin_every_x_seconds),
-        SettingDetail::new("submit_question_every_x_seconds", 1, 30, settings.submit_question_every_x_seconds),
+        SettingDetail::new("starting_coins", 0, 1000, settings.starting_coins),
+        SettingDetail::new("coin_every_x_seconds", 0, 30, settings.coin_every_x_seconds),
+        SettingDetail::new("submit_question_every_x_seconds", 1, 50, settings.submit_question_every_x_seconds),
         SettingDetail::new("add_item_every_x_questions", 1, 20, settings.add_item_every_x_questions),
-        SettingDetail::new("submit_question_cost", 1, 100, settings.submit_question_cost),
-        SettingDetail::new("masked_question_cost", 1, 100, settings.masked_question_cost),
-        SettingDetail::new("guess_item_cost", 1, 100, settings.guess_item_cost),
-        SettingDetail::new("question_min_votes", 1, 20, settings.question_min_votes),
-        SettingDetail::new("score_to_coins_ratio", 1, 100, settings.score_to_coins_ratio),
+        SettingDetail::new("submit_question_cost", 0, 100, settings.submit_question_cost),
+        SettingDetail::new("masked_question_cost", 0, 100, settings.masked_question_cost),
+        SettingDetail::new("guess_item_cost", 0, 100, settings.guess_item_cost),
+        SettingDetail::new("question_min_votes", 0, 20, settings.question_min_votes),
+        SettingDetail::new("score_to_coins_ratio", 0, 100, settings.score_to_coins_ratio),
     ];
 
     cx.render(rsx! {

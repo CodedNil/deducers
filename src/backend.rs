@@ -98,13 +98,6 @@ impl Default for LobbySettings {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, EnumString, Display, EnumIter)]
-pub enum Difficulty {
-    Easy,
-    Medium,
-    Hard,
-}
-
 #[derive(Clone)]
 pub enum AlterLobbySetting {
     ItemCount(usize),
@@ -116,6 +109,13 @@ pub enum AlterLobbySetting {
     RefreshItem(String),
     RefreshAllItems,
     Advanced(String, usize),
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, EnumString, Display, EnumIter)]
+pub enum Difficulty {
+    Easy,
+    Medium,
+    Hard,
 }
 
 #[derive(Clone, PartialEq, Eq)]
@@ -449,7 +449,6 @@ pub fn alter_lobby_settings(lobby_id: &str, player_name: &str, setting: AlterLob
                 _ => bail!("Invalid advanced setting key"),
             },
         }
-
         Ok(())
     });
     if let Err(e) = result {
