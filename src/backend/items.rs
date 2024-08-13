@@ -46,11 +46,11 @@ pub async fn ask_top_question(lobby_id: &str) -> Result<()> {
             bail!("Question needs at least {} votes", lobby.settings.question_min_votes);
         }
 
-        question_text = question.question.clone();
-        question_player = question.player.clone();
+        question_text.clone_from(&question.question);
+        question_player.clone_from(&question.player);
         question_masked = question.masked;
-        question_voters = question.voters.clone();
-        items = lobby.items.clone();
+        question_voters.clone_from(&question.voters);
+        items.clone_from(&lobby.items);
 
         // Remove question from queue
         lobby.questions_queue.retain(|q| q.question != question_text);

@@ -2,7 +2,7 @@ use anyhow::{anyhow, bail, Context, Result};
 use serde::{Deserialize, Serialize};
 use std::{env, fs::OpenOptions, io::Write, time::Duration};
 
-const GPT_MODEL: &str = "gpt-4-1106-preview";
+const GPT_MODEL: &str = "gpt-4o";
 
 // ---------- Request Payload ----------
 // Represents the main structure for the API request payload.
@@ -58,7 +58,7 @@ struct Usage {
     total_tokens: usize,
 }
 
-pub async fn query_ai(prompt: &String, max_tokens: usize, temperature: f32, use_json: bool) -> Result<String> {
+pub async fn query_ai(prompt: &str, max_tokens: usize, temperature: f32, use_json: bool) -> Result<String> {
     let api_key = env::var("OPENAI_API_KEY").context("No OPENAI_API_KEY found in environment")?;
 
     let messages: Result<Vec<Message>> = prompt
@@ -125,7 +125,7 @@ pub async fn query_ai(prompt: &String, max_tokens: usize, temperature: f32, use_
 }
 
 #[allow(clippy::suboptimal_flops)]
-fn log_details(prompt: &String, result: &MessageResponse, tokens: &Usage) -> Result<()> {
+fn log_details(prompt: &str, result: &MessageResponse, tokens: &Usage) -> Result<()> {
     // Pricing is input $0.0015 / 1K tokens output $0.002 / 1K tokens
     let price = ((tokens.prompt_tokens as f64 * 0.0015) + (tokens.completion_tokens as f64 * 0.002)) / 1000.0;
 

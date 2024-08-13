@@ -81,9 +81,9 @@ static LOBBYS_PROCESSING: Lazy<Arc<Mutex<Vec<String>>>> = Lazy::new(|| Arc::new(
 async fn topup_lobby(lobby_id: &str) {
     let (mut items_queue, mut item_count, mut theme, mut difficulty) = (Vec::new(), 0, String::new(), Difficulty::Easy);
     let _result = with_lobby(lobby_id, |lobby| {
-        items_queue = lobby.items_queue.clone();
+        items_queue.clone_from(&lobby.items_queue);
         item_count = lobby.settings.item_count;
-        theme = lobby.settings.theme.clone();
+        theme.clone_from(&lobby.settings.theme);
         difficulty = lobby.settings.difficulty;
         Ok(())
     });

@@ -512,7 +512,7 @@ pub fn add_chat_message(lobby_id: &str, player_name: &str, message: &str) {
     } else if message.len() > MAX_CHAT_LENGTH {
         Some(format!("Chat message must be less than {MAX_CHAT_LENGTH} characters long"))
     } else {
-        match with_lobby(lobby_id, |lobby| {
+        let res = with_lobby(lobby_id, |lobby| {
             lobby.chat_messages.push(ChatMessage {
                 player: player_name.to_owned(),
                 message: message.to_owned(),
@@ -521,7 +521,8 @@ pub fn add_chat_message(lobby_id: &str, player_name: &str, message: &str) {
                 lobby.chat_messages.remove(0);
             }
             Ok(())
-        }) {
+        });
+        match res {
             Ok(()) => None,
             Err(e) => Some(format!("Chat message failed to send {e}")),
         }
